@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-slate-100 text-slate-800 antialiased;
+    font-family: 'Rubik', 'Assistant', system-ui, 'Segoe UI', Arial, sans-serif;
+    margin: 0;
+  }
+  /* Larger tap targets for touch / Zebra tablets */
+  button,
+  input,
+  select,
+  textarea {
+    font-family: inherit;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-2xl shadow-card border border-slate-100;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-base font-semibold
+           transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed
+           focus:outline-none focus:ring-2 focus:ring-offset-1;
+    min-height: 48px;
+  }
+  .btn-lg {
+    @apply px-7 py-4 text-lg;
+    min-height: 60px;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white hover:bg-brand-700 focus:ring-brand-500;
+  }
+  .btn-ok {
+    @apply btn bg-ok-600 text-white hover:bg-ok-700 focus:ring-ok-500;
+  }
+  .btn-fault {
+    @apply btn bg-fault-600 text-white hover:bg-fault-700 focus:ring-fault-500;
+  }
+  .btn-ghost {
+    @apply btn bg-slate-100 text-slate-700 hover:bg-slate-200 focus:ring-slate-400;
+  }
+  .btn-outline {
+    @apply btn bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 focus:ring-slate-400;
+  }
+  .input {
+    @apply w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base
+           focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100;
+    min-height: 48px;
+  }
+  .label {
+    @apply block mb-1.5 text-sm font-semibold text-slate-600;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-semibold;
+  }
+  .link {
+    @apply text-brand-600 hover:text-brand-700 font-medium;
+  }
+}
+
+/* ---- Print styles: professional A4 document ---- */
+@media print {
+  body {
+    background: #fff;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-page {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  thead {
+    display: table-header-group;
+  }
+  tr {
+    page-break-inside: avoid;
+  }
+}

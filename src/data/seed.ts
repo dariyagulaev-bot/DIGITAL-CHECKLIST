@@ -1,0 +1,95 @@
+import { db } from './db';
+import { newId, nowIso } from '@/services/ids';
+import { hashPassword } from '@/services/auth';
+import { RoleName, type Role, type Template, type TemplateTask, type User } from '@/types';
+import { SettingKeys } from '@/services/settings';
+
+/**
+ * Idempotent seed. Runs once on first launch to guarantee the roles exist,
+ * a default admin can log in, and a demo template ("בדיקה יומית") is available.
+ *
+ * NOTE: the default admin password is an INITIAL setup credential only and
+ * must be changed after first login. No approval passwords are hard-coded.
+ */
+
+const DEFAULT_ADMIN = { username: 'admin', password: 'admin123', full_name: 'מנהל המערכת' };
+const DEMO_PERFORMER = { username: 'performer', password: '1234', full_name: 'ישראל ישראלי' };
+const DEMO_APPROVER = { username: 'approver', password: '1234', full_name: 'דנה כהן' };
+
+async function ensureRoles(): Promise<Record<RoleName, string>> {
+  const existing = await db.roles.toArray();
+  const byName = new Map(existing.map((r) => [r.name, r.id]));
+  const map: Partial<Record<RoleName, string>> = {};
+  for (const name of [RoleName.PERFORMER, RoleName.APPROVER, RoleName.ADMIN]) {
+    let id = byName.get(name);
+    if (!id) {
+      id = newId();
+      const role: Role = { id, name };
+      await db.roles.add(role);
+    }
+    map[name] = id;
+  }
+  return map as Record<RoleName, string>;
+}
+
+async function ensureUser(
+  spec: { username: string; password: string; full_name: string },
+  roleIds: string[]
+): Promise<void> {
+  const existing = await db.users.where('username').equals(spec.username).first();
+  if (existing) return;
+  const user: User = {
+    id: newId(),
+    username: spec.username,
+    full_name: spec.full_name,
+    password_hash: await hashPassword(spec.password),
+    active: true,
+    created_at: nowIso(),
+  };
+  await db.users.add(user);
+  for (const roleId of roleIds) {
+    await db.user_roles.add({ id: newId(), user_id: user.id, role_id: roleId });
+  }
+}
+
+async function ensureDemoTemplate(): Promise<void> {
+  const existing = await db.templates.where('name').equals('בדיקה יומית').first();
+  if (existing) return;
+  const template: Template = {
+    id: newId(),
+    name: 'בדיקה יומית',
+    description: 'בדיקה יומית לדוגמה — נוצרה אוטומטית',
+    active: true,
+    created_at: nowIso(),
+    updated_at: nowIso(),
+  };
+  await db.templates.add(template);
+
+  const tasks: Array<Omit<TemplateTask, 'id' | 'template_id'>> = [
+    { part_name: 'מנוע', action: 'בדיקת מפלס שמן', equipment: 'כפפות', image_data: null, sort_order: 0 },
+    { part_name: 'מערכת חשמל', action: 'בדיקת חיבורים', equipment: 'פנס', image_data: null, sort_order: 1 },
+    { part_name: 'אזור עבודה', action: 'בדיקה ויזואלית', equipment: 'ללא', image_data: null, sort_order: 2 },
+  ];
+  for (const t of tasks) {
+    await db.template_tasks.add({ id: newId(), template_id: template.id, ...t });
+  }
+}
+
+async function ensureSettings(): Promise<void> {
+  const mode = await db.settings.get(SettingKeys.APPROVAL_MODE);
+  if (!mode) await db.settings.put({ key: SettingKeys.APPROVAL_MODE, value: 'personal_accounts' });
+  const org = await db.settings.get(SettingKeys.ORG_NAME);
+  if (!org) await db.settings.put({ key: SettingKeys.ORG_NAME, value: 'מערכת בד״ח דיגיטלית' });
+  const autolog = await db.settings.get(SettingKeys.ADMIN_AUTOLOGOUT_MIN);
+  if (!autolog) await db.settings.put({ key: SettingKeys.ADMIN_AUTOLOGOUT_MIN, value: '10' });
+}
+
+/** Run the seed. Safe to call on every startup. */
+export async function runSeed(): Promise<void> {
+  const roles = await ensureRoles();
+  await ensureUser(DEFAULT_ADMIN, [roles[RoleName.ADMIN]]);
+  await ensureUser(DEMO_PERFORMER, [roles[RoleName.PERFORMER]]);
+  await ensureUser(DEMO_APPROVER, [roles[RoleName.APPROVER]]);
+  await ensureDemoTemplate();
+  await ensureSettings();
+}

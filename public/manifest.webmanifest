@@ -1,0 +1,21 @@
+{
+  "name": "מערכת בד״ח דיגיטלית",
+  "short_name": "בד״ח דיגיטלי",
+  "description": "מערכת דיגיטלית לביצוע ואישור בד״חים (דפי בדיקה)",
+  "lang": "he",
+  "dir": "rtl",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f1f5f9",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
