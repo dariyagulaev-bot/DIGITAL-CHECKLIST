@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { listActiveUsers } from '@/services/auth';
 import type { User } from '@/types';
+import iconUrl from '@/assets/icon.svg';
 
 export default function LoginPage() {
   const { login, user } = useAuth();
@@ -41,7 +42,7 @@ export default function LoginPage() {
     <div className="min-h-full flex items-center justify-center bg-gradient-to-b from-slate-100 to-slate-200 p-4">
       <div className="card w-full max-w-md p-8">
         <div className="mb-6 flex flex-col items-center gap-3 text-center">
-          <img src="./icon.svg" alt="" className="h-16 w-16" />
+          <img src={iconUrl} alt="" className="h-16 w-16" />
           <h1 className="text-2xl font-bold text-slate-800">מערכת בד״ח דיגיטלית</h1>
           <p className="text-slate-500">התחברות למערכת</p>
         </div>

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { isAdmin } from '@/services/rbac';
 import { roleLabel } from '@/exports/labels';
+import iconUrl from '@/assets/icon.svg';
 
 export function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
@@ -18,7 +19,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <header className="no-print sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-200">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <Link to="/" className="flex items-center gap-3">
-            <img src="./icon.svg" alt="" className="h-9 w-9" />
+            <img src={iconUrl} alt="" className="h-9 w-9" />
             <span className="text-lg font-bold text-slate-800">מערכת בד״ח דיגיטלית</span>
           </Link>
           {user && (

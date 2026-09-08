@@ -32,3 +32,4 @@ coverage/
 scratchpad/
 _smoke.mjs
 _e2e.mjs
+preview-artifact.html

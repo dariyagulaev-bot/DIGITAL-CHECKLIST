@@ -23,11 +23,16 @@ async function bootstrap() {
   );
 
   // Register the service worker for offline support (production only).
+  // Wrapped defensively: in a sandboxed iframe registration can throw.
   if ('serviceWorker' in navigator && import.meta.env.PROD) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').catch(() => {
-        /* offline registration is best-effort */
-      });
+      try {
+        navigator.serviceWorker.register('./sw.js').catch(() => {
+          /* offline registration is best-effort */
+        });
+      } catch {
+        /* ignore */
+      }
     });
   }
 }
