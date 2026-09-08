@@ -5,7 +5,27 @@ import App from './App';
 import './index.css';
 import { runSeed } from './data/seed';
 
+/**
+ * Force full RTL at the document level. index.html already sets dir="rtl",
+ * but when the app is embedded in another host (e.g. the hosted preview) the
+ * outer <html> may not carry it — so we assert it programmatically here. This
+ * makes the whole layout right-to-left everywhere (flex, grid, tables, modals),
+ * not merely right-aligned text.
+ */
+function enforceRtl() {
+  try {
+    const html = document.documentElement;
+    html.setAttribute('dir', 'rtl');
+    html.setAttribute('lang', 'he');
+    document.body?.setAttribute('dir', 'rtl');
+  } catch {
+    /* ignore */
+  }
+}
+
 async function bootstrap() {
+  enforceRtl();
+
   // Ensure roles / default admin / demo template exist before first render.
   try {
     await runSeed();

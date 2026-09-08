@@ -6,6 +6,10 @@
   :root {
     color-scheme: light;
   }
+  html {
+    /* Full right-to-left layout for the whole Hebrew UI. */
+    direction: rtl;
+  }
   html,
   body,
   #root {
@@ -15,6 +19,7 @@
     @apply bg-slate-100 text-slate-800 antialiased;
     font-family: 'Rubik', 'Assistant', system-ui, 'Segoe UI', Arial, sans-serif;
     margin: 0;
+    direction: rtl;
   }
   /* Larger tap targets for touch / Zebra tablets */
   button,
