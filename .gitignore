@@ -33,3 +33,6 @@ scratchpad/
 _smoke.mjs
 _e2e.mjs
 preview-artifact.html
+
+# TS build info
+*.tsbuildinfo
