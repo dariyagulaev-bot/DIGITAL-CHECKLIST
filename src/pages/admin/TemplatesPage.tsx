@@ -36,7 +36,7 @@ export default function TemplatesPage() {
     e.preventDefault();
     if (!name.trim()) return;
     await createTemplate({ name, description });
-    notify('התבנית נוצרה', 'ok');
+    notify('הבד״ח נוצר', 'ok');
     setCreating(false);
     setName('');
     setDescription('');
@@ -45,7 +45,7 @@ export default function TemplatesPage() {
 
   const dup = async (id: string) => {
     await duplicateTemplate(id);
-    notify('התבנית שוכפלה', 'ok');
+    notify('הבד״ח שוכפל', 'ok');
     load();
   };
 
@@ -55,18 +55,21 @@ export default function TemplatesPage() {
   };
 
   const remove = async (t: Template) => {
-    if (!confirm(`למחוק את התבנית "${t.name}"? פעולה זו אינה הפיכה.`)) return;
+    if (!confirm(`למחוק את הבד״ח "${t.name}"? פעולה זו אינה הפיכה.`)) return;
     await deleteTemplate(t.id);
-    notify('התבנית נמחקה', 'ok');
+    notify('הבד״ח נמחק', 'ok');
     load();
   };
 
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-bold text-slate-700">ניהול תבניות</h2>
+        <div>
+          <h2 className="text-lg font-bold text-slate-700">ניהול בד״חים</h2>
+          <p className="text-sm text-slate-500">יצירה ועריכה של בד״חים ופרסומם למשתמשים — ללא צורך בקוד</p>
+        </div>
         <button className="btn-primary" onClick={() => setCreating(true)}>
-          ➕ תבנית חדשה
+          ➕ בד״ח חדש
         </button>
       </div>
 
@@ -80,12 +83,12 @@ export default function TemplatesPage() {
                 <div>
                   <div className="text-lg font-bold text-slate-800">{t.name}</div>
                   <div className="text-sm text-slate-500">{t.description || '—'}</div>
-                  <div className="mt-1 text-xs text-slate-400">{counts[t.id] ?? 0} בדיקות</div>
+                  <div className="mt-1 text-xs text-slate-400">{counts[t.id] ?? 0} שורות</div>
                 </div>
                 {t.active ? (
-                  <span className="badge bg-ok-100 text-ok-700">פעילה</span>
+                  <span className="badge bg-ok-100 text-ok-700">מפורסם</span>
                 ) : (
-                  <span className="badge bg-slate-100 text-slate-500">מושבתת</span>
+                  <span className="badge bg-slate-100 text-slate-500">טיוטה</span>
                 )}
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
@@ -96,7 +99,7 @@ export default function TemplatesPage() {
                   שכפל
                 </button>
                 <button className="btn-ghost !py-2 text-sm" onClick={() => toggle(t)}>
-                  {t.active ? 'השבת' : 'הפעל'}
+                  {t.active ? 'בטל פרסום' : 'פרסם'}
                 </button>
                 <button
                   className="btn-ghost !py-2 text-sm text-fault-700"
@@ -110,10 +113,10 @@ export default function TemplatesPage() {
         </div>
       )}
 
-      <Modal open={creating} onClose={() => setCreating(false)} title="תבנית חדשה">
+      <Modal open={creating} onClose={() => setCreating(false)} title="בד״ח חדש">
         <form onSubmit={create} className="space-y-4">
           <div>
-            <label className="label">שם התבנית</label>
+            <label className="label">שם הבד״ח</label>
             <input className="input" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
           </div>
           <div>
@@ -126,7 +129,7 @@ export default function TemplatesPage() {
           </div>
           <div className="flex gap-3">
             <button type="submit" className="btn-primary flex-1">
-              צור תבנית
+              צור בד״ח
             </button>
             <button type="button" className="btn-ghost" onClick={() => setCreating(false)}>
               ביטול

@@ -22,6 +22,7 @@ export default function TemplateEditorPage() {
   const [tasks, setTasks] = useState<TemplateTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingTask, setEditingTask] = useState<TemplateTask | 'new' | null>(null);
+  const [lightbox, setLightbox] = useState<string | null>(null);
   const dragId = useRef<string | null>(null);
 
   const load = async () => {
@@ -36,7 +37,7 @@ export default function TemplateEditorPage() {
   }, [id]);
 
   if (loading) return <Spinner />;
-  if (!template) return <div className="card p-6">התבנית לא נמצאה.</div>;
+  if (!template) return <div className="card p-6">הבד״ח לא נמצא.</div>;
 
   const saveMeta = async (patch: Partial<Template>) => {
     await updateTemplate(template.id, patch);
@@ -49,7 +50,7 @@ export default function TemplateEditorPage() {
   };
 
   const remove = async (taskId: string) => {
-    if (!confirm('למחוק סעיף זה?')) return;
+    if (!confirm('למחוק שורה זו?')) return;
     await deleteTask(taskId);
     load();
   };
@@ -70,12 +71,12 @@ export default function TemplateEditorPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <Link to="/admin/templates" className="link">
-          ← חזרה לתבניות
+          ← חזרה לבד״חים
         </Link>
       </div>
 
       <section className="card p-5">
-        <h2 className="mb-4 text-lg font-bold text-slate-700">פרטי התבנית</h2>
+        <h2 className="mb-4 text-lg font-bold text-slate-700">פרטי הבד״ח</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="label">שם</label>
@@ -103,15 +104,15 @@ export default function TemplateEditorPage() {
             checked={template.active}
             onChange={(e) => saveMeta({ active: e.target.checked })}
           />
-          <span className="text-sm font-medium text-slate-600">תבנית פעילה</span>
+          <span className="text-sm font-medium text-slate-600">מפורסם למשתמשים</span>
         </label>
       </section>
 
       <section className="card p-5">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-700">בדיקות ({tasks.length})</h2>
+          <h2 className="text-lg font-bold text-slate-700">שורות הבד״ח ({tasks.length})</h2>
           <button className="btn-primary" onClick={() => setEditingTask('new')}>
-            ➕ הוסף סעיף
+            ➕ הוסף שורה
           </button>
         </div>
 
@@ -132,16 +133,22 @@ export default function TemplateEditorPage() {
                 {i + 1}
               </span>
               {t.image_data && (
-                <img
-                  src={t.image_data}
-                  alt=""
-                  className="h-12 w-12 rounded-lg border border-slate-200 object-cover"
-                />
+                <button
+                  type="button"
+                  onClick={() => setLightbox(t.image_data!)}
+                  title="לחץ להגדלה"
+                >
+                  <img
+                    src={t.image_data}
+                    alt="תמונה מתארת"
+                    className="h-12 w-12 rounded-lg border border-slate-200 object-cover"
+                  />
+                </button>
               )}
               <div className="min-w-0 flex-1">
                 <div className="font-semibold text-slate-800">{t.part_name}</div>
                 <div className="truncate text-sm text-slate-500">
-                  {t.action} · ציוד: {t.equipment || 'ללא'}
+                  {t.action} · ציוד נדרש: {t.equipment || 'ללא'}
                 </div>
               </div>
               <div className="flex items-center gap-1">
@@ -169,7 +176,7 @@ export default function TemplateEditorPage() {
             </div>
           ))}
           {tasks.length === 0 && (
-            <div className="py-8 text-center text-slate-400">אין בדיקות. הוסף סעיף ראשון.</div>
+            <div className="py-8 text-center text-slate-400">אין שורות. הוסף שורה ראשונה.</div>
           )}
         </div>
       </section>
@@ -186,6 +193,10 @@ export default function TemplateEditorPage() {
           notify={notify}
         />
       )}
+
+      <Modal open={!!lightbox} onClose={() => setLightbox(null)} title="תמונה מתארת" maxWidth="max-w-3xl">
+        {lightbox && <img src={lightbox} alt="" className="w-full rounded-lg" />}
+      </Modal>
     </div>
   );
 }
@@ -221,7 +232,7 @@ function TaskEditor({
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!partName.trim() || !action.trim()) {
-      notify('יש למלא שם חלק ופעולה', 'error');
+      notify('יש למלא שם אזור ופעולה', 'error');
       return;
     }
     setBusy(true);
@@ -245,22 +256,22 @@ function TaskEditor({
   };
 
   return (
-    <Modal open onClose={onClose} title={task ? 'עריכת סעיף' : 'סעיף חדש'}>
+    <Modal open onClose={onClose} title={task ? 'עריכת שורה' : 'שורה חדשה'}>
       <form onSubmit={save} className="space-y-4">
         <div>
-          <label className="label">שם החלק</label>
+          <label className="label">שם האזור</label>
           <input className="input" value={partName} onChange={(e) => setPartName(e.target.value)} autoFocus />
         </div>
         <div>
-          <label className="label">הפעולה</label>
+          <label className="label">פעולה</label>
           <input className="input" value={action} onChange={(e) => setAction(e.target.value)} />
         </div>
         <div>
-          <label className="label">ציוד</label>
+          <label className="label">ציוד נדרש</label>
           <input className="input" value={equipment} onChange={(e) => setEquipment(e.target.value)} />
         </div>
         <div>
-          <label className="label">תמונה (אופציונלי)</label>
+          <label className="label">תמונה מתארת (אופציונלי)</label>
           <div className="flex items-center gap-3">
             {image && (
               <img src={image} alt="" className="h-16 w-16 rounded-lg border border-slate-200 object-cover" />

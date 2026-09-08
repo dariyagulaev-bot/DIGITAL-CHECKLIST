@@ -19,6 +19,7 @@ import { fileToManagedDataUrl } from '@/services/images';
 import { FormStatus, SignerType, TaskResult, type CompletedTask } from '@/types';
 import { SignaturePad, type SignaturePadHandle } from '@/components/SignaturePad';
 import { Modal, Spinner, StatusBadge } from '@/components/ui';
+import { FaultModal } from '@/components/FaultModal';
 import { formatDateTime } from '@/exports/labels';
 import { ApprovalSection } from './ApprovalSection';
 
@@ -36,6 +37,7 @@ export default function FormRunnerPage() {
   const [signerRole, setSignerRole] = useState('');
   const [sigEmpty, setSigEmpty] = useState(true);
   const [resign, setResign] = useState(false);
+  const [faultTaskId, setFaultTaskId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -67,13 +69,28 @@ export default function FormRunnerPage() {
   const onResult = async (task: CompletedTask, result: TaskResult) => {
     // Toggle off if the same result is tapped again.
     const next = task.result === result ? TaskResult.UNSET : result;
+    // Warn before discarding an existing fault detail when leaving "לא תקין".
+    if (
+      task.result === TaskResult.FAULT &&
+      next !== TaskResult.FAULT &&
+      (task.comment.trim() || task.fault_image)
+    ) {
+      const ok = confirm(
+        'קיים פירוט אי-תקינות עבור שורה זו. שינוי הסימון ימחק את הפירוט והתמונה. להמשיך?'
+      );
+      if (!ok) return;
+    }
     try {
       await setTaskResult(form.id, user.id, task.id, next);
       await load();
+      // Marking "לא תקין" opens the fault-detail popup automatically.
+      if (next === TaskResult.FAULT) setFaultTaskId(task.id);
     } catch (e) {
       notify((e as Error).message, 'error');
     }
   };
+
+  const openFault = (task: CompletedTask) => setFaultTaskId(task.id);
 
   const onComment = async (task: CompletedTask, comment: string) => {
     try {
@@ -214,13 +231,12 @@ export default function FormRunnerPage() {
               task={task}
               editable={editable}
               onResult={(r) => onResult(task, r)}
-              onComment={(c) => onComment(task, c)}
-              onFaultImage={(f) => onFaultImage(task, f)}
+              onOpenFault={() => openFault(task)}
               onViewImage={(src) => setLightbox(src)}
             />
           ))}
           {tasks.length === 0 && (
-            <div className="py-8 text-center text-slate-400">אין בדיקות בתבנית זו</div>
+            <div className="py-8 text-center text-slate-400">אין בדיקות בבד״ח זה</div>
           )}
         </div>
       </section>
@@ -301,6 +317,24 @@ export default function FormRunnerPage() {
         <ApprovalSection bundle={bundle} onChanged={load} />
       )}
 
+      <FaultModal
+        open={!!faultTaskId}
+        task={tasks.find((t) => t.id === faultTaskId) ?? null}
+        editable={editable}
+        onClose={() => setFaultTaskId(null)}
+        onSaveDetail={async (text) => {
+          const t = tasks.find((x) => x.id === faultTaskId);
+          if (t) await onComment(t, text);
+          await load();
+        }}
+        onSetImage={async (file) => {
+          const t = tasks.find((x) => x.id === faultTaskId);
+          if (t) await onFaultImage(t, file);
+        }}
+        onViewImage={(src) => setLightbox(src)}
+        notifyError={(m) => notify(m, 'error')}
+      />
+
       <Modal open={!!lightbox} onClose={() => setLightbox(null)} title="תמונה" maxWidth="max-w-3xl">
         {lightbox && <img src={lightbox} alt="" className="w-full rounded-lg" />}
       </Modal>
@@ -313,20 +347,19 @@ function TaskCard({
   task,
   editable,
   onResult,
-  onComment,
-  onFaultImage,
+  onOpenFault,
   onViewImage,
 }: {
   index: number;
   task: CompletedTask;
   editable: boolean;
   onResult: (r: TaskResult) => void;
-  onComment: (c: string) => void;
-  onFaultImage: (f: File | null) => void;
+  onOpenFault: () => void;
   onViewImage: (src: string) => void;
 }) {
   const isOk = task.result === TaskResult.OK;
   const isFault = task.result === TaskResult.FAULT;
+  const hasDetail = !!(task.comment.trim() || task.fault_image);
   return (
     <div
       className={`rounded-xl border p-4 ${
@@ -342,7 +375,7 @@ function TaskCard({
             <div className="font-bold text-slate-800">{task.part_name_snapshot}</div>
             <div className="text-sm text-slate-600">{task.action_snapshot}</div>
             <div className="mt-0.5 text-xs text-slate-400">
-              ציוד: {task.equipment_snapshot || 'ללא'}
+              ציוד נדרש: {task.equipment_snapshot || 'ללא'}
             </div>
           </div>
         </div>
@@ -351,11 +384,11 @@ function TaskCard({
           <button
             className="shrink-0"
             onClick={() => onViewImage(task.image_snapshot!)}
-            title="הצג תמונה"
+            title="הצג תמונה מתארת"
           >
             <img
               src={task.image_snapshot}
-              alt="תמונת סעיף"
+              alt="תמונה מתארת"
               className="h-16 w-16 rounded-lg border border-slate-200 object-cover"
             />
           </button>
@@ -379,45 +412,26 @@ function TaskCard({
         </div>
       </div>
 
+      {/* Fault marker: opens the detail popup (no permanent notes column). */}
       {isFault && (
-        <div className="mt-4 space-y-3 border-t border-fault-200 pt-3">
-          <div>
-            <label className="label text-fault-700">פירוט התקלה</label>
-            <textarea
-              className="input min-h-[80px]"
-              defaultValue={task.comment}
-              disabled={!editable}
-              onBlur={(e) => editable && onComment(e.target.value)}
-              placeholder="תאר את התקלה…"
-            />
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            {task.fault_image && (
-              <button onClick={() => onViewImage(task.fault_image!)}>
-                <img
-                  src={task.fault_image}
-                  alt="תמונת תקלה"
-                  className="h-16 w-16 rounded-lg border border-fault-200 object-cover"
-                />
-              </button>
+        <div className="mt-3 border-t border-fault-200 pt-3">
+          <button
+            className="inline-flex items-center gap-2 rounded-lg bg-fault-100 px-3 py-2 text-sm font-semibold text-fault-700 hover:bg-fault-200"
+            onClick={onOpenFault}
+          >
+            {hasDetail ? (
+              <>
+                <span>📝 יש פירוט תקלה</span>
+                {task.fault_image && <span>· 📷</span>}
+                <span className="text-xs font-normal">(לחץ לצפייה/עריכה)</span>
+              </>
+            ) : (
+              <span>⚠ הוסף פירוט אי-תקינות</span>
             )}
-            {editable && (
-              <label className="btn-outline cursor-pointer">
-                📷 {task.fault_image ? 'החלף תמונה' : 'צרף תמונה'}
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/jpg,image/webp"
-                  className="hidden"
-                  onChange={(e) => onFaultImage(e.target.files?.[0] ?? null)}
-                />
-              </label>
-            )}
-            {editable && task.fault_image && (
-              <button className="btn-ghost text-fault-700" onClick={() => onFaultImage(null)}>
-                הסר תמונה
-              </button>
-            )}
-          </div>
+          </button>
+          {hasDetail && task.comment.trim() && (
+            <p className="mt-2 line-clamp-2 text-sm text-slate-600">{task.comment}</p>
+          )}
         </div>
       )}
     </div>

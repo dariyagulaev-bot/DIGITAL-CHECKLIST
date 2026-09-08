@@ -69,9 +69,9 @@ export async function exportFormToExcel(formId: string): Promise<void> {
   }
 
   r++; // blank row
-  // Table header
+  // Table header — 5 columns only (no fixed notes column).
   const headerRow = ws.getRow(r);
-  const headers = ['שם החלק', 'הפעולה', 'ציוד', 'תקין', 'לא תקין', 'הערה'];
+  const headers = ['שם האזור', 'פעולה', 'ציוד נדרש', 'תקין', 'לא תקין'];
   headers.forEach((h, i) => {
     const cell = headerRow.getCell(i + 1);
     cell.value = h;
@@ -96,11 +96,10 @@ export async function exportFormToExcel(formId: string): Promise<void> {
     row.getCell(3).value = t.equipment_snapshot;
     row.getCell(4).value = isOk ? '✓' : '';
     row.getCell(5).value = isFault ? '✕' : '';
-    row.getCell(6).value = t.comment || '';
-    for (let c = 1; c <= 6; c++) {
+    for (let c = 1; c <= 5; c++) {
       const cell = row.getCell(c);
       cell.border = allBorders();
-      cell.alignment = { horizontal: c <= 3 || c === 6 ? 'right' : 'center', vertical: 'middle', wrapText: true };
+      cell.alignment = { horizontal: c <= 3 ? 'right' : 'center', vertical: 'middle', wrapText: true };
     }
     if (isOk) {
       row.getCell(4).fill = solid(GREEN);
@@ -109,9 +108,29 @@ export async function exportFormToExcel(formId: string): Promise<void> {
     if (isFault) {
       row.getCell(5).fill = solid(RED);
       row.getCell(5).font = { bold: true, color: { argb: RED_TEXT } };
-      row.getCell(6).fill = solid(RED);
     }
     r++;
+  }
+
+  // Fault details section (replaces the removed notes column).
+  const faultTasks = tasks.filter((t) => t.result === TaskResult.FAULT);
+  if (faultTasks.length) {
+    r++;
+    const fh = ws.getCell(`A${r}`);
+    fh.value = '⚠ פירוט אי-תקינות';
+    fh.font = { bold: true, color: { argb: RED_TEXT } };
+    ws.mergeCells(`A${r}:F${r}`);
+    r++;
+    for (const t of faultTasks) {
+      ws.getCell(`A${r}`).value = `${t.part_name_snapshot} (${t.action_snapshot})`;
+      ws.getCell(`A${r}`).font = { bold: true };
+      ws.getCell(`A${r}`).alignment = { horizontal: 'right' };
+      ws.mergeCells(`B${r}:F${r}`);
+      ws.getCell(`B${r}`).value = t.comment.trim() || '— לא הוזן פירוט —';
+      ws.getCell(`B${r}`).alignment = { horizontal: 'right', wrapText: true };
+      ws.getCell(`B${r}`).fill = solid(RED);
+      r++;
+    }
   }
 
   r++; // blank

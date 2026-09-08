@@ -32,7 +32,7 @@ export default function FormViewPage() {
   const approved = form.status === FormStatus.APPROVED;
   const perf = signatures.find((s) => s.signer_type === SignerType.PERFORMER);
   const appr = signatures.find((s) => s.signer_type === SignerType.APPROVER);
-  const faults = tasks.filter((t) => t.result === TaskResult.FAULT && t.fault_image);
+  const faults = tasks.filter((t) => t.result === TaskResult.FAULT);
   const okCount = tasks.filter((t) => t.result === TaskResult.OK).length;
   const faultCount = tasks.filter((t) => t.result === TaskResult.FAULT).length;
 
@@ -130,12 +130,11 @@ export default function FormViewPage() {
         <table className="w-full border-collapse text-right text-sm">
           <thead>
             <tr className="bg-slate-800 text-white">
-              <th className="border border-slate-300 p-2">שם החלק</th>
-              <th className="border border-slate-300 p-2">הפעולה</th>
-              <th className="border border-slate-300 p-2">ציוד</th>
+              <th className="border border-slate-300 p-2">שם האזור</th>
+              <th className="border border-slate-300 p-2">פעולה</th>
+              <th className="border border-slate-300 p-2">ציוד נדרש</th>
               <th className="border border-slate-300 p-2 text-center">תקין</th>
               <th className="border border-slate-300 p-2 text-center">לא תקין</th>
-              <th className="border border-slate-300 p-2">הערות</th>
             </tr>
           </thead>
           <tbody>
@@ -153,7 +152,6 @@ export default function FormViewPage() {
                   <td className="border border-slate-300 p-2 text-center text-lg font-bold text-fault-600">
                     {isFault ? '✕' : ''}
                   </td>
-                  <td className="border border-slate-300 p-2 text-slate-600">{t.comment || ''}</td>
                 </tr>
               );
             })}
@@ -167,15 +165,29 @@ export default function FormViewPage() {
           <span className="text-fault-600">לא תקין: {faultCount}</span>
         </div>
 
-        {/* Fault images */}
+        {/* Fault details (no permanent notes column — details live here) */}
         {faults.length > 0 && (
           <div className="mt-5">
-            <h3 className="mb-2 font-bold text-slate-800">תמונות תקלות</h3>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <h3 className="mb-2 font-bold text-fault-700">⚠ פירוט אי-תקינות</h3>
+            <div className="space-y-2">
               {faults.map((t) => (
-                <div key={t.id} className="rounded-lg border border-slate-200 p-2">
-                  <img src={t.fault_image!} alt="" className="h-32 w-full rounded object-cover" />
-                  <div className="mt-1 text-xs text-slate-600">{t.part_name_snapshot}</div>
+                <div key={t.id} className="rounded-lg border border-fault-200 bg-fault-50 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-slate-800">{t.part_name_snapshot}</div>
+                      <div className="text-xs text-slate-500">{t.action_snapshot}</div>
+                      <div className="mt-1 text-sm text-slate-700">
+                        {t.comment.trim() || '— לא הוזן פירוט —'}
+                      </div>
+                    </div>
+                    {t.fault_image && (
+                      <img
+                        src={t.fault_image}
+                        alt="תמונת תקלה"
+                        className="h-24 w-24 shrink-0 rounded object-cover"
+                      />
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

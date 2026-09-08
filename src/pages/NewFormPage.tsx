@@ -38,14 +38,14 @@ export default function NewFormPage() {
 
   return (
     <div>
-      <PageHeader title="בד״ח חדש" subtitle="בחר תבנית כדי להתחיל" />
+      <PageHeader title="בד״ח חדש" subtitle="בחר בד״ח כדי להתחיל" />
       {templates === null ? (
-        <Spinner label="טוען תבניות…" />
+        <Spinner label="טוען בד״חים…" />
       ) : templates.length === 0 ? (
         <EmptyState
           icon="📄"
-          title="אין תבניות פעילות"
-          hint="פנה למנהל המערכת ליצירת תבנית"
+          title="אין בד״חים פעילים"
+          hint="פנה למנהל המערכת ליצירת בד״ח"
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

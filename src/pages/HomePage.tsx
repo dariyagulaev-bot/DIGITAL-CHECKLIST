@@ -86,7 +86,7 @@ export default function HomePage() {
           <Tile
             to="/new"
             title="בד״ח חדש"
-            desc="פתיחת בד״ח חדש מתוך תבנית פעילה"
+            desc="פתיחת בד״ח חדש מתוך בד״ח פעיל"
             icon="➕"
             accent="bg-brand-100 text-brand-700"
           />
@@ -119,7 +119,7 @@ export default function HomePage() {
           <Tile
             to="/admin"
             title="לוח ניהול"
-            desc="משתמשים, תבניות, הגדרות, גיבוי ו-Audit Log"
+            desc="משתמשים, בד״חים, הגדרות, גיבוי ו-Audit Log"
             icon="⚙️"
             accent="bg-brand-100 text-brand-700"
           />
