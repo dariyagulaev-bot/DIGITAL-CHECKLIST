@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { Icon } from './Icon';
 
 export interface SignaturePadHandle {
   clear: () => void;
@@ -130,7 +131,7 @@ export const SignaturePad = forwardRef<SignaturePadHandle, Props>(function Signa
 
   return (
     <div className="w-full">
-      <div className="relative rounded-xl border-2 border-dashed border-slate-300 bg-white overflow-hidden">
+      <div className="relative overflow-hidden rounded-2xl border-2 border-dashed border-slate-300 bg-gradient-to-b from-slate-50/60 to-white">
         <canvas
           ref={canvasRef}
           onPointerDown={start}
@@ -141,14 +142,15 @@ export const SignaturePad = forwardRef<SignaturePadHandle, Props>(function Signa
           style={{ touchAction: 'none', display: 'block', width: '100%' }}
         />
         {empty && !readOnly && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-slate-400">
-            חתום כאן באמצעות העט ✍️
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 text-slate-400">
+            <Icon name="pen" size={22} />
+            <span className="text-sm font-semibold">חתום כאן באמצעות העט</span>
           </div>
         )}
       </div>
       {!readOnly && (
-        <button type="button" className="btn-ghost mt-3" onClick={clear}>
-          נקה וחתום מחדש
+        <button type="button" className="btn-ghost btn-sm mt-3 gap-1.5" onClick={clear}>
+          <Icon name="refresh" size={15} /> נקה וחתום מחדש
         </button>
       )}
     </div>

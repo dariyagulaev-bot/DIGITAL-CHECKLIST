@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Modal } from './ui';
+import { Icon } from './Icon';
 import { fileToManagedDataUrl } from '@/services/images';
 import type { CompletedTask } from '@/types';
 
@@ -69,9 +70,9 @@ export function FaultModal({
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="⚠ פירוט אי-תקינות">
+    <Modal open={open} onClose={onClose} title="פירוט אי-תקינות" tone="fault" icon="alert">
       <div className="space-y-4">
-        <div className="rounded-lg bg-fault-50 px-4 py-2 text-sm text-fault-700">
+        <div className="rounded-xl border border-fault-100 bg-fault-50 px-4 py-2.5 text-sm font-semibold text-fault-700">
           {task.part_name_snapshot} · {task.action_snapshot}
         </div>
 
@@ -98,8 +99,8 @@ export function FaultModal({
             </button>
           )}
           {editable && (
-            <label className="btn-outline cursor-pointer">
-              📷 {preview ? 'החלף תמונה' : 'צרף תמונה'}
+            <label className="btn-outline btn-sm cursor-pointer gap-1.5">
+              <Icon name="camera" size={16} /> {preview ? 'החלף תמונה' : 'צרף תמונה'}
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/jpg,image/webp"
@@ -109,8 +110,8 @@ export function FaultModal({
             </label>
           )}
           {editable && preview && (
-            <button type="button" className="btn-ghost text-fault-700" onClick={removeImage}>
-              הסר תמונה
+            <button type="button" className="btn-danger btn-sm gap-1.5" onClick={removeImage}>
+              <Icon name="trash" size={16} /> הסר
             </button>
           )}
         </div>
@@ -118,7 +119,7 @@ export function FaultModal({
         {editable ? (
           <div className="flex gap-3 pt-1">
             <button className="btn-fault flex-1" onClick={save} disabled={busy}>
-              שמור
+              <Icon name="check" size={18} /> שמור
             </button>
             <button className="btn-ghost" onClick={onClose} disabled={busy}>
               ביטול

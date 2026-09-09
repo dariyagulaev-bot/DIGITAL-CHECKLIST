@@ -50,7 +50,7 @@ export default function MyFormsPage() {
       {forms === null ? (
         <Spinner />
       ) : forms.length === 0 ? (
-        <EmptyState icon="📋" title="עדיין לא ביצעת בד״חים" hint="התחל מ״בד״ח חדש״" />
+        <EmptyState icon="clipboard-check" title="עדיין לא ביצעת בד״חים" hint="התחל מ״בד״ח חדש״" />
       ) : (
         <div className="card divide-y divide-slate-100">
           {forms.map((f) => (

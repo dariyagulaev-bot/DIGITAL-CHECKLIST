@@ -5,6 +5,7 @@ import { addSignature, type FormBundle } from '@/services/forms';
 import { FormStatus, SignerType, type UserWithRoles } from '@/types';
 import { SignaturePad, type SignaturePadHandle } from '@/components/SignaturePad';
 import { Modal } from '@/components/ui';
+import { Icon } from '@/components/Icon';
 import { formatDateTime } from '@/exports/labels';
 
 /**
@@ -36,10 +37,15 @@ export function ApprovalSection({
   // ---- Already approved: show the final, locked result. ----
   if (form.status === FormStatus.APPROVED) {
     return (
-      <section className="card border-r-4 border-r-ok-500 p-5">
-        <h2 className="mb-1 text-lg font-bold text-ok-700">✅ הבד״ח אושר ונעל</h2>
+      <section className="card border-r-4 border-r-ok-500 p-5 sm:p-6">
+        <div className="mb-3 flex items-center gap-2.5">
+          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-ok-100 text-ok-600">
+            <Icon name="shield-check" size={22} />
+          </span>
+          <h2 className="font-display text-lg font-extrabold text-ok-700">הבד״ח אושר ונעל</h2>
+        </div>
         <p className="mb-4 text-sm text-slate-500">
-          מאשר: <span className="font-semibold text-slate-700">{form.approver_name}</span> ·{' '}
+          מאשר: <span className="font-semibold text-ink-700">{form.approver_name}</span> ·{' '}
           {formatDateTime(form.approved_at)}
         </p>
         {approverSig && (
@@ -114,15 +120,19 @@ export function ApprovalSection({
   };
 
   return (
-    <section className="card border-r-4 border-r-pending-500 p-5">
+    <section className="card overflow-hidden border-r-4 border-r-pending-500 p-5 sm:p-6">
       {!approver ? (
         // ---- Locked ----
         <div className="flex flex-col items-center gap-3 py-6 text-center">
-          <div className="text-4xl">🔒</div>
-          <div className="text-lg font-bold text-slate-700">חתימת מאשר</div>
-          <div className="text-sm text-slate-500">נדרשת הרשאת מאשר כדי לפתוח אזור זה</div>
-          <button className="btn-primary btn-lg mt-2" onClick={() => setAuthOpen(true)}>
-            פתיחת אישור
+          <span className="flex h-16 w-16 items-center justify-center rounded-3xl bg-pending-50 text-pending-600 ring-1 ring-pending-100">
+            <Icon name="lock" size={30} />
+          </span>
+          <div className="font-display text-lg font-extrabold text-ink-900">חתימת מאשר</div>
+          <div className="max-w-sm text-sm text-slate-500">
+            אזור זה נעול. נדרשת הרשאת מאשר כדי לפתוח אותו ולחתום.
+          </div>
+          <button className="btn-primary btn-lg mt-2 gap-2" onClick={() => setAuthOpen(true)}>
+            <Icon name="shield-check" size={19} /> פתיחת אישור
           </button>
         </div>
       ) : (
@@ -145,8 +155,8 @@ export function ApprovalSection({
           </div>
           <SignaturePad ref={sigRef} onChange={setSigEmpty} />
           <div className="flex flex-wrap gap-3">
-            <button className="btn-ok btn-lg" onClick={signAndApprove} disabled={busy || sigEmpty}>
-              אשר וסגור בד״ח
+            <button className="btn-ok btn-lg gap-2" onClick={signAndApprove} disabled={busy || sigEmpty}>
+              <Icon name="shield-check" size={19} /> אשר וסגור בד״ח
             </button>
             <button className="btn-outline" onClick={reject} disabled={busy}>
               דחה / החזר לתיקון
@@ -159,7 +169,13 @@ export function ApprovalSection({
       )}
 
       {/* Verification modal */}
-      <Modal open={authOpen} onClose={() => setAuthOpen(false)} title="אישור בד״ח — אימות מאשר">
+      <Modal
+        open={authOpen}
+        onClose={() => setAuthOpen(false)}
+        title="אימות מאשר"
+        tone="lock"
+        icon="lock"
+      >
         <form onSubmit={verify} className="space-y-4">
           <p className="text-sm text-slate-500">
             הזן את פרטי המאשר. לא ניתן לאשר בד״ח שביצעת בעצמך.

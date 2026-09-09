@@ -2,12 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================================
+   Design system — "Field-grade precision"
+   Light-committed operational UI, RTL-native. Tokens drive every surface.
+   ============================================================================ */
+
 @layer base {
   :root {
     color-scheme: light;
+    --bg: #f3f4f8; /* cool paper */
+    --bg-tint: #eef0f7;
+    --surface: #ffffff;
+    --border: #e6e8f0;
+    --text: #1f2340;
+    --text-soft: #5b6079;
+    --text-faint: #8b90a8;
   }
+
   html {
-    /* Full right-to-left layout for the whole Hebrew UI. */
     direction: rtl;
   }
   html,
@@ -16,69 +28,226 @@
     height: 100%;
   }
   body {
-    @apply bg-slate-100 text-slate-800 antialiased;
-    font-family: 'Rubik', 'Assistant', system-ui, 'Segoe UI', Arial, sans-serif;
     margin: 0;
     direction: rtl;
+    color: var(--text);
+    background-color: var(--bg);
+    /* Subtle depth: two faint brand-tinted glows, not a flat wash. */
+    background-image:
+      radial-gradient(1200px 600px at 100% -10%, rgba(79, 70, 229, 0.06), transparent 60%),
+      radial-gradient(900px 500px at 0% 0%, rgba(6, 182, 212, 0.05), transparent 55%);
+    background-attachment: fixed;
+    font-family: 'Assistant', system-ui, 'Segoe UI', Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'ss01';
   }
-  /* Larger tap targets for touch / Zebra tablets */
+
+  h1,
+  h2,
+  h3 {
+    font-family: 'Rubik', 'Assistant', system-ui, sans-serif;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+
   button,
   input,
   select,
   textarea {
     font-family: inherit;
   }
+
+  ::selection {
+    background: rgba(79, 70, 229, 0.18);
+  }
+
+  /* Tabular numbers wherever digits line up. */
+  .nums {
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 @layer components {
+  /* ---- Surfaces ---------------------------------------------------------- */
   .card {
-    @apply bg-white rounded-2xl shadow-card border border-slate-100;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 1.25rem;
+    box-shadow: 0 1px 2px rgba(16, 18, 45, 0.04), 0 1px 3px rgba(16, 18, 45, 0.05);
   }
+  .card-flat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+  }
+  .hoverable {
+    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+  }
+  .hoverable:hover {
+    box-shadow: 0 18px 40px -16px rgba(16, 18, 45, 0.3);
+    transform: translateY(-2px);
+    border-color: #d7dbe8;
+  }
+
+  /* ---- Buttons ----------------------------------------------------------- */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-base font-semibold
-           transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed
-           focus:outline-none focus:ring-2 focus:ring-offset-1;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 text-[15px] font-bold
+           transition-all duration-150 select-none whitespace-nowrap
+           disabled:opacity-50 disabled:cursor-not-allowed;
     min-height: 48px;
+    padding-top: 0.6rem;
+    padding-bottom: 0.6rem;
+    outline: none;
+  }
+  .btn:focus-visible {
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.2);
+  }
+  .btn:active:not(:disabled) {
+    transform: translateY(1px) scale(0.99);
   }
   .btn-lg {
-    @apply px-7 py-4 text-lg;
-    min-height: 60px;
+    @apply text-base;
+    min-height: 56px;
+    padding-inline: 1.6rem;
   }
+  .btn-sm {
+    min-height: 40px;
+    @apply px-3.5 text-sm;
+  }
+
   .btn-primary {
-    @apply btn bg-brand-600 text-white hover:bg-brand-700 focus:ring-brand-500;
+    @apply btn text-white;
+    background: linear-gradient(180deg, #574fe8 0%, #4f46e5 45%, #4338ca 100%);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.12) inset, 0 6px 16px -6px rgba(67, 56, 202, 0.6);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: linear-gradient(180deg, #4f46e5 0%, #4338ca 100%);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.12) inset, 0 10px 22px -8px rgba(67, 56, 202, 0.7);
   }
   .btn-ok {
-    @apply btn bg-ok-600 text-white hover:bg-ok-700 focus:ring-ok-500;
+    @apply btn text-white;
+    background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+    box-shadow: 0 6px 16px -6px rgba(5, 150, 105, 0.55);
+  }
+  .btn-ok:hover:not(:disabled) {
+    background: linear-gradient(180deg, #059669 0%, #047857 100%);
   }
   .btn-fault {
-    @apply btn bg-fault-600 text-white hover:bg-fault-700 focus:ring-fault-500;
+    @apply btn text-white;
+    background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
+    box-shadow: 0 6px 16px -6px rgba(220, 38, 38, 0.5);
+  }
+  .btn-fault:hover:not(:disabled) {
+    background: linear-gradient(180deg, #dc2626 0%, #b91c1c 100%);
   }
   .btn-ghost {
-    @apply btn bg-slate-100 text-slate-700 hover:bg-slate-200 focus:ring-slate-400;
+    @apply btn text-ink-700;
+    background: #eef0f7;
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: #e2e5f1;
   }
   .btn-outline {
-    @apply btn bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 focus:ring-slate-400;
+    @apply btn bg-white text-ink-700;
+    border: 1px solid var(--border);
   }
+  .btn-outline:hover:not(:disabled) {
+    border-color: #c9cee0;
+    background: #fafbff;
+  }
+  .btn-danger {
+    @apply btn text-fault-700;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: #fee2e2;
+  }
+
+  /* ---- Inputs ------------------------------------------------------------ */
   .input {
-    @apply w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base
-           focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100;
+    @apply w-full rounded-xl bg-white px-4 text-[15px] text-ink-900
+           placeholder:text-slate-400 transition-all duration-150;
+    border: 1px solid var(--border);
     min-height: 48px;
+    padding-block: 0.65rem;
+  }
+  .input:focus {
+    outline: none;
+    border-color: #a3adfc;
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.14);
   }
   .label {
-    @apply block mb-1.5 text-sm font-semibold text-slate-600;
+    @apply mb-1.5 block text-sm font-bold;
+    color: var(--text-soft);
   }
+  .eyebrow {
+    @apply text-xs font-bold uppercase tracking-[0.14em];
+    color: var(--text-faint);
+  }
+
+  /* ---- Badges / status pills -------------------------------------------- */
   .badge {
-    @apply inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-semibold;
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[13px] font-bold;
   }
+
+  /* ---- Segmented pass/fail control -------------------------------------- */
+  .seg {
+    @apply inline-flex items-center gap-1 rounded-2xl p-1;
+    background: #eef0f7;
+    border: 1px solid var(--border);
+  }
+  .seg-btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-[15px] font-bold
+           transition-all duration-150;
+    color: var(--text-soft);
+    min-height: 44px;
+  }
+  .seg-btn:disabled {
+    cursor: not-allowed;
+  }
+  .seg-btn-ok-active {
+    background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+    color: #fff;
+    box-shadow: 0 6px 14px -6px rgba(5, 150, 105, 0.6);
+  }
+  .seg-btn-fault-active {
+    background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
+    color: #fff;
+    box-shadow: 0 6px 14px -6px rgba(220, 38, 38, 0.55);
+  }
+
   .link {
-    @apply text-brand-600 hover:text-brand-700 font-medium;
+    @apply font-bold text-brand-600 transition-colors hover:text-brand-700;
+  }
+
+  /* ---- Motion helpers ---------------------------------------------------- */
+  .anim-scale-in {
+    animation: scale-in 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .anim-fade-in {
+    animation: fade-in 0.2s ease-out;
+  }
+  .anim-slide-up {
+    animation: slide-up 0.3s cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
 
-/* ---- Print styles: professional A4 document ---- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ---- Print: clean professional A4 document ---- */
 @media print {
   body {
     background: #fff;
+    background-image: none;
   }
   .no-print {
     display: none !important;

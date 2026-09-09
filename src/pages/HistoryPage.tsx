@@ -119,7 +119,7 @@ export default function HistoryPage() {
       {rows === null ? (
         <Spinner />
       ) : filtered.length === 0 ? (
-        <EmptyState icon="🗂️" title="לא נמצאו בד״חים" hint="נסה לשנות את מסנני החיפוש" />
+        <EmptyState icon="history" title="לא נמצאו בד״חים" hint="נסה לשנות את מסנני החיפוש" />
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full min-w-[820px] text-right text-sm">

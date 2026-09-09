@@ -13,7 +13,7 @@ export default function AuditPage() {
 
   if (entries === null) return <Spinner />;
   if (entries.length === 0)
-    return <EmptyState icon="📜" title="יומן הביקורת ריק" hint="פעולות חריגות יירשמו כאן" />;
+    return <EmptyState icon="file" title="יומן הביקורת ריק" hint="פעולות חריגות יירשמו כאן" />;
 
   return (
     <div className="card overflow-x-auto">

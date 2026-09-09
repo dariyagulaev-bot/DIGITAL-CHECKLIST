@@ -36,3 +36,7 @@ preview-artifact.html
 
 # TS build info
 *.tsbuildinfo
+
+# design screenshots
+shot-*.png
+_shots.mjs

@@ -6,6 +6,7 @@ import { listTemplates } from '@/services/templates';
 import { createDraftForm } from '@/services/forms';
 import { PageHeader } from '@/components/Layout';
 import { EmptyState, Spinner } from '@/components/ui';
+import { Icon } from '@/components/Icon';
 import { useToast } from '@/context/ToastContext';
 import type { Template } from '@/types';
 
@@ -21,7 +22,7 @@ export default function NewFormPage() {
   }, []);
 
   if (!user || !canPerform(user)) {
-    return <EmptyState icon="🔒" title="אין לך הרשאת ביצוע בד״חים" />;
+    return <EmptyState icon="lock" title="אין לך הרשאת ביצוע בד״חים" />;
   }
 
   const open = async (t: Template) => {
@@ -43,7 +44,7 @@ export default function NewFormPage() {
         <Spinner label="טוען בד״חים…" />
       ) : templates.length === 0 ? (
         <EmptyState
-          icon="📄"
+          icon="file"
           title="אין בד״חים פעילים"
           hint="פנה למנהל המערכת ליצירת בד״ח"
         />
@@ -52,17 +53,20 @@ export default function NewFormPage() {
           {templates.map((t) => (
             <button
               key={t.id}
-              className="card p-6 text-right transition-shadow hover:shadow-soft disabled:opacity-60"
+              className="card hoverable group p-5 text-right disabled:opacity-60"
               onClick={() => open(t)}
               disabled={busy}
             >
-              <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-100 text-2xl text-brand-700">
-                📝
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-600 transition-transform group-hover:scale-105">
+                <Icon name="clipboard-check" size={24} />
               </div>
-              <div className="text-lg font-bold text-slate-800">{t.name}</div>
+              <div className="text-[17px] font-extrabold text-ink-900">{t.name}</div>
               {t.description && (
-                <div className="mt-1 text-sm text-slate-500 line-clamp-2">{t.description}</div>
+                <div className="mt-1 line-clamp-2 text-sm text-slate-500">{t.description}</div>
               )}
+              <div className="mt-4 flex items-center gap-1 text-sm font-bold text-brand-600 opacity-0 transition-opacity group-hover:opacity-100">
+                התחל בדיקה <Icon name="chevron-start" size={16} />
+              </div>
             </button>
           ))}
         </div>

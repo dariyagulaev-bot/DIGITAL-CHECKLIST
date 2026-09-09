@@ -32,7 +32,7 @@ export default function PendingPage() {
       {forms === null ? (
         <Spinner />
       ) : forms.length === 0 ? (
-        <EmptyState icon="✅" title="אין בד״חים הממתינים לאישור" />
+        <EmptyState icon="shield-check" title="אין בד״חים הממתינים לאישור" />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {forms.map((f) => {
