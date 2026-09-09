@@ -19,6 +19,7 @@ export type IconName =
   | 'pen'
   | 'chevron-start'
   | 'arrow-start'
+  | 'back'
   | 'search'
   | 'image'
   | 'alert'
@@ -101,6 +102,8 @@ const paths: Record<IconName, JSX.Element> = {
   ),
   'chevron-start': <path d="m14 6-6 6 6 6" />,
   'arrow-start': <path d="M20 12H4m6-6-6 6 6 6" />,
+  // "Back" for an RTL UI points to the right (toward the start of the line).
+  back: <path d="M4 12h16m-6-6 6 6-6 6" />,
   search: (
     <>
       <circle cx="11" cy="11" r="6.5" />

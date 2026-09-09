@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import {
   addTask,
   deleteTask,
@@ -69,12 +69,6 @@ export default function TemplateEditorPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <Link to="/admin/templates" className="link">
-          ← חזרה לבד״חים
-        </Link>
-      </div>
-
       <section className="card p-5">
         <h2 className="mb-4 text-lg font-bold text-slate-700">פרטי הבד״ח</h2>
         <div className="grid gap-4 sm:grid-cols-2">

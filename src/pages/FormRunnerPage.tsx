@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
+import { useUnsavedGuard } from '@/context/NavGuardContext';
 import {
   addSignature,
   deleteDraft,
@@ -50,6 +51,14 @@ export default function FormRunnerPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Guard back-navigation when a signature has been drawn but not yet saved.
+  const dirtyRef = useRef(false);
+  const saveSigRef = useRef<() => Promise<void>>(async () => {});
+  useUnsavedGuard(
+    () => dirtyRef.current,
+    () => saveSigRef.current()
+  );
 
   if (loading) return <Spinner label="טוען בד״ח…" />;
   if (!bundle || !user) return <div className="card p-6">הבד״ח לא נמצא.</div>;
@@ -163,6 +172,11 @@ export default function FormRunnerPage() {
       notify((e as Error).message, 'error');
     }
   };
+
+  // Keep the guard refs current for this render.
+  const signaturePadShown = !performerSig || resign;
+  dirtyRef.current = editable && signaturePadShown && !sigEmpty;
+  saveSigRef.current = saveSignature;
 
   return (
     <div className="space-y-5 pb-24">

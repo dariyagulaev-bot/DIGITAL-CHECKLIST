@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getSetting, setSetting, SettingKeys } from '@/services/settings';
 import { hashPassword } from '@/services/auth';
 import { useToast } from '@/context/ToastContext';
+import { useUnsavedGuard } from '@/context/NavGuardContext';
 import { Spinner } from '@/components/ui';
 
 export default function SettingsPage() {
@@ -11,13 +12,18 @@ export default function SettingsPage() {
   const [sharedPw, setSharedPw] = useState('');
   const [orgName, setOrgName] = useState('');
   const [autoLogout, setAutoLogout] = useState('10');
+  const initial = useRef({ mode: 'personal_accounts', orgName: '', autoLogout: '10' });
 
   useEffect(() => {
     (async () => {
       const m = await getSetting(SettingKeys.APPROVAL_MODE);
-      setMode(m === 'shared_password' ? 'shared_password' : 'personal_accounts');
-      setOrgName((await getSetting(SettingKeys.ORG_NAME)) ?? '');
-      setAutoLogout((await getSetting(SettingKeys.ADMIN_AUTOLOGOUT_MIN)) ?? '10');
+      const resolvedMode = m === 'shared_password' ? 'shared_password' : 'personal_accounts';
+      const org = (await getSetting(SettingKeys.ORG_NAME)) ?? '';
+      const al = (await getSetting(SettingKeys.ADMIN_AUTOLOGOUT_MIN)) ?? '10';
+      setMode(resolvedMode);
+      setOrgName(org);
+      setAutoLogout(al);
+      initial.current = { mode: resolvedMode, orgName: org.trim(), autoLogout: String(parseInt(al, 10) || 10) };
       setLoading(false);
     })();
   }, []);
@@ -30,8 +36,17 @@ export default function SettingsPage() {
       await setSetting(SettingKeys.APPROVER_SHARED_HASH, await hashPassword(sharedPw));
     }
     setSharedPw('');
+    initial.current = { mode, orgName: orgName.trim(), autoLogout: String(parseInt(autoLogout, 10) || 10) };
     notify('ההגדרות נשמרו', 'ok');
   };
+
+  // Unsaved-changes guard for back-navigation.
+  const dirty =
+    mode !== initial.current.mode ||
+    orgName.trim() !== initial.current.orgName ||
+    String(parseInt(autoLogout, 10) || 10) !== initial.current.autoLogout ||
+    sharedPw.length > 0;
+  useUnsavedGuard(() => dirty, save);
 
   if (loading) return <Spinner />;
 

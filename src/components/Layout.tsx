@@ -1,9 +1,28 @@
 import { type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { useNavGuard } from '@/context/NavGuardContext';
 import { isAdmin } from '@/services/rbac';
 import { roleLabel } from '@/exports/labels';
 import { Icon } from './Icon';
+
+/**
+ * Consistent back control. Steps back one screen in-app (never logs out), and
+ * routes through the nav guard so a screen with unsaved changes can intercept.
+ */
+export function BackButton({ className = '' }: { className?: string }) {
+  const { attemptBack } = useNavGuard();
+  return (
+    <button
+      type="button"
+      onClick={attemptBack}
+      className={`inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-bold text-ink-700 shadow-card transition-all hover:border-slate-300 hover:bg-slate-50 active:scale-[0.98] ${className}`}
+    >
+      <Icon name="back" size={18} />
+      חזרה
+    </button>
+  );
+}
 
 /** Branded app mark — a gradient tile with the inspection glyph. */
 export function BrandMark({ size = 40 }: { size?: number }) {
@@ -24,6 +43,8 @@ export function BrandMark({ size = 40 }: { size?: number }) {
 export function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const showBack = location.pathname !== '/'; // hide on the home/root screen
 
   const handleLogout = () => {
     logout();
@@ -79,7 +100,14 @@ export function Layout({ children }: { children: ReactNode }) {
           )}
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-7">{children}</main>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-7">
+        {showBack && (
+          <div className="no-print mb-4">
+            <BackButton />
+          </div>
+        )}
+        {children}
+      </main>
     </div>
   );
 }

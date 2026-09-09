@@ -2,6 +2,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { type ReactNode } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
+import { NavGuardProvider } from './context/NavGuardContext';
 import { Layout } from './components/Layout';
 import { Spinner } from './components/ui';
 import { canApprove, isAdmin } from './services/rbac';
@@ -138,7 +139,9 @@ export default function App() {
   return (
     <AuthProvider>
       <ToastProvider>
-        <AppRoutes />
+        <NavGuardProvider>
+          <AppRoutes />
+        </NavGuardProvider>
       </ToastProvider>
     </AuthProvider>
   );

@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { getFormBundle, type FormBundle } from '@/services/forms';
 import { exportFormToExcel } from '@/exports/excel';
 import { elementToPdf } from '@/exports/pdf';
 import { Spinner } from '@/components/ui';
+import { BackButton } from '@/components/Layout';
+import { Icon } from '@/components/Icon';
 import { useToast } from '@/context/ToastContext';
 import { formatDate, formatDateTime, statusLabel } from '@/exports/labels';
 import { FormStatus, SignerType, TaskResult, type Signature } from '@/types';
@@ -11,7 +13,6 @@ import { FormStatus, SignerType, TaskResult, type Signature } from '@/types';
 export default function FormViewPage() {
   const { id } = useParams<{ id: string }>();
   const { notify } = useToast();
-  const navigate = useNavigate();
   const [bundle, setBundle] = useState<FormBundle | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyPdf, setBusyPdf] = useState(false);
@@ -63,22 +64,20 @@ export default function FormViewPage() {
       {/* Toolbar */}
       <div className="no-print mx-auto mb-4 flex max-w-4xl flex-wrap items-center justify-between gap-2 px-4">
         <div className="flex gap-2">
-          <button className="btn-ghost" onClick={() => navigate(-1)}>
-            ← חזרה
-          </button>
-          <Link to="/" className="btn-ghost">
-            דף הבית
+          <BackButton />
+          <Link to="/" className="btn-ghost btn-sm gap-1.5">
+            <Icon name="clipboard-check" size={16} /> דף הבית
           </Link>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button className="btn-outline" onClick={() => window.print()}>
-            🖨️ הדפס
+          <button className="btn-outline btn-sm gap-1.5" onClick={() => window.print()}>
+            <Icon name="printer" size={16} /> הדפס
           </button>
-          <button className="btn-outline" onClick={doPdf} disabled={busyPdf}>
-            {busyPdf ? 'יוצר PDF…' : '📄 PDF'}
+          <button className="btn-outline btn-sm gap-1.5" onClick={doPdf} disabled={busyPdf}>
+            <Icon name="download" size={16} /> {busyPdf ? 'יוצר PDF…' : 'PDF'}
           </button>
-          <button className="btn-outline" onClick={doExcel}>
-            📊 Excel
+          <button className="btn-outline btn-sm gap-1.5" onClick={doExcel}>
+            <Icon name="file" size={16} /> Excel
           </button>
         </div>
       </div>
