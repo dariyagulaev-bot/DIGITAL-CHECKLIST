@@ -11,6 +11,7 @@ import { logAudit } from '@/services/audit';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { Modal, Spinner } from '@/components/ui';
+import { Icon } from '@/components/Icon';
 import { roleLabel } from '@/exports/labels';
 import { RoleName, type UserWithRoles } from '@/types';
 
@@ -45,8 +46,8 @@ export default function UsersPage() {
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-bold text-slate-700">ניהול משתמשים</h2>
-        <button className="btn-primary" onClick={() => setEditing('new')}>
-          ➕ משתמש חדש
+        <button className="btn-primary btn-sm gap-1.5" onClick={() => setEditing('new')}>
+          <Icon name="plus" size={16} /> משתמש חדש
         </button>
       </div>
 

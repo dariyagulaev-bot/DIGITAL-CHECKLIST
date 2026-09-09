@@ -3,6 +3,7 @@ import type {
   User,
   Role,
   UserRole,
+  System,
   Template,
   TemplateTask,
   CompletedForm,
@@ -21,6 +22,7 @@ export class ChecklistDB extends Dexie {
   users!: Table<User, string>;
   roles!: Table<Role, string>;
   user_roles!: Table<UserRole, string>;
+  systems!: Table<System, string>;
   templates!: Table<Template, string>;
   template_tasks!: Table<TemplateTask, string>;
   completed_forms!: Table<CompletedForm, string>;
@@ -31,10 +33,9 @@ export class ChecklistDB extends Dexie {
 
   constructor(name = 'digital_checklist') {
     super(name);
+    // Only indexed fields are listed; full objects are still stored.
+    // Booleans (active) are not valid IndexedDB keys, so they are filtered in JS.
     this.version(1).stores({
-      // Only indexed fields are listed; full objects are still stored.
-      // Note: booleans (active) are not valid IndexedDB keys, so they are
-      // filtered in JS rather than indexed.
       users: 'id, &username',
       roles: 'id, &name',
       user_roles: 'id, user_id, role_id, [user_id+role_id]',
@@ -47,6 +48,33 @@ export class ChecklistDB extends Dexie {
       audit_log: 'id, user_id, entity_type, entity_id, timestamp',
       settings: 'key',
     });
+
+    // v2: multi-system support. Add the systems table and index templates by
+    // system; backfill a default system for any pre-existing templates.
+    this.version(2)
+      .stores({
+        systems: 'id, name',
+        templates: 'id, name, system_id',
+      })
+      .upgrade(async (tx) => {
+        const now = new Date().toISOString();
+        const defaultId = crypto.randomUUID();
+        const templates = await tx.table('templates').toArray();
+        if (templates.length) {
+          await tx.table('systems').put({
+            id: defaultId,
+            name: 'מערכת ראשית',
+            active: true,
+            created_at: now,
+            updated_at: now,
+          });
+          await Promise.all(
+            templates
+              .filter((t: Template) => !t.system_id)
+              .map((t: Template) => tx.table('templates').update(t.id, { system_id: defaultId }))
+          );
+        }
+      });
   }
 }
 

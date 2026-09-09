@@ -2,6 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 
 const tabs = [
   { to: '/admin', label: 'לוח בקרה', end: true },
+  { to: '/admin/systems', label: 'מערכות' },
   { to: '/admin/users', label: 'משתמשים' },
   { to: '/admin/templates', label: 'בד״חים' },
   { to: '/admin/audit', label: 'Audit Log' },

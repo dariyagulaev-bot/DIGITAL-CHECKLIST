@@ -99,7 +99,7 @@ export function FaultModal({
             </button>
           )}
           {editable && (
-            <label className="btn-outline btn-sm cursor-pointer gap-1.5">
+            <label className="btn-secondary btn-sm cursor-pointer gap-1.5">
               <Icon name="camera" size={16} /> {preview ? 'החלף תמונה' : 'צרף תמונה'}
               <input
                 type="file"
@@ -118,7 +118,7 @@ export function FaultModal({
 
         {editable ? (
           <div className="flex gap-3 pt-1">
-            <button className="btn-fault flex-1" onClick={save} disabled={busy}>
+            <button className="btn-primary flex-1" onClick={save} disabled={busy}>
               <Icon name="check" size={18} /> שמור
             </button>
             <button className="btn-ghost" onClick={onClose} disabled={busy}>

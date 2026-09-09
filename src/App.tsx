@@ -19,6 +19,7 @@ import FormViewPage from './pages/FormViewPage';
 import AdminLayout from './pages/admin/AdminLayout';
 import DashboardPage from './pages/admin/DashboardPage';
 import UsersPage from './pages/admin/UsersPage';
+import SystemsPage from './pages/admin/SystemsPage';
 import TemplatesPage from './pages/admin/TemplatesPage';
 import TemplateEditorPage from './pages/admin/TemplateEditorPage';
 import AuditPage from './pages/admin/AuditPage';
@@ -123,6 +124,7 @@ function AppRoutes() {
         }
       >
         <Route index element={<DashboardPage />} />
+        <Route path="systems" element={<SystemsPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="templates" element={<TemplatesPage />} />
         <Route path="templates/:id" element={<TemplateEditorPage />} />

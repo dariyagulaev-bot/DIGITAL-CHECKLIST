@@ -5,6 +5,7 @@ import { canApprove, canPerform, isAdmin } from '@/services/rbac';
 import {
   getUserSummary,
   listDrafts,
+  listFormsByPerformer,
   listPendingApproval,
   type UserFormSummary,
 } from '@/services/forms';
@@ -12,65 +13,69 @@ import { Icon, type IconName } from '@/components/Icon';
 import type { CompletedForm } from '@/types';
 import { formatDate } from '@/exports/labels';
 
-type Tone = 'brand' | 'pending' | 'accent' | 'ok' | 'neutral';
-const TONE_TILE: Record<Tone, string> = {
-  brand: 'bg-brand-50 text-brand-600',
-  pending: 'bg-pending-50 text-pending-600',
-  accent: 'bg-accent-50 text-accent-600',
-  ok: 'bg-ok-50 text-ok-600',
-  neutral: 'bg-slate-100 text-slate-500',
-};
+function StatCell({
+  label,
+  value,
+  tone = 'neutral',
+}: {
+  label: string;
+  value: number;
+  tone?: 'neutral' | 'pending' | 'fault' | 'ok';
+}) {
+  const numColor =
+    tone === 'pending'
+      ? 'text-pending-600'
+      : tone === 'fault'
+        ? 'text-fault-600'
+        : tone === 'ok'
+          ? 'text-ok-600'
+          : 'text-navy-800';
+  return (
+    <div className="card px-4 py-3.5">
+      <div className={`nums text-[26px] font-extrabold leading-none ${numColor}`}>{value}</div>
+      <div className="mt-1.5 text-[13px] font-medium text-ink-500">{label}</div>
+    </div>
+  );
+}
 
-function ActionCard({
+function ActionRow({
   to,
   title,
   desc,
   icon,
-  tone,
   count,
 }: {
   to: string;
   title: string;
   desc: string;
   icon: IconName;
-  tone: Tone;
   count?: number;
 }) {
   return (
-    <Link to={to} className="card hoverable group relative flex flex-col p-5">
-      <div className="mb-4 flex items-start justify-between">
-        <span
-          className={`flex h-12 w-12 items-center justify-center rounded-2xl ${TONE_TILE[tone]} transition-transform group-hover:scale-105`}
-        >
-          <Icon name={icon} size={24} />
-        </span>
-        {count !== undefined && count > 0 && (
-          <span className="nums rounded-full bg-pending-500 px-2.5 py-1 text-sm font-extrabold text-white shadow-soft">
-            {count}
-          </span>
-        )}
-      </div>
-      <div className="text-[17px] font-extrabold text-ink-900">{title}</div>
-      <div className="mt-1 flex-1 text-sm leading-relaxed text-slate-500">{desc}</div>
-      <div className="mt-4 flex items-center gap-1 text-sm font-bold text-brand-600 opacity-0 transition-opacity group-hover:opacity-100">
-        פתיחה
-        <Icon name="chevron-start" size={16} />
-      </div>
-    </Link>
-  );
-}
-
-function Kpi({ label, value, icon }: { label: string; value: number; icon: IconName }) {
-  return (
-    <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3 backdrop-blur-sm">
-      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-accent-400">
+    <Link
+      to={to}
+      className="card group flex items-center gap-3.5 px-4 py-3.5 transition-colors hover:border-slate-300 hover:bg-slate-50/60"
+    >
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-ink-600">
         <Icon name={icon} size={20} />
       </span>
-      <div className="leading-tight">
-        <div className="nums font-display text-2xl font-extrabold text-white">{value}</div>
-        <div className="text-xs font-semibold text-ink-200">{label}</div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="text-[15px] font-bold text-ink-900">{title}</span>
+          {count !== undefined && count > 0 && (
+            <span className="nums rounded-full bg-pending-100 px-1.5 py-0.5 text-[11px] font-bold text-pending-700">
+              {count}
+            </span>
+          )}
+        </div>
+        <div className="truncate text-[13px] text-ink-500">{desc}</div>
       </div>
-    </div>
+      <Icon
+        name="chevron-start"
+        size={16}
+        className="text-ink-300 transition-colors group-hover:text-brand-600"
+      />
+    </Link>
   );
 }
 
@@ -80,11 +85,16 @@ export default function HomePage() {
   const [drafts, setDrafts] = useState<CompletedForm[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
   const [summary, setSummary] = useState<UserFormSummary | null>(null);
+  const [todayCount, setTodayCount] = useState(0);
 
   useEffect(() => {
     if (!user) return;
     listDrafts(user.id).then(setDrafts).catch(() => {});
     getUserSummary(user.id).then(setSummary).catch(() => {});
+    const today = new Date().toISOString().slice(0, 10);
+    listFormsByPerformer(user.id)
+      .then((forms) => setTodayCount(forms.filter((f) => f.created_at.slice(0, 10) === today).length))
+      .catch(() => {});
     if (canApprove(user)) {
       listPendingApproval().then((p) => setPendingCount(p.length)).catch(() => {});
     }
@@ -92,54 +102,36 @@ export default function HomePage() {
 
   if (!user) return null;
 
-  const today = new Date().toLocaleDateString('he-IL', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-
   return (
     <div className="space-y-6">
-      {/* Hero / dashboard band */}
-      <section
-        className="anim-fade-in relative overflow-hidden rounded-3xl px-6 py-6 sm:px-8 sm:py-7"
-        style={{
-          background:
-            'radial-gradient(700px 300px at 92% -30%, rgba(6,182,212,0.28), transparent 60%), linear-gradient(135deg, #20244a 0%, #16182d 60%)',
-        }}
-      >
-        <div className="relative flex flex-wrap items-center justify-between gap-5">
-          <div>
-            <div className="text-xs font-bold uppercase tracking-[0.16em] text-accent-400">
-              לוח בקרה
-            </div>
-            <h1 className="mt-1 font-display text-[28px] font-extrabold text-white sm:text-[32px]">
-              שלום, {user.full_name}
-            </h1>
-            <p className="mt-1 text-sm text-ink-200">{today}</p>
-          </div>
-          <div className="grid grid-cols-2 gap-2.5 sm:flex sm:flex-wrap">
-            {canApprove(user) && (
-              <Kpi label="ממתינים לאישור" value={pendingCount} icon="clock" />
-            )}
-            <Kpi label="הבד״חים שלי" value={summary?.total ?? 0} icon="clipboard-check" />
-            <Kpi label="מאושרים" value={summary?.approved ?? 0} icon="shield-check" />
-            <Kpi label="טיוטות פתוחות" value={drafts.length} icon="pen" />
-          </div>
-        </div>
-      </section>
+      {/* Greeting */}
+      <div className="pt-1">
+        <div className="text-[15px] font-medium text-ink-500">שלום, {user.full_name}</div>
+        <h1 className="mt-0.5 text-[24px] font-extrabold text-navy-900">מערכת בד״ח דיגיטלית</h1>
+      </div>
+
+      {/* Compact stats */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCell label="בד״חים פתוחים" value={drafts.length} />
+        <StatCell
+          label="ממתינים לאישור"
+          value={canApprove(user) ? pendingCount : (summary?.pending ?? 0)}
+          tone="pending"
+        />
+        <StatCell label="בוצעו היום" value={todayCount} />
+        <StatCell label="עם תקלות" value={summary?.withFaults ?? 0} tone="fault" />
+      </div>
 
       {/* Resume draft */}
       {drafts.length > 0 && (
-        <div className="card anim-slide-up flex flex-wrap items-center justify-between gap-3 border-r-4 border-r-pending-500 p-5">
+        <div className="card flex flex-wrap items-center justify-between gap-3 border-r-2 border-r-pending-500 px-4 py-3.5">
           <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-pending-50 text-pending-600">
-              <Icon name="pen" size={22} />
+            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-pending-50 text-pending-600">
+              <Icon name="pen" size={18} />
             </span>
             <div>
-              <div className="font-bold text-ink-900">יש לך בד״ח שלא הושלם</div>
-              <div className="text-sm text-slate-500">
+              <div className="text-[14px] font-bold text-ink-900">בד״ח שלא הושלם</div>
+              <div className="text-[13px] text-ink-500">
                 {drafts[0].name} · {formatDate(drafts[0].date)}
               </div>
             </div>
@@ -149,7 +141,7 @@ export default function HomePage() {
               המשך בד״ח
             </button>
             {drafts.length > 1 && (
-              <Link to="/my" className="btn-ghost btn-sm">
+              <Link to="/my" className="btn-secondary btn-sm">
                 עוד {drafts.length - 1} טיוטות
               </Link>
             )}
@@ -159,63 +151,58 @@ export default function HomePage() {
 
       {/* Actions */}
       <div>
-        <div className="eyebrow mb-3">פעולות</div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mb-2.5 flex items-center justify-between">
+          <div className="eyebrow">פעולות</div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
           {canPerform(user) && (
-            <ActionCard
+            <ActionRow
               to="/new"
               title="בד״ח חדש"
-              desc="התחל בדיקה חדשה מתוך בד״ח מפורסם"
+              desc="פתיחת בדיקה חדשה מתוך בד״ח מפורסם"
               icon="plus"
-              tone="brand"
             />
           )}
-          <ActionCard
+          <ActionRow
             to="/my"
             title="הבד״חים שלי"
-            desc="טיוטות, ממתינים לאישור ומאושרים — הכול במקום אחד"
+            desc="טיוטות, ממתינים לאישור ומאושרים"
             icon="clipboard-check"
-            tone="neutral"
           />
           {canApprove(user) && (
-            <ActionCard
+            <ActionRow
               to="/pending"
               title="ממתינים לאישור"
-              desc="בד״חים שהושלמו וממתינים לחתימת מאשר"
+              desc="בד״חים הממתינים לחתימת מאשר"
               icon="clock"
-              tone="pending"
               count={pendingCount}
             />
           )}
-          <ActionCard
+          <ActionRow
             to="/history"
             title="היסטוריית בד״חים"
-            desc="חיפוש, צפייה והפקת PDF, Excel והדפסה"
+            desc="חיפוש, צפייה והפקת דוחות"
             icon="history"
-            tone="accent"
           />
           {isAdmin(user) && (
             <>
-              <ActionCard
+              <ActionRow
                 to="/admin/templates"
                 title="ניהול בד״חים"
-                desc="יצירה, עריכה ופרסום בד״חים למשתמשים"
+                desc="יצירה, עריכה ופרסום בד״חים"
                 icon="layers"
-                tone="brand"
               />
-              <ActionCard
+              <ActionRow
                 to="/admin/users"
                 title="ניהול משתמשים"
                 desc="משתמשים, הרשאות ואיפוס סיסמאות"
                 icon="users"
-                tone="neutral"
               />
-              <ActionCard
+              <ActionRow
                 to="/admin"
                 title="לוח ניהול"
-                desc="דשבורד, הגדרות, גיבוי ו-Audit Log"
+                desc="דשבורד, הגדרות, גיבוי ויומן ביקורת"
                 icon="settings"
-                tone="neutral"
               />
             </>
           )}

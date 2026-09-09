@@ -3,20 +3,21 @@
 @tailwind utilities;
 
 /* ============================================================================
-   Design system — "Field-grade precision"
-   Light-committed operational UI, RTL-native. Tokens drive every surface.
+   Design system — official / enterprise. Heebo, restrained navy + blue,
+   flat surfaces, thin borders, minimal shadow, precise spacing. RTL-native.
    ============================================================================ */
 
 @layer base {
   :root {
     color-scheme: light;
-    --bg: #f3f4f8; /* cool paper */
-    --bg-tint: #eef0f7;
+    --bg: #f4f6f9;
     --surface: #ffffff;
-    --border: #e6e8f0;
-    --text: #1f2340;
-    --text-soft: #5b6079;
-    --text-faint: #8b90a8;
+    --surface-2: #f7f9fc; /* table header / subtle zones */
+    --border: #e2e7ee;
+    --border-strong: #d3dae4;
+    --text: #1c2430;
+    --text-soft: #545e70;
+    --text-faint: #808a9c;
   }
 
   html {
@@ -32,22 +33,19 @@
     direction: rtl;
     color: var(--text);
     background-color: var(--bg);
-    /* Subtle depth: two faint brand-tinted glows, not a flat wash. */
-    background-image:
-      radial-gradient(1200px 600px at 100% -10%, rgba(79, 70, 229, 0.06), transparent 60%),
-      radial-gradient(900px 500px at 0% 0%, rgba(6, 182, 212, 0.05), transparent 55%);
-    background-attachment: fixed;
-    font-family: 'Assistant', system-ui, 'Segoe UI', Arial, sans-serif;
+    font-family: 'Heebo', system-ui, 'Segoe UI', Arial, sans-serif;
+    font-size: 15px;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
-    font-feature-settings: 'ss01';
   }
 
   h1,
   h2,
-  h3 {
-    font-family: 'Rubik', 'Assistant', system-ui, sans-serif;
-    letter-spacing: -0.01em;
+  h3,
+  h4 {
+    font-family: 'Heebo', system-ui, sans-serif;
+    color: var(--text);
+    letter-spacing: -0.005em;
     text-wrap: balance;
   }
 
@@ -57,12 +55,9 @@
   textarea {
     font-family: inherit;
   }
-
   ::selection {
-    background: rgba(79, 70, 229, 0.18);
+    background: rgba(29, 78, 216, 0.16);
   }
-
-  /* Tabular numbers wherever digits line up. */
   .nums {
     font-variant-numeric: tabular-nums;
   }
@@ -73,164 +68,177 @@
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 1.25rem;
-    box-shadow: 0 1px 2px rgba(16, 18, 45, 0.04), 0 1px 3px rgba(16, 18, 45, 0.05);
+    border-radius: 0.5rem;
   }
-  .card-flat {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 1rem;
+  .panel-head {
+    @apply flex items-center justify-between border-b px-5 py-3.5;
+    border-color: var(--border);
   }
-  .hoverable {
-    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
-  }
-  .hoverable:hover {
-    box-shadow: 0 18px 40px -16px rgba(16, 18, 45, 0.3);
-    transform: translateY(-2px);
-    border-color: #d7dbe8;
+  .panel-title {
+    @apply text-[15px] font-bold;
+    color: var(--text);
   }
 
-  /* ---- Buttons ----------------------------------------------------------- */
+  /* ---- Buttons — flat, precise ------------------------------------------ */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 text-[15px] font-bold
-           transition-all duration-150 select-none whitespace-nowrap
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-4 text-[14px] font-semibold
+           transition-colors duration-150 select-none whitespace-nowrap
            disabled:opacity-50 disabled:cursor-not-allowed;
-    min-height: 48px;
-    padding-top: 0.6rem;
-    padding-bottom: 0.6rem;
+    min-height: 42px;
+    padding-block: 0.5rem;
+    border: 1px solid transparent;
     outline: none;
   }
   .btn:focus-visible {
-    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.2);
-  }
-  .btn:active:not(:disabled) {
-    transform: translateY(1px) scale(0.99);
+    box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.28);
   }
   .btn-lg {
-    @apply text-base;
-    min-height: 56px;
-    padding-inline: 1.6rem;
+    min-height: 48px;
+    @apply px-5 text-[15px];
   }
   .btn-sm {
-    min-height: 40px;
-    @apply px-3.5 text-sm;
+    min-height: 36px;
+    @apply px-3 text-[13px];
   }
-
   .btn-primary {
-    @apply btn text-white;
-    background: linear-gradient(180deg, #574fe8 0%, #4f46e5 45%, #4338ca 100%);
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.12) inset, 0 6px 16px -6px rgba(67, 56, 202, 0.6);
+    @apply btn bg-brand-600 text-white;
+    border-color: #1a41b3;
   }
   .btn-primary:hover:not(:disabled) {
-    background: linear-gradient(180deg, #4f46e5 0%, #4338ca 100%);
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.12) inset, 0 10px 22px -8px rgba(67, 56, 202, 0.7);
+    @apply bg-brand-700;
   }
-  .btn-ok {
-    @apply btn text-white;
-    background: linear-gradient(180deg, #10b981 0%, #059669 100%);
-    box-shadow: 0 6px 16px -6px rgba(5, 150, 105, 0.55);
-  }
-  .btn-ok:hover:not(:disabled) {
-    background: linear-gradient(180deg, #059669 0%, #047857 100%);
-  }
-  .btn-fault {
-    @apply btn text-white;
-    background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
-    box-shadow: 0 6px 16px -6px rgba(220, 38, 38, 0.5);
-  }
-  .btn-fault:hover:not(:disabled) {
-    background: linear-gradient(180deg, #dc2626 0%, #b91c1c 100%);
-  }
-  .btn-ghost {
-    @apply btn text-ink-700;
-    background: #eef0f7;
-  }
-  .btn-ghost:hover:not(:disabled) {
-    background: #e2e5f1;
-  }
+  .btn-secondary,
   .btn-outline {
     @apply btn bg-white text-ink-700;
-    border: 1px solid var(--border);
+    border-color: var(--border-strong);
   }
+  .btn-secondary:hover:not(:disabled),
   .btn-outline:hover:not(:disabled) {
-    border-color: #c9cee0;
-    background: #fafbff;
+    background: #f7f9fc;
+    border-color: #c2cad6;
+  }
+  .btn-ghost {
+    @apply btn bg-transparent text-ink-600;
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: #eef1f6;
   }
   .btn-danger {
-    @apply btn text-fault-700;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
+    @apply btn bg-white text-fault-600;
+    border-color: #f0c9c9;
   }
   .btn-danger:hover:not(:disabled) {
-    background: #fee2e2;
+    background: #fef4f4;
+    border-color: #e3aeae;
+  }
+  .btn-danger-solid {
+    @apply btn bg-fault-500 text-white;
+    border-color: var(--fault-600, #b91c1c);
+  }
+  .btn-danger-solid:hover:not(:disabled) {
+    @apply bg-fault-600;
+  }
+  .btn-ok {
+    @apply btn bg-ok-500 text-white;
+    border-color: #15803d;
+  }
+  .btn-ok:hover:not(:disabled) {
+    @apply bg-ok-600;
   }
 
   /* ---- Inputs ------------------------------------------------------------ */
   .input {
-    @apply w-full rounded-xl bg-white px-4 text-[15px] text-ink-900
-           placeholder:text-slate-400 transition-all duration-150;
-    border: 1px solid var(--border);
-    min-height: 48px;
-    padding-block: 0.65rem;
+    @apply w-full rounded-md bg-white px-3 text-[14px] text-ink-800 placeholder:text-slate-400
+           transition-colors duration-150;
+    border: 1px solid var(--border-strong);
+    min-height: 42px;
+    padding-block: 0.5rem;
   }
   .input:focus {
     outline: none;
-    border-color: #a3adfc;
-    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.14);
+    border-color: #7f9fe6;
+    box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.14);
+  }
+  .input:disabled {
+    background: #f5f7fa;
+    color: var(--text-soft);
   }
   .label {
-    @apply mb-1.5 block text-sm font-bold;
+    @apply mb-1 block text-[13px] font-semibold;
     color: var(--text-soft);
   }
   .eyebrow {
-    @apply text-xs font-bold uppercase tracking-[0.14em];
+    @apply text-[11px] font-bold uppercase tracking-[0.12em];
     color: var(--text-faint);
   }
-
-  /* ---- Badges / status pills -------------------------------------------- */
-  .badge {
-    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[13px] font-bold;
+  .link {
+    @apply font-semibold text-brand-600 underline-offset-2 transition-colors hover:text-brand-700 hover:underline;
   }
 
-  /* ---- Segmented pass/fail control -------------------------------------- */
+  /* ---- Status badges — small, restrained -------------------------------- */
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[12.5px] font-semibold;
+    border: 1px solid transparent;
+  }
+
+  /* ---- Professional table ----------------------------------------------- */
+  .tbl {
+    @apply w-full border-collapse text-right text-[14px];
+  }
+  .tbl thead th {
+    @apply px-4 py-3 text-[12.5px] font-bold uppercase tracking-wide;
+    background: var(--surface-2);
+    color: var(--text-soft);
+    border-bottom: 1px solid var(--border-strong);
+    white-space: nowrap;
+  }
+  .tbl tbody td {
+    @apply px-4 py-3 align-middle;
+    border-bottom: 1px solid var(--border);
+  }
+  .tbl tbody tr:last-child td {
+    border-bottom: none;
+  }
+  .tbl tbody tr.row-hover:hover {
+    background: #f8fafc;
+  }
+
+  /* ---- Segmented pass/fail (flat, formal) ------------------------------- */
   .seg {
-    @apply inline-flex items-center gap-1 rounded-2xl p-1;
-    background: #eef0f7;
-    border: 1px solid var(--border);
+    @apply inline-flex overflow-hidden rounded-md;
+    border: 1px solid var(--border-strong);
   }
   .seg-btn {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-[15px] font-bold
-           transition-all duration-150;
+    @apply inline-flex items-center justify-center gap-1.5 px-3.5 text-[13.5px] font-semibold
+           transition-colors duration-150;
+    min-height: 40px;
     color: var(--text-soft);
-    min-height: 44px;
+    background: #fff;
+  }
+  .seg-btn + .seg-btn {
+    border-inline-start: 1px solid var(--border-strong);
+  }
+  .seg-btn:hover:not(:disabled):not(.seg-on-ok):not(.seg-on-fault) {
+    background: #f5f7fa;
   }
   .seg-btn:disabled {
     cursor: not-allowed;
   }
-  .seg-btn-ok-active {
-    background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+  .seg-on-ok {
+    background: #16a34a;
     color: #fff;
-    box-shadow: 0 6px 14px -6px rgba(5, 150, 105, 0.6);
   }
-  .seg-btn-fault-active {
-    background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
+  .seg-on-fault {
+    background: #dc2626;
     color: #fff;
-    box-shadow: 0 6px 14px -6px rgba(220, 38, 38, 0.55);
   }
 
-  .link {
-    @apply font-bold text-brand-600 transition-colors hover:text-brand-700;
-  }
-
-  /* ---- Motion helpers ---------------------------------------------------- */
+  /* ---- Motion (kept minimal) -------------------------------------------- */
   .anim-scale-in {
-    animation: scale-in 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    animation: scale-in 0.16s ease-out;
   }
   .anim-fade-in {
-    animation: fade-in 0.2s ease-out;
-  }
-  .anim-slide-up {
-    animation: slide-up 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    animation: fade-in 0.16s ease-out;
   }
 }
 
@@ -243,11 +251,10 @@
   }
 }
 
-/* ---- Print: clean professional A4 document ---- */
+/* ---- Print ---- */
 @media print {
   body {
     background: #fff;
-    background-image: none;
   }
   .no-print {
     display: none !important;

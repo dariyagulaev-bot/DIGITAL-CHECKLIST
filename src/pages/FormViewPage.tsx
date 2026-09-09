@@ -6,6 +6,7 @@ import { elementToPdf } from '@/exports/pdf';
 import { Spinner } from '@/components/ui';
 import { BackButton } from '@/components/Layout';
 import { Icon } from '@/components/Icon';
+import { VeroLogo } from '@/components/VeroLogo';
 import { useToast } from '@/context/ToastContext';
 import { formatDate, formatDateTime, statusLabel } from '@/exports/labels';
 import { FormStatus, SignerType, TaskResult, type Signature } from '@/types';
@@ -88,18 +89,37 @@ export default function FormViewPage() {
         className="print-page mx-auto max-w-4xl bg-white p-8 shadow-soft"
         style={{ width: '210mm', maxWidth: '100%' }}
       >
+        {/* Branded document header */}
+        <div className="mb-4 flex items-center justify-between border-b border-slate-200 pb-3">
+          <VeroLogo variant="compact" tone="light" />
+          <div className="text-right">
+            <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
+              דוח בדיקה
+            </div>
+            <div className="text-[13px] font-semibold text-slate-600">
+              {formatDate(form.date)}
+              {form.number ? ` · מס' ${form.number}` : ''}
+            </div>
+          </div>
+        </div>
+
         {/* Status banner */}
         <div
-          className={`mb-4 rounded-lg px-4 py-2 text-center text-lg font-bold ${
+          className={`mb-4 rounded-md px-4 py-2 text-center text-lg font-bold ${
             approved ? 'bg-ok-100 text-ok-700' : 'bg-pending-100 text-pending-700'
           }`}
         >
           סטטוס הבד״ח: {statusLabel(form.status)}
-          {approved ? ' 🔒' : ' — טרם אושר'}
+          {approved ? ' — נעול' : ' — טרם אושר'}
         </div>
 
         {/* Header */}
         <div className="mb-4 border-b-2 border-slate-800 pb-3">
+          {form.system_name_snapshot && (
+            <div className="text-sm font-bold text-brand-700">
+              מערכת: {form.system_name_snapshot}
+            </div>
+          )}
           <h1 className="text-2xl font-bold text-slate-900">{form.name}</h1>
           <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-sm text-slate-700 sm:grid-cols-3">
             <div>
@@ -167,7 +187,7 @@ export default function FormViewPage() {
         {/* Fault details (no permanent notes column — details live here) */}
         {faults.length > 0 && (
           <div className="mt-5">
-            <h3 className="mb-2 font-bold text-fault-700">⚠ פירוט אי-תקינות</h3>
+            <h3 className="mb-2 font-bold text-fault-700">פירוט אי-תקינות</h3>
             <div className="space-y-2">
               {faults.map((t) => (
                 <div key={t.id} className="rounded-lg border border-fault-200 bg-fault-50 p-3">
@@ -197,6 +217,14 @@ export default function FormViewPage() {
         <div className="mt-8 grid grid-cols-2 gap-6">
           <SignatureBlock title="מבצע הבדיקה" sig={perf} />
           <SignatureBlock title="מאשר הבדיקה" sig={appr} />
+        </div>
+
+        {/* Branded document footer (part of the printed document) */}
+        <div className="mt-8 flex items-center justify-between border-t border-slate-200 pt-3">
+          <VeroLogo variant="compact" tone="light" />
+          <div className="text-left text-[11px] text-slate-400">
+            מסמך זה הופק ממערכת VERO · {formatDateTime(new Date().toISOString())}
+          </div>
         </div>
       </div>
     </div>

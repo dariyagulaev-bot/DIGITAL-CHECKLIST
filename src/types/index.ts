@@ -52,8 +52,18 @@ export interface UserRole {
   role_id: string;
 }
 
+/** A "system" (מערכת) groups the checklists (בד״חים) that belong to it. */
+export interface System {
+  id: string;
+  name: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Template {
   id: string;
+  system_id: string; // owning system (מערכת)
   name: string;
   description: string;
   active: boolean;
@@ -94,6 +104,8 @@ export interface CompletedForm {
   device_id: string; // originating device
   template_id: string;
   template_snapshot: TemplateSnapshot; // frozen template content
+  system_id: string | null; // owning system at creation time
+  system_name_snapshot: string; // frozen system name at creation time
   name: string;
   number: string;
   performer_user_id: string;

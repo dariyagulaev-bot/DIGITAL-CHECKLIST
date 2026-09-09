@@ -2,41 +2,58 @@ import { type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useNavGuard } from '@/context/NavGuardContext';
-import { isAdmin } from '@/services/rbac';
 import { roleLabel } from '@/exports/labels';
 import { Icon } from './Icon';
+import { VeroLogo } from './VeroLogo';
+import { buildCrumbs } from './breadcrumbs';
 
-/**
- * Consistent back control. Steps back one screen in-app (never logs out), and
- * routes through the nav guard so a screen with unsaved changes can intercept.
- */
+/** Official emblem — a crisp white tile with the inspection glyph in navy. */
+export function BrandMark({ size = 34 }: { size?: number }) {
+  return (
+    <span
+      className="flex shrink-0 items-center justify-center rounded bg-white text-navy-800"
+      style={{ width: size, height: size }}
+    >
+      <Icon name="clipboard-check" size={size * 0.62} />
+    </span>
+  );
+}
+
+/** Back control — steps back one screen (never logs out), via the nav guard. */
 export function BackButton({ className = '' }: { className?: string }) {
   const { attemptBack } = useNavGuard();
   return (
     <button
       type="button"
       onClick={attemptBack}
-      className={`inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-bold text-ink-700 shadow-card transition-all hover:border-slate-300 hover:bg-slate-50 active:scale-[0.98] ${className}`}
+      className={`inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-[13.5px] font-semibold text-ink-600 transition-colors hover:bg-slate-100 hover:text-ink-800 ${className}`}
     >
-      <Icon name="back" size={18} />
+      <Icon name="back" size={17} />
       חזרה
     </button>
   );
 }
 
-/** Branded app mark — a gradient tile with the inspection glyph. */
-export function BrandMark({ size = 40 }: { size?: number }) {
+function Breadcrumbs({ pathname }: { pathname: string }) {
+  const crumbs = buildCrumbs(pathname);
   return (
-    <span
-      className="flex shrink-0 items-center justify-center rounded-2xl text-white shadow-soft"
-      style={{
-        width: size,
-        height: size,
-        background: 'linear-gradient(150deg, #574fe8 0%, #4338ca 55%, #06b6d4 160%)',
-      }}
-    >
-      <Icon name="clipboard-check" size={size * 0.56} />
-    </span>
+    <nav aria-label="breadcrumb" className="flex items-center gap-1.5 text-[13px]">
+      {crumbs.map((c, i) => {
+        const last = i === crumbs.length - 1;
+        return (
+          <span key={i} className="flex items-center gap-1.5">
+            {c.to && !last ? (
+              <Link to={c.to} className="font-medium text-ink-500 hover:text-brand-600">
+                {c.label}
+              </Link>
+            ) : (
+              <span className={last ? 'font-bold text-ink-800' : 'text-ink-500'}>{c.label}</span>
+            )}
+            {!last && <Icon name="chevron-start" size={13} className="text-ink-300" />}
+          </span>
+        );
+      })}
+    </nav>
   );
 }
 
@@ -44,7 +61,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const showBack = location.pathname !== '/'; // hide on the home/root screen
+  const isHome = location.pathname === '/';
 
   const handleLogout = () => {
     logout();
@@ -53,61 +70,46 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="no-print sticky top-0 z-30 border-b border-slate-200/70 bg-white/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          <Link to="/" className="flex items-center gap-3">
-            <BrandMark size={40} />
-            <div className="leading-tight">
-              <div className="font-display text-[17px] font-extrabold text-ink-900">
-                מערכת בד״ח דיגיטלית
-              </div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-                Digital Inspections
-              </div>
-            </div>
+      {/* Official navy header */}
+      <header className="no-print sticky top-0 z-30 bg-navy-900 text-white shadow-header">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
+          <Link to="/" className="flex items-center" aria-label="VERO — דף הבית">
+            <VeroLogo variant="compact" tone="dark" />
           </Link>
 
           {user && (
-            <div className="flex items-center gap-2.5">
-              <div className="hidden text-right leading-tight sm:block">
-                <div className="text-sm font-bold text-ink-800">{user.full_name}</div>
-                <div className="flex justify-end gap-1">
-                  {user.roles.map((r) => (
-                    <span
-                      key={r}
-                      className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500"
-                    >
-                      {roleLabel(r)}
-                    </span>
-                  ))}
+            <div className="flex items-center gap-3">
+              <div className="hidden text-left leading-tight sm:block">
+                <div className="text-[13.5px] font-semibold text-white">{user.full_name}</div>
+                <div className="text-[11px] text-navy-200">
+                  {user.roles.map(roleLabel).join(' · ')}
                 </div>
               </div>
-              {isAdmin(user) && (
-                <Link to="/admin" className="btn-outline btn-sm gap-1.5" title="ניהול">
-                  <Icon name="settings" size={17} />
-                  <span className="hidden md:inline">ניהול</span>
-                </Link>
-              )}
+              <span className="hidden h-6 w-px bg-white/15 sm:block" />
               <button
-                className="btn-ghost btn-sm gap-1.5"
+                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13.5px] font-semibold text-navy-100 transition-colors hover:bg-white/10 hover:text-white"
                 onClick={handleLogout}
-                title="יציאה"
               >
                 <Icon name="logout" size={17} />
-                <span className="hidden md:inline">יציאה</span>
+                יציאה
               </button>
             </div>
           )}
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-7">
-        {showBack && (
-          <div className="no-print mb-4">
+
+      {/* Sub-bar: back + breadcrumbs (internal screens only) */}
+      {!isHome && (
+        <div className="no-print border-b border-slate-200 bg-white">
+          <div className="mx-auto flex h-11 max-w-6xl items-center gap-3 px-4">
             <BackButton />
+            <span className="h-4 w-px bg-slate-200" />
+            <Breadcrumbs pathname={location.pathname} />
           </div>
-        )}
-        {children}
-      </main>
+        </div>
+      )}
+
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">{children}</main>
     </div>
   );
 }
@@ -115,20 +117,17 @@ export function Layout({ children }: { children: ReactNode }) {
 export function PageHeader({
   title,
   subtitle,
-  eyebrow,
   actions,
 }: {
   title: string;
   subtitle?: string;
-  eyebrow?: string;
   actions?: ReactNode;
 }) {
   return (
-    <div className="no-print mb-6 flex flex-wrap items-end justify-between gap-3">
+    <div className="no-print mb-5 flex flex-wrap items-end justify-between gap-3">
       <div>
-        {eyebrow && <div className="eyebrow mb-1">{eyebrow}</div>}
-        <h1 className="font-display text-[26px] font-extrabold text-ink-900">{title}</h1>
-        {subtitle && <p className="mt-1 text-slate-500">{subtitle}</p>}
+        <h1 className="text-[22px] font-extrabold text-ink-900">{title}</h1>
+        {subtitle && <p className="mt-0.5 text-[14px] text-ink-500">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
     </div>

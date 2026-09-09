@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { Icon } from '@/components/Icon';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import {
@@ -33,7 +34,7 @@ export default function BackupPage() {
     if (!user) return;
     if (
       !confirm(
-        '⚠️ שחזור יחליף את כל הנתונים הקיימים במכשיר זה (משתמשים, תבניות, בד״חים)! פעולה זו אינה הפיכה. להמשיך?'
+        'שחזור יחליף את כל הנתונים הקיימים במכשיר זה (משתמשים, תבניות, בד״חים)! פעולה זו אינה הפיכה. להמשיך?'
       )
     )
       return;
@@ -85,11 +86,11 @@ export default function BackupPage() {
         title="גיבוי ושחזור מלא"
         desc="גיבוי כולל את כל הנתונים: משתמשים, תבניות, בד״חים, חתימות, תמונות והגדרות. השחזור מחליף את כל הנתונים במכשיר."
       >
-        <button className="btn-primary" onClick={doFullBackup}>
-          💾 גיבוי מערכת מלא
+        <button className="btn-primary gap-1.5" onClick={doFullBackup}>
+          <Icon name="download" size={17} /> גיבוי מערכת מלא
         </button>
-        <button className="btn-outline text-fault-700" onClick={() => restoreRef.current?.click()}>
-          ♻️ שחזור מגיבוי
+        <button className="btn-outline gap-1.5" onClick={() => restoreRef.current?.click()}>
+          <Icon name="refresh" size={17} /> שחזור מגיבוי
         </button>
         <input
           ref={restoreRef}
@@ -104,11 +105,11 @@ export default function BackupPage() {
         title="העברת בד״חים למחשב מרכזי (מוסיף בלבד)"
         desc="ייצא את הבד״חים שבוצעו במכשיר זה לקובץ, העבר ב-USB, וייבא (מזג) במחשב המרכזי. בד״חים קיימים לא יידרסו."
       >
-        <button className="btn-primary" onClick={doExportForms}>
-          ⬆️ ייצוא בד״חים להעברה
+        <button className="btn-primary gap-1.5" onClick={doExportForms}>
+          <Icon name="download" size={17} /> ייצוא בד״חים להעברה
         </button>
-        <button className="btn-outline" onClick={() => mergeRef.current?.click()}>
-          ⬇️ מיזוג בד״חים מקובץ
+        <button className="btn-outline gap-1.5" onClick={() => mergeRef.current?.click()}>
+          <Icon name="download" size={17} /> מיזוג בד״חים מקובץ
         </button>
         <input
           ref={mergeRef}
@@ -123,11 +124,11 @@ export default function BackupPage() {
         title="הפצת הגדרות למכשירים (משתמשים ותבניות)"
         desc="במחשב המרכזי: ייצא משתמשים, תבניות והגדרות לקובץ. במכשירי השטח: ייבא כדי לקבל את העדכונים."
       >
-        <button className="btn-primary" onClick={doExportConfig}>
-          ⬆️ ייצוא הגדרות
+        <button className="btn-primary gap-1.5" onClick={doExportConfig}>
+          <Icon name="download" size={17} /> ייצוא הגדרות
         </button>
-        <button className="btn-outline" onClick={() => configRef.current?.click()}>
-          ⬇️ ייבוא הגדרות
+        <button className="btn-outline gap-1.5" onClick={() => configRef.current?.click()}>
+          <Icon name="download" size={17} /> ייבוא הגדרות
         </button>
         <input
           ref={configRef}

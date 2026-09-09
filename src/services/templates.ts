@@ -1,14 +1,25 @@
 import { db } from '@/data/db';
 import { newId, nowIso } from './ids';
+import { ensureDefaultSystem } from './systems';
 import type { Template, TemplateTask } from '@/types';
 
 /**
- * Template management. Templates are data-driven (never hard-coded) and
- * fully managed by the admin: create, edit, duplicate, deactivate, reorder.
+ * Template management. Templates (בד״חים) are data-driven (never hard-coded),
+ * belong to a system (מערכת), and are fully managed by the admin.
  */
 
 export async function listTemplates(includeInactive = false): Promise<Template[]> {
   const all = await db.templates.toArray();
+  const filtered = includeInactive ? all : all.filter((t) => t.active);
+  return filtered.sort((a, b) => a.name.localeCompare(b.name, 'he'));
+}
+
+/** Templates belonging to a given system. */
+export async function listTemplatesBySystem(
+  systemId: string,
+  includeInactive = false
+): Promise<Template[]> {
+  const all = await db.templates.where('system_id').equals(systemId).toArray();
   const filtered = includeInactive ? all : all.filter((t) => t.active);
   return filtered.sort((a, b) => a.name.localeCompare(b.name, 'he'));
 }
@@ -26,9 +37,12 @@ export async function createTemplate(params: {
   name: string;
   description?: string;
   active?: boolean;
+  system_id?: string;
 }): Promise<Template> {
+  const systemId = params.system_id ?? (await ensureDefaultSystem());
   const t: Template = {
     id: newId(),
+    system_id: systemId,
     name: params.name.trim(),
     description: (params.description ?? '').trim(),
     active: params.active ?? true,
@@ -41,7 +55,7 @@ export async function createTemplate(params: {
 
 export async function updateTemplate(
   id: string,
-  patch: Partial<Pick<Template, 'name' | 'description' | 'active'>>
+  patch: Partial<Pick<Template, 'name' | 'description' | 'active' | 'system_id'>>
 ): Promise<void> {
   await db.templates.update(id, { ...patch, updated_at: nowIso() });
 }

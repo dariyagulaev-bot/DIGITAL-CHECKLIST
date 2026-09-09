@@ -37,12 +37,12 @@ export function ApprovalSection({
   // ---- Already approved: show the final, locked result. ----
   if (form.status === FormStatus.APPROVED) {
     return (
-      <section className="card border-r-4 border-r-ok-500 p-5 sm:p-6">
+      <section className="card border-r-2 border-r-ok-500 p-5 sm:p-6">
         <div className="mb-3 flex items-center gap-2.5">
           <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-ok-100 text-ok-600">
             <Icon name="shield-check" size={22} />
           </span>
-          <h2 className="font-display text-lg font-extrabold text-ok-700">הבד״ח אושר ונעל</h2>
+          <h2 className="text-lg font-extrabold text-ok-700">הבד״ח אושר ונעל</h2>
         </div>
         <p className="mb-4 text-sm text-slate-500">
           מאשר: <span className="font-semibold text-ink-700">{form.approver_name}</span> ·{' '}
@@ -120,14 +120,14 @@ export function ApprovalSection({
   };
 
   return (
-    <section className="card overflow-hidden border-r-4 border-r-pending-500 p-5 sm:p-6">
+    <section className="card overflow-hidden border-r-2 border-r-pending-500 p-5 sm:p-6">
       {!approver ? (
         // ---- Locked ----
         <div className="flex flex-col items-center gap-3 py-6 text-center">
-          <span className="flex h-16 w-16 items-center justify-center rounded-3xl bg-pending-50 text-pending-600 ring-1 ring-pending-100">
+          <span className="flex h-14 w-14 items-center justify-center rounded-lg bg-pending-50 text-pending-600 ring-1 ring-pending-100">
             <Icon name="lock" size={30} />
           </span>
-          <div className="font-display text-lg font-extrabold text-ink-900">חתימת מאשר</div>
+          <div className="text-lg font-extrabold text-ink-900">חתימת מאשר</div>
           <div className="max-w-sm text-sm text-slate-500">
             אזור זה נעול. נדרשת הרשאת מאשר כדי לפתוח אותו ולחתום.
           </div>

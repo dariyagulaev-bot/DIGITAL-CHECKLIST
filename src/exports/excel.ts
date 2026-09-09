@@ -42,22 +42,30 @@ export async function exportFormToExcel(formId: string): Promise<void> {
     { width: 30 },
   ];
 
-  // Title
+  // Title (VERO-branded)
   ws.mergeCells('A1:F1');
-  const title = ws.getCell('A1');
+  const brand = ws.getCell('A1');
+  brand.value = 'VERO · מערכת בקרה דיגיטלית';
+  brand.font = { size: 12, bold: true, color: { argb: 'FF0F2B52' } };
+  brand.alignment = { horizontal: 'right', vertical: 'middle' };
+  ws.getRow(1).height = 20;
+
+  ws.mergeCells('A2:F2');
+  const title = ws.getCell('A2');
   title.value = `בד״ח: ${form.name}`;
   title.font = { size: 16, bold: true };
   title.alignment = { horizontal: 'right', vertical: 'middle' };
-  ws.getRow(1).height = 26;
+  ws.getRow(2).height = 26;
 
   const meta: Array<[string, string]> = [
+    ['מערכת', form.system_name_snapshot || '—'],
     ['מספר בד״ח', form.number || '—'],
     ['תאריך', form.date],
     ['מבצע', form.performer_name],
     ['מאשר', form.approver_name || '—'],
     ['סטטוס', statusLabel(form.status)],
   ];
-  let r = 2;
+  let r = 3;
   for (const [k, v] of meta) {
     ws.getCell(`A${r}`).value = k;
     ws.getCell(`A${r}`).font = { bold: true };
@@ -183,9 +191,15 @@ export async function exportFormToExcel(formId: string): Promise<void> {
   }
   r = sigRow + 3;
   if (form.status !== FormStatus.APPROVED) {
-    ws.getCell(`A${r}`).value = '⚠ בד״ח זה טרם אושר';
+    ws.getCell(`A${r}`).value = 'בד״ח זה טרם אושר';
     ws.getCell(`A${r}`).font = { bold: true, color: { argb: RED_TEXT } };
+    r += 2;
   }
+  // VERO footer
+  ws.mergeCells(`A${r}:F${r}`);
+  ws.getCell(`A${r}`).value = 'הופק ממערכת VERO · מערכת בקרה דיגיטלית';
+  ws.getCell(`A${r}`).font = { italic: true, size: 10, color: { argb: 'FF8895A7' } };
+  ws.getCell(`A${r}`).alignment = { horizontal: 'right' };
 
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], {

@@ -131,7 +131,7 @@ export const SignaturePad = forwardRef<SignaturePadHandle, Props>(function Signa
 
   return (
     <div className="w-full">
-      <div className="relative overflow-hidden rounded-2xl border-2 border-dashed border-slate-300 bg-gradient-to-b from-slate-50/60 to-white">
+      <div className="relative overflow-hidden rounded-md border border-dashed border-slate-300 bg-slate-50/40">
         <canvas
           ref={canvasRef}
           onPointerDown={start}

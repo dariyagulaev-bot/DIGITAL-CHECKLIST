@@ -11,15 +11,18 @@ import {
   updateTemplate,
 } from '@/services/templates';
 import { fileToManagedDataUrl } from '@/services/images';
+import { listSystems } from '@/services/systems';
 import { useToast } from '@/context/ToastContext';
 import { Modal, Spinner } from '@/components/ui';
-import type { Template, TemplateTask } from '@/types';
+import { Icon } from '@/components/Icon';
+import type { System, Template, TemplateTask } from '@/types';
 
 export default function TemplateEditorPage() {
   const { id } = useParams<{ id: string }>();
   const { notify } = useToast();
   const [template, setTemplate] = useState<Template | null>(null);
   const [tasks, setTasks] = useState<TemplateTask[]>([]);
+  const [systems, setSystems] = useState<System[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingTask, setEditingTask] = useState<TemplateTask | 'new' | null>(null);
   const [lightbox, setLightbox] = useState<string | null>(null);
@@ -30,6 +33,7 @@ export default function TemplateEditorPage() {
     const t = await getTemplate(id);
     setTemplate(t ?? null);
     setTasks(await getTemplateTasks(id));
+    setSystems(await listSystems(true));
     setLoading(false);
   };
   useEffect(() => {
@@ -71,9 +75,24 @@ export default function TemplateEditorPage() {
     <div className="space-y-6">
       <section className="card p-5">
         <h2 className="mb-4 text-lg font-bold text-slate-700">פרטי הבד״ח</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
           <div>
-            <label className="label">שם</label>
+            <label className="label">מערכת</label>
+            <select
+              className="input"
+              value={template.system_id}
+              onChange={(e) => saveMeta({ system_id: e.target.value })}
+            >
+              {systems.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                  {s.active ? '' : ' (מושבתת)'}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">שם הבד״ח</label>
             <input
               className="input"
               defaultValue={template.name}
@@ -105,8 +124,8 @@ export default function TemplateEditorPage() {
       <section className="card p-5">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-700">שורות הבד״ח ({tasks.length})</h2>
-          <button className="btn-primary" onClick={() => setEditingTask('new')}>
-            ➕ הוסף שורה
+          <button className="btn-primary btn-sm gap-1.5" onClick={() => setEditingTask('new')}>
+            <Icon name="plus" size={16} /> הוסף שורה
           </button>
         </div>
 

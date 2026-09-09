@@ -1,6 +1,7 @@
 import { db } from '@/data/db';
 import { newId, nowIso, getDeviceId } from './ids';
 import { getTemplate, getTemplateTasks } from './templates';
+import { getSystem } from './systems';
 import {
   FormStatus,
   SignerType,
@@ -39,6 +40,7 @@ export async function createDraftForm(params: {
   const template = await getTemplate(params.templateId);
   if (!template) throw new Error('התבנית לא נמצאה');
   const templateTasks = await getTemplateTasks(params.templateId);
+  const system = template.system_id ? await getSystem(template.system_id) : undefined;
 
   const snapshot: TemplateSnapshot = {
     template_id: template.id,
@@ -60,6 +62,8 @@ export async function createDraftForm(params: {
     device_id: getDeviceId(),
     template_id: template.id,
     template_snapshot: snapshot,
+    system_id: template.system_id ?? null,
+    system_name_snapshot: system?.name ?? '',
     name: params.name?.trim() || template.name,
     number: params.number?.trim() || '',
     performer_user_id: params.performer.id,

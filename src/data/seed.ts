@@ -1,7 +1,7 @@
 import { db } from './db';
 import { newId, nowIso } from '@/services/ids';
 import { hashPassword } from '@/services/auth';
-import { RoleName, type Role, type Template, type TemplateTask, type User } from '@/types';
+import { RoleName, type Role, type System, type Template, type TemplateTask, type User } from '@/types';
 import { SettingKeys } from '@/services/settings';
 
 /**
@@ -52,11 +52,26 @@ async function ensureUser(
   }
 }
 
-async function ensureDemoTemplate(): Promise<void> {
+async function ensureDemoSystem(): Promise<string> {
+  const existing = await db.systems.where('name').equals('מערכת א׳').first();
+  if (existing) return existing.id;
+  const sys: System = {
+    id: newId(),
+    name: 'מערכת א׳',
+    active: true,
+    created_at: nowIso(),
+    updated_at: nowIso(),
+  };
+  await db.systems.add(sys);
+  return sys.id;
+}
+
+async function ensureDemoTemplate(systemId: string): Promise<void> {
   const existing = await db.templates.where('name').equals('בדיקה יומית').first();
   if (existing) return;
   const template: Template = {
     id: newId(),
+    system_id: systemId,
     name: 'בדיקה יומית',
     description: 'בדיקה יומית לדוגמה — נוצרה אוטומטית',
     active: true,
@@ -90,6 +105,7 @@ export async function runSeed(): Promise<void> {
   await ensureUser(DEFAULT_ADMIN, [roles[RoleName.ADMIN]]);
   await ensureUser(DEMO_PERFORMER, [roles[RoleName.PERFORMER]]);
   await ensureUser(DEMO_APPROVER, [roles[RoleName.APPROVER]]);
-  await ensureDemoTemplate();
+  const systemId = await ensureDemoSystem();
+  await ensureDemoTemplate(systemId);
   await ensureSettings();
 }

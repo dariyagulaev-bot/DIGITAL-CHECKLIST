@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { listActiveUsers } from '@/services/auth';
 import type { User } from '@/types';
-import { BrandMark } from '@/components/Layout';
+import { VeroLogo } from '@/components/VeroLogo';
 
 export default function LoginPage() {
   const { login, user } = useAuth();
@@ -39,13 +39,16 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-full flex items-center justify-center bg-gradient-to-b from-slate-100 to-slate-200 p-4">
-      <div className="card w-full max-w-md p-8">
-        <div className="mb-6 flex flex-col items-center gap-3 text-center">
-          <BrandMark size={60} />
-          <h1 className="text-2xl font-bold text-slate-800">מערכת בד״ח דיגיטלית</h1>
-          <p className="text-slate-500">התחברות למערכת</p>
+    <div className="min-h-full flex items-center justify-center bg-[#eef1f6] p-4">
+      <div className="w-full max-w-md">
+        <div className="mb-6 flex flex-col items-center gap-4 text-center">
+          <VeroLogo variant="full" tone="light" />
         </div>
+        <div className="card p-8 shadow-soft">
+          <div className="mb-5 text-center">
+            <h1 className="text-[18px] font-bold text-ink-900">התחברות למערכת</h1>
+            <p className="mt-0.5 text-[13px] text-ink-500">הזן שם משתמש וסיסמה</p>
+          </div>
 
         <form onSubmit={submit} className="space-y-4">
           <div>
@@ -96,12 +99,13 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-6 rounded-xl bg-slate-50 p-4 text-xs text-slate-500">
-          <div className="font-semibold text-slate-600">משתמשי דמו (יש לשנות סיסמאות):</div>
-          <div className="mt-1 space-y-0.5">
-            <div>מנהל: admin / admin123</div>
-            <div>מבצע: performer / 1234</div>
-            <div>מאשר: approver / 1234</div>
+          <div className="mt-6 rounded-md border border-slate-200 bg-slate-50 p-3.5 text-xs text-ink-500">
+            <div className="font-semibold text-ink-600">משתמשי דמו (יש לשנות סיסמאות):</div>
+            <div className="mt-1 space-y-0.5">
+              <div>מנהל: admin / admin123</div>
+              <div>מבצע: performer / 1234</div>
+              <div>מאשר: approver / 1234</div>
+            </div>
           </div>
         </div>
       </div>
