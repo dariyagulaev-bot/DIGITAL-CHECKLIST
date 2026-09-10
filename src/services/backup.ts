@@ -6,6 +6,8 @@ import type {
   Role,
   UserRole,
   System,
+  Unit,
+  Rank,
   Template,
   TemplateTask,
   CompletedForm,
@@ -40,6 +42,8 @@ export interface FullBackup {
     roles: Role[];
     user_roles: UserRole[];
     systems: System[];
+    units: Unit[];
+    ranks: Rank[];
     templates: Template[];
     template_tasks: TemplateTask[];
     completed_forms: CompletedForm[];
@@ -69,6 +73,8 @@ export interface ConfigBundle {
   roles: Role[];
   user_roles: UserRole[];
   systems: System[];
+  units: Unit[];
+  ranks: Rank[];
   templates: Template[];
   template_tasks: TemplateTask[];
   settings: Setting[];
@@ -80,6 +86,8 @@ async function collectAll() {
     roles,
     user_roles,
     systems,
+    units,
+    ranks,
     templates,
     template_tasks,
     completed_forms,
@@ -92,6 +100,8 @@ async function collectAll() {
     db.roles.toArray(),
     db.user_roles.toArray(),
     db.systems.toArray(),
+    db.units.toArray(),
+    db.ranks.toArray(),
     db.templates.toArray(),
     db.template_tasks.toArray(),
     db.completed_forms.toArray(),
@@ -105,6 +115,8 @@ async function collectAll() {
     roles,
     user_roles,
     systems,
+    units,
+    ranks,
     templates,
     template_tasks,
     completed_forms,
@@ -146,6 +158,8 @@ export async function restoreFullBackup(
       db.roles,
       db.user_roles,
       db.systems,
+      db.units,
+      db.ranks,
       db.templates,
       db.template_tasks,
       db.completed_forms,
@@ -160,6 +174,8 @@ export async function restoreFullBackup(
         db.roles.clear(),
         db.user_roles.clear(),
         db.systems.clear(),
+        db.units.clear(),
+        db.ranks.clear(),
         db.templates.clear(),
         db.template_tasks.clear(),
         db.completed_forms.clear(),
@@ -173,6 +189,8 @@ export async function restoreFullBackup(
         db.roles.bulkAdd(d.roles),
         db.user_roles.bulkAdd(d.user_roles),
         db.systems.bulkAdd(d.systems),
+        db.units.bulkAdd(d.units),
+        db.ranks.bulkAdd(d.ranks),
         db.templates.bulkAdd(d.templates),
         db.template_tasks.bulkAdd(d.template_tasks),
         db.completed_forms.bulkAdd(d.completed_forms),
@@ -255,6 +273,8 @@ export async function exportConfigBundle(): Promise<ConfigBundle> {
     roles: all.roles,
     user_roles: all.user_roles,
     systems: all.systems,
+    units: all.units,
+    ranks: all.ranks,
     templates: all.templates,
     template_tasks: all.template_tasks,
     settings: all.settings,
@@ -268,12 +288,14 @@ export async function importConfigBundle(payload: ConfigBundle): Promise<void> {
   }
   await db.transaction(
     'rw',
-    [db.users, db.roles, db.user_roles, db.systems, db.templates, db.template_tasks, db.settings],
+    [db.users, db.roles, db.user_roles, db.systems, db.units, db.ranks, db.templates, db.template_tasks, db.settings],
     async () => {
       await db.roles.bulkPut(payload.roles);
       await db.users.bulkPut(payload.users);
       await db.user_roles.bulkPut(payload.user_roles);
       await db.systems.bulkPut(payload.systems);
+      await db.units.bulkPut(payload.units);
+      await db.ranks.bulkPut(payload.ranks);
       await db.templates.bulkPut(payload.templates);
       await db.template_tasks.bulkPut(payload.template_tasks);
       await db.settings.bulkPut(payload.settings);

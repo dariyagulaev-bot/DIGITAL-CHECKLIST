@@ -4,6 +4,7 @@ import {
   countTemplatesInSystem,
   createSystem,
   listSystems,
+  moveSystem,
   setSystemActive,
   updateSystem,
 } from '@/services/systems';
@@ -34,6 +35,7 @@ export default function SystemsPage() {
   }, []);
 
   const toggle = async (s: System) => {
+    if (s.active && !confirm(`להשבית את סוג המערכת "${s.name}"? לא יוצג במסך בדיקה חדשה.`)) return;
     await setSystemActive(s.id, !s.active);
     if (admin)
       await logAudit({
@@ -47,15 +49,20 @@ export default function SystemsPage() {
     load();
   };
 
+  const move = async (id: string, dir: 'up' | 'down') => {
+    await moveSystem(id, dir);
+    load();
+  };
+
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h2 className="text-[16px] font-bold text-ink-900">ניהול מערכות</h2>
-          <p className="text-[13px] text-ink-500">כל בד״ח משויך למערכת. ניתן לנהל מספר מערכות במקביל.</p>
+          <h2 className="text-[16px] font-bold text-ink-900">סוגי מערכת</h2>
+          <p className="text-[13px] text-ink-500">הרמה העליונה בהיררכיה. לכל סוג מערכת שייכות יחידות ובד״חים.</p>
         </div>
         <button className="btn-primary btn-sm gap-1.5" onClick={() => setEditing('new')}>
-          <Icon name="plus" size={16} /> מערכת חדשה
+          <Icon name="plus" size={16} /> סוג מערכת חדש
         </button>
       </div>
 
@@ -70,22 +77,37 @@ export default function SystemsPage() {
           <table className="tbl">
             <thead>
               <tr>
-                <th>שם המערכת</th>
-                <th className="text-center">בד״חים משויכים</th>
+                <th className="w-16 text-center">סדר</th>
+                <th>שם סוג המערכת</th>
+                <th className="text-center">בד״חים</th>
                 <th className="text-center">סטטוס</th>
                 <th>פעולות</th>
               </tr>
             </thead>
             <tbody>
-              {systems.map((s) => (
+              {systems.map((s, i) => (
                 <tr key={s.id} className="row-hover">
+                  <td className="text-center">
+                    <div className="inline-flex gap-1">
+                      <button className="btn-ghost !min-h-0 !p-1" onClick={() => move(s.id, 'up')} disabled={i === 0}>
+                        <Icon name="up" size={15} />
+                      </button>
+                      <button
+                        className="btn-ghost !min-h-0 !p-1"
+                        onClick={() => move(s.id, 'down')}
+                        disabled={i === systems.length - 1}
+                      >
+                        <Icon name="down" size={15} />
+                      </button>
+                    </div>
+                  </td>
                   <td className="font-semibold text-ink-900">{s.name}</td>
                   <td className="nums text-center">{counts[s.id] ?? 0}</td>
                   <td className="text-center">
                     {s.active ? (
-                      <span className="badge border-ok-200 bg-ok-50 text-ok-700">פעילה</span>
+                      <span className="badge border-ok-200 bg-ok-50 text-ok-700">פעיל</span>
                     ) : (
-                      <span className="badge border-slate-200 bg-slate-100 text-slate-500">מושבתת</span>
+                      <span className="badge border-slate-200 bg-slate-100 text-slate-500">מושבת</span>
                     )}
                   </td>
                   <td>
@@ -96,8 +118,8 @@ export default function SystemsPage() {
                       <button className="link" onClick={() => toggle(s)}>
                         {s.active ? 'השבת' : 'הפעל'}
                       </button>
-                      <Link to="/admin/templates" className="link">
-                        בד״חים
+                      <Link to="/admin/units" className="link">
+                        יחידות
                       </Link>
                     </div>
                   </td>

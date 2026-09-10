@@ -1,7 +1,16 @@
 import { db } from './db';
 import { newId, nowIso } from '@/services/ids';
 import { hashPassword } from '@/services/auth';
-import { RoleName, type Role, type System, type Template, type TemplateTask, type User } from '@/types';
+import {
+  RoleName,
+  type Role,
+  type System,
+  type Unit,
+  type Rank,
+  type Template,
+  type TemplateTask,
+  type User,
+} from '@/types';
 import { SettingKeys } from '@/services/settings';
 
 /**
@@ -52,13 +61,14 @@ async function ensureUser(
   }
 }
 
-async function ensureDemoSystem(): Promise<string> {
-  const existing = await db.systems.where('name').equals('מערכת א׳').first();
+async function ensureSystem(name: string, sortOrder: number): Promise<string> {
+  const existing = await db.systems.where('name').equals(name).first();
   if (existing) return existing.id;
   const sys: System = {
     id: newId(),
-    name: 'מערכת א׳',
+    name,
     active: true,
+    sort_order: sortOrder,
     created_at: nowIso(),
     updated_at: nowIso(),
   };
@@ -66,25 +76,60 @@ async function ensureDemoSystem(): Promise<string> {
   return sys.id;
 }
 
-async function ensureDemoTemplate(systemId: string): Promise<void> {
-  const existing = await db.templates.where('name').equals('בדיקה יומית').first();
+async function ensureRank(name: string, sortOrder: number): Promise<string> {
+  // `name` is not an index on the ranks table — filter in JS.
+  const existing = (await db.ranks.toArray()).find((r) => r.name === name);
+  if (existing) return existing.id;
+  const rank: Rank = {
+    id: newId(),
+    name,
+    active: true,
+    sort_order: sortOrder,
+    created_at: nowIso(),
+    updated_at: nowIso(),
+  };
+  await db.ranks.add(rank);
+  return rank.id;
+}
+
+async function ensureUnits(systemId: string, names: string[]): Promise<void> {
+  const existing = await db.units.where('system_id').equals(systemId).count();
+  if (existing > 0) return;
+  for (let i = 0; i < names.length; i++) {
+    const unit: Unit = {
+      id: newId(),
+      system_id: systemId,
+      name: names[i],
+      active: true,
+      sort_order: i,
+      created_at: nowIso(),
+      updated_at: nowIso(),
+    };
+    await db.units.add(unit);
+  }
+}
+
+async function ensureTemplate(
+  name: string,
+  description: string,
+  systemId: string,
+  rankId: string,
+  tasks: Array<Omit<TemplateTask, 'id' | 'template_id'>>
+): Promise<void> {
+  const existing = await db.templates.where('name').equals(name).first();
   if (existing) return;
   const template: Template = {
     id: newId(),
     system_id: systemId,
-    name: 'בדיקה יומית',
-    description: 'בדיקה יומית לדוגמה — נוצרה אוטומטית',
+    rank_id: rankId,
+    name,
+    description,
     active: true,
+    version: 1,
     created_at: nowIso(),
     updated_at: nowIso(),
   };
   await db.templates.add(template);
-
-  const tasks: Array<Omit<TemplateTask, 'id' | 'template_id'>> = [
-    { part_name: 'מנוע', action: 'בדיקת מפלס שמן', equipment: 'כפפות', image_data: null, sort_order: 0 },
-    { part_name: 'מערכת חשמל', action: 'בדיקת חיבורים', equipment: 'פנס', image_data: null, sort_order: 1 },
-    { part_name: 'אזור עבודה', action: 'בדיקה ויזואלית', equipment: 'ללא', image_data: null, sort_order: 2 },
-  ];
   for (const t of tasks) {
     await db.template_tasks.add({ id: newId(), template_id: template.id, ...t });
   }
@@ -105,7 +150,30 @@ export async function runSeed(): Promise<void> {
   await ensureUser(DEFAULT_ADMIN, [roles[RoleName.ADMIN]]);
   await ensureUser(DEMO_PERFORMER, [roles[RoleName.PERFORMER]]);
   await ensureUser(DEMO_APPROVER, [roles[RoleName.APPROVER]]);
-  const systemId = await ensureDemoSystem();
-  await ensureDemoTemplate(systemId);
+
+  // A small but complete demo hierarchy so every wizard step has something to
+  // choose from: two system types, two ranks, units per system, templates
+  // associated to system + rank. All of it is admin-editable afterwards.
+  const sysA = await ensureSystem('מערכת א׳', 0);
+  const sysB = await ensureSystem('מערכת ב׳', 1);
+  const rankA = await ensureRank('דרג א׳', 0);
+  const rankB = await ensureRank('דרג ב׳', 1);
+  await ensureUnits(sysA, ['A-01', 'A-02', 'A-03']);
+  await ensureUnits(sysB, ['B-01', 'B-02']);
+
+  await ensureTemplate('בדיקה יומית', 'בדיקה יומית לדוגמה — נוצרה אוטומטית', sysA, rankA, [
+    { part_name: 'מנוע', action: 'בדיקת מפלס שמן', equipment: 'כפפות', image_data: null, sort_order: 0 },
+    { part_name: 'מערכת חשמל', action: 'בדיקת חיבורים', equipment: 'פנס', image_data: null, sort_order: 1 },
+    { part_name: 'אזור עבודה', action: 'בדיקה ויזואלית', equipment: 'ללא', image_data: null, sort_order: 2 },
+  ]);
+  await ensureTemplate('בדיקה תקופתית', 'בדיקה מקיפה בדרג ב׳', sysA, rankB, [
+    { part_name: 'מסנני אוויר', action: 'החלפה וניקוי', equipment: 'ערכת סינון', image_data: null, sort_order: 0 },
+    { part_name: 'מערכת קירור', action: 'בדיקת מפלס נוזל', equipment: 'משפך', image_data: null, sort_order: 1 },
+  ]);
+  await ensureTemplate('בדיקת מוכנות', 'בדיקת מוכנות למערכת ב׳', sysB, rankA, [
+    { part_name: 'לוח בקרה', action: 'בדיקת נוריות', equipment: 'ללא', image_data: null, sort_order: 0 },
+    { part_name: 'חיבורי תקשורת', action: 'בדיקת ממשקים', equipment: 'כבל בדיקה', image_data: null, sort_order: 1 },
+  ]);
+
   await ensureSettings();
 }

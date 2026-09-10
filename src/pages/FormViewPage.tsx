@@ -8,7 +8,7 @@ import { BackButton } from '@/components/Layout';
 import { Icon } from '@/components/Icon';
 import { VeroLogo } from '@/components/VeroLogo';
 import { useToast } from '@/context/ToastContext';
-import { formatDate, formatDateTime, statusLabel } from '@/exports/labels';
+import { formatDate, formatDateTime, formDocumentTitle, statusLabel } from '@/exports/labels';
 import { FormStatus, SignerType, TaskResult, type Signature } from '@/types';
 
 export default function FormViewPage() {
@@ -115,24 +115,32 @@ export default function FormViewPage() {
 
         {/* Header */}
         <div className="mb-4 border-b-2 border-slate-800 pb-3">
-          {form.system_name_snapshot && (
-            <div className="text-sm font-bold text-brand-700">
-              מערכת: {form.system_name_snapshot}
-            </div>
-          )}
+          <div className="text-sm font-bold text-brand-700">{formDocumentTitle(form)}</div>
           <h1 className="text-2xl font-bold text-slate-900">{form.name}</h1>
           <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-sm text-slate-700 sm:grid-cols-3">
             <div>
-              <span className="font-semibold">מספר: </span>
+              <span className="font-semibold">סוג מערכת: </span>
+              {form.system_name_snapshot || '—'}
+            </div>
+            <div>
+              <span className="font-semibold">מערכת / יחידה: </span>
+              {form.unit_name_snapshot || '—'}
+            </div>
+            <div>
+              <span className="font-semibold">דרג בדיקה: </span>
+              {form.rank_name_snapshot || '—'}
+            </div>
+            <div>
+              <span className="font-semibold">סוג בדיקה: </span>
+              {form.template_name_snapshot || form.name}
+            </div>
+            <div>
+              <span className="font-semibold">מספר בד״ח: </span>
               {form.number || '—'}
             </div>
             <div>
               <span className="font-semibold">תאריך: </span>
               {formatDate(form.date)}
-            </div>
-            <div>
-              <span className="font-semibold">סטטוס: </span>
-              {statusLabel(form.status)}
             </div>
             <div>
               <span className="font-semibold">מבצע: </span>
@@ -141,6 +149,10 @@ export default function FormViewPage() {
             <div>
               <span className="font-semibold">מאשר: </span>
               {form.approver_name || '—'}
+            </div>
+            <div>
+              <span className="font-semibold">סטטוס: </span>
+              {statusLabel(form.status)}
             </div>
           </div>
         </div>

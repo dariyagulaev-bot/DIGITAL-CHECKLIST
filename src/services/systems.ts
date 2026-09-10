@@ -10,7 +10,9 @@ import type { System } from '@/types';
 export async function listSystems(includeInactive = false): Promise<System[]> {
   const all = await db.systems.toArray();
   const filtered = includeInactive ? all : all.filter((s) => s.active);
-  return filtered.sort((a, b) => a.name.localeCompare(b.name, 'he'));
+  return filtered.sort(
+    (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name, 'he')
+  );
 }
 
 export async function getSystem(id: string): Promise<System | undefined> {
@@ -18,15 +20,21 @@ export async function getSystem(id: string): Promise<System | undefined> {
 }
 
 export async function createSystem(name: string): Promise<System> {
+  const existing = await db.systems.toArray();
   const s: System = {
     id: newId(),
     name: name.trim(),
     active: true,
+    sort_order: existing.length,
     created_at: nowIso(),
     updated_at: nowIso(),
   };
   await db.systems.add(s);
   return s;
+}
+
+export async function reorderSystems(orderedIds: string[]): Promise<void> {
+  await Promise.all(orderedIds.map((id, i) => db.systems.update(id, { sort_order: i })));
 }
 
 export async function updateSystem(
@@ -57,4 +65,14 @@ export async function ensureDefaultSystem(): Promise<string> {
   if (active) return active.id;
   const created = await createSystem('מערכת ראשית');
   return created.id;
+}
+
+export async function moveSystem(id: string, dir: 'up' | 'down'): Promise<void> {
+  const systems = await listSystems(true);
+  const idx = systems.findIndex((s) => s.id === id);
+  const swap = dir === 'up' ? idx - 1 : idx + 1;
+  if (idx < 0 || swap < 0 || swap >= systems.length) return;
+  const ids = systems.map((s) => s.id);
+  [ids[idx], ids[swap]] = [ids[swap], ids[idx]];
+  await reorderSystems(ids);
 }

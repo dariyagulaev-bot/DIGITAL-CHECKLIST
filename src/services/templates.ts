@@ -1,7 +1,28 @@
 import { db } from '@/data/db';
 import { newId, nowIso } from './ids';
 import { ensureDefaultSystem } from './systems';
+import { ensureDefaultRank } from './ranks';
 import type { Template, TemplateTask } from '@/types';
+
+/** Bump a template's version + updated_at whenever its structure changes. */
+async function touchTemplate(templateId: string): Promise<void> {
+  const t = await db.templates.get(templateId);
+  await db.templates.update(templateId, {
+    updated_at: nowIso(),
+    version: (t?.version ?? 1) + 1,
+  });
+}
+
+export async function listTemplatesBy(
+  systemId: string,
+  rankId: string,
+  includeInactive = false
+): Promise<Template[]> {
+  const all = await db.templates.where('system_id').equals(systemId).toArray();
+  return all
+    .filter((t) => t.rank_id === rankId && (includeInactive || t.active))
+    .sort((a, b) => a.name.localeCompare(b.name, 'he'));
+}
 
 /**
  * Template management. Templates (בד״חים) are data-driven (never hard-coded),
@@ -38,14 +59,19 @@ export async function createTemplate(params: {
   description?: string;
   active?: boolean;
   system_id?: string;
+  /** Explicit `null` means "applies to all ranks"; omit to default to the first rank. */
+  rank_id?: string | null;
 }): Promise<Template> {
   const systemId = params.system_id ?? (await ensureDefaultSystem());
+  const rankId = params.rank_id === undefined ? await ensureDefaultRank() : params.rank_id;
   const t: Template = {
     id: newId(),
     system_id: systemId,
+    rank_id: rankId,
     name: params.name.trim(),
     description: (params.description ?? '').trim(),
     active: params.active ?? true,
+    version: 1,
     created_at: nowIso(),
     updated_at: nowIso(),
   };
@@ -55,7 +81,7 @@ export async function createTemplate(params: {
 
 export async function updateTemplate(
   id: string,
-  patch: Partial<Pick<Template, 'name' | 'description' | 'active' | 'system_id'>>
+  patch: Partial<Pick<Template, 'name' | 'description' | 'active' | 'system_id' | 'rank_id'>>
 ): Promise<void> {
   await db.templates.update(id, { ...patch, updated_at: nowIso() });
 }
@@ -79,6 +105,7 @@ export async function duplicateTemplate(id: string): Promise<Template> {
     ...src,
     id: newId(),
     name: `${src.name} (העתק)`,
+    version: 1,
     created_at: nowIso(),
     updated_at: nowIso(),
   };
@@ -107,7 +134,7 @@ export async function addTask(
     sort_order: existing.length,
   };
   await db.template_tasks.add(task);
-  await db.templates.update(templateId, { updated_at: nowIso() });
+  await touchTemplate(templateId);
   return task;
 }
 
@@ -117,7 +144,7 @@ export async function updateTask(
 ): Promise<void> {
   await db.template_tasks.update(taskId, patch);
   const task = await db.template_tasks.get(taskId);
-  if (task) await db.templates.update(task.template_id, { updated_at: nowIso() });
+  if (task) await touchTemplate(task.template_id);
 }
 
 export async function deleteTask(taskId: string): Promise<void> {
@@ -127,7 +154,7 @@ export async function deleteTask(taskId: string): Promise<void> {
     // Re-pack sort_order to stay contiguous.
     const rest = await getTemplateTasks(task.template_id);
     await Promise.all(rest.map((t, i) => db.template_tasks.update(t.id, { sort_order: i })));
-    await db.templates.update(task.template_id, { updated_at: nowIso() });
+    await touchTemplate(task.template_id);
   }
 }
 
@@ -136,7 +163,7 @@ export async function reorderTasks(templateId: string, orderedIds: string[]): Pr
   await Promise.all(
     orderedIds.map((id, index) => db.template_tasks.update(id, { sort_order: index }))
   );
-  await db.templates.update(templateId, { updated_at: nowIso() });
+  await touchTemplate(templateId);
 }
 
 /** Move a task up or down by one position. */

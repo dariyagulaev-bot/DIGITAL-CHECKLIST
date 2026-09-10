@@ -2,6 +2,8 @@ import { db } from '@/data/db';
 import { newId, nowIso, getDeviceId } from './ids';
 import { getTemplate, getTemplateTasks } from './templates';
 import { getSystem } from './systems';
+import { getUnit } from './units';
+import { getRank } from './ranks';
 import {
   FormStatus,
   SignerType,
@@ -29,10 +31,11 @@ export function isLocked(form: CompletedForm): boolean {
   return form.status === FormStatus.APPROVED;
 }
 
-/** Create a new draft form: freezes a snapshot of the template content. */
+/** Create a new draft form: freezes a snapshot of the template + hierarchy. */
 export async function createDraftForm(params: {
   templateId: string;
   performer: UserWithRoles;
+  unitId?: string;
   name?: string;
   number?: string;
   date?: string;
@@ -41,6 +44,8 @@ export async function createDraftForm(params: {
   if (!template) throw new Error('התבנית לא נמצאה');
   const templateTasks = await getTemplateTasks(params.templateId);
   const system = template.system_id ? await getSystem(template.system_id) : undefined;
+  const unit = params.unitId ? await getUnit(params.unitId) : undefined;
+  const rank = template.rank_id ? await getRank(template.rank_id) : undefined;
 
   const snapshot: TemplateSnapshot = {
     template_id: template.id,
@@ -64,6 +69,12 @@ export async function createDraftForm(params: {
     template_snapshot: snapshot,
     system_id: template.system_id ?? null,
     system_name_snapshot: system?.name ?? '',
+    unit_id: params.unitId ?? null,
+    unit_name_snapshot: unit?.name ?? '',
+    rank_id: template.rank_id ?? null,
+    rank_name_snapshot: rank?.name ?? '',
+    template_name_snapshot: template.name,
+    template_version_snapshot: template.version ?? 1,
     name: params.name?.trim() || template.name,
     number: params.number?.trim() || '',
     performer_user_id: params.performer.id,
@@ -340,6 +351,103 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     pending: forms.filter((f) => f.status === FormStatus.PENDING_APPROVAL).length,
     withFaults,
     recentPending: forms.filter((f) => f.status === FormStatus.PENDING_APPROVAL).slice(0, 8),
+  };
+}
+
+export interface BreakdownRow {
+  key: string;
+  label: string;
+  total: number;
+  approved: number;
+  faults: number;
+}
+
+export interface DashboardBreakdowns {
+  bySystem: BreakdownRow[];
+  byUnit: BreakdownRow[];
+  byRank: BreakdownRow[];
+  byTemplate: BreakdownRow[];
+  byPerformer: BreakdownRow[];
+  byMonth: BreakdownRow[];
+  okItems: number;
+  faultItems: number;
+  totalForms: number;
+}
+
+/**
+ * Aggregate all completed forms into the hierarchy breakdowns the admin
+ * dashboard charts. Snapshots are used so history stays stable even after a
+ * system/unit/rank/template is renamed or disabled.
+ */
+export async function getDashboardBreakdowns(): Promise<DashboardBreakdowns> {
+  const forms = await listAllForms();
+
+  const buckets: Record<
+    'bySystem' | 'byUnit' | 'byRank' | 'byTemplate' | 'byPerformer' | 'byMonth',
+    Map<string, BreakdownRow>
+  > = {
+    bySystem: new Map(),
+    byUnit: new Map(),
+    byRank: new Map(),
+    byTemplate: new Map(),
+    byPerformer: new Map(),
+    byMonth: new Map(),
+  };
+
+  const bump = (
+    map: Map<string, BreakdownRow>,
+    key: string,
+    label: string,
+    approved: boolean,
+    hasFault: boolean
+  ) => {
+    const row = map.get(key) ?? { key, label, total: 0, approved: 0, faults: 0 };
+    row.total += 1;
+    if (approved) row.approved += 1;
+    if (hasFault) row.faults += 1;
+    map.set(key, row);
+  };
+
+  let okItems = 0;
+  let faultItems = 0;
+
+  for (const f of forms) {
+    const tasks = await getFormTasks(f.id);
+    const faults = tasks.filter((t) => t.result === TaskResult.FAULT).length;
+    okItems += tasks.filter((t) => t.result === TaskResult.OK).length;
+    faultItems += faults;
+    const approved = f.status === FormStatus.APPROVED;
+    const hasFault = faults > 0;
+
+    bump(buckets.bySystem, f.system_id ?? '—', f.system_name_snapshot || 'ללא סוג מערכת', approved, hasFault);
+    bump(buckets.byUnit, f.unit_id ?? '—', f.unit_name_snapshot || 'ללא יחידה', approved, hasFault);
+    bump(buckets.byRank, f.rank_id ?? '—', f.rank_name_snapshot || 'ללא דרג', approved, hasFault);
+    bump(
+      buckets.byTemplate,
+      f.template_id,
+      f.template_name_snapshot || f.name,
+      approved,
+      hasFault
+    );
+    bump(buckets.byPerformer, f.performer_user_id, f.performer_name, approved, hasFault);
+    bump(buckets.byMonth, f.date.slice(0, 7), f.date.slice(0, 7), approved, hasFault);
+  }
+
+  const sortDesc = (m: Map<string, BreakdownRow>) =>
+    [...m.values()].sort((a, b) => b.total - a.total);
+  const sortMonth = (m: Map<string, BreakdownRow>) =>
+    [...m.values()].sort((a, b) => a.key.localeCompare(b.key)).slice(-6);
+
+  return {
+    bySystem: sortDesc(buckets.bySystem),
+    byUnit: sortDesc(buckets.byUnit),
+    byRank: sortDesc(buckets.byRank),
+    byTemplate: sortDesc(buckets.byTemplate),
+    byPerformer: sortDesc(buckets.byPerformer),
+    byMonth: sortMonth(buckets.byMonth),
+    okItems,
+    faultItems,
+    totalForms: forms.length,
   };
 }
 

@@ -52,21 +52,51 @@ export interface UserRole {
   role_id: string;
 }
 
-/** A "system" (מערכת) groups the checklists (בד״חים) that belong to it. */
+/**
+ * Dynamic inspection hierarchy (all admin-managed, none hard-coded):
+ *   System type (סוג מערכת) → Unit (יחידה) → Rank (דרג) → Template/בד״ח → items.
+ */
+
+/** System TYPE (סוג מערכת), e.g. "מערכת A". `system_id` on other rows references this. */
 export interface System {
   id: string;
   name: string;
   active: boolean;
+  sort_order: number;
   created_at: string;
   updated_at: string;
 }
 
+/** A specific unit/system (יחידה), e.g. "A-03", belonging to a system type. */
+export interface Unit {
+  id: string;
+  system_id: string; // owning system type
+  name: string;
+  active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Inspection rank/tier (דרג), e.g. "דרג א׳". Global, reorderable list. */
+export interface Rank {
+  id: string;
+  name: string;
+  active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A checklist/בד״ח template, associated with a system type + rank. */
 export interface Template {
   id: string;
-  system_id: string; // owning system (מערכת)
+  system_id: string; // owning system type (סוג מערכת)
+  rank_id: string | null; // inspection rank (דרג)
   name: string;
   description: string;
   active: boolean;
+  version: number; // bumped on structural edits, snapshotted onto forms
   created_at: string;
   updated_at: string;
 }
@@ -104,8 +134,16 @@ export interface CompletedForm {
   device_id: string; // originating device
   template_id: string;
   template_snapshot: TemplateSnapshot; // frozen template content
-  system_id: string | null; // owning system at creation time
-  system_name_snapshot: string; // frozen system name at creation time
+  // Frozen hierarchy context at creation time (so later admin edits never
+  // change historical documents):
+  system_id: string | null; // system TYPE (סוג מערכת)
+  system_name_snapshot: string;
+  unit_id: string | null; // specific unit (יחידה)
+  unit_name_snapshot: string;
+  rank_id: string | null; // inspection rank (דרג)
+  rank_name_snapshot: string;
+  template_name_snapshot: string; // inspection type / בד״ח name
+  template_version_snapshot: number;
   name: string;
   number: string;
   performer_user_id: string;

@@ -9,27 +9,32 @@ import {
   setTemplateActive,
 } from '@/services/templates';
 import { listSystems } from '@/services/systems';
+import { listRanks } from '@/services/ranks';
 import { useToast } from '@/context/ToastContext';
 import { Modal, Spinner } from '@/components/ui';
 import { Icon } from '@/components/Icon';
-import type { System, Template } from '@/types';
+import type { Rank, System, Template } from '@/types';
 
 export default function TemplatesPage() {
   const { notify } = useToast();
   const [templates, setTemplates] = useState<Template[] | null>(null);
   const [systems, setSystems] = useState<System[]>([]);
+  const [ranks, setRanks] = useState<Rank[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [systemFilter, setSystemFilter] = useState('ALL');
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [systemId, setSystemId] = useState('');
+  const [rankId, setRankId] = useState('');
 
   const load = async () => {
-    const [list, sys] = await Promise.all([listTemplates(true), listSystems(true)]);
+    const [list, sys, rnk] = await Promise.all([listTemplates(true), listSystems(true), listRanks(true)]);
     setTemplates(list);
     setSystems(sys);
+    setRanks(rnk);
     if (!systemId && sys.length) setSystemId(sys.find((s) => s.active)?.id ?? sys[0].id);
+    if (!rankId && rnk.length) setRankId(rnk.find((r) => r.active)?.id ?? rnk[0].id);
     const entries = await Promise.all(
       list.map(async (t) => [t.id, (await getTemplateTasks(t.id)).length] as const)
     );
@@ -41,6 +46,7 @@ export default function TemplatesPage() {
   }, []);
 
   const sysName = useMemo(() => new Map(systems.map((s) => [s.id, s.name])), [systems]);
+  const rankName = useMemo(() => new Map(ranks.map((r) => [r.id, r.name])), [ranks]);
   const visible = useMemo(
     () => (templates ?? []).filter((t) => systemFilter === 'ALL' || t.system_id === systemFilter),
     [templates, systemFilter]
@@ -53,7 +59,7 @@ export default function TemplatesPage() {
       notify('יש לבחור מערכת', 'error');
       return;
     }
-    await createTemplate({ name, description, system_id: systemId });
+    await createTemplate({ name, description, system_id: systemId, rank_id: rankId || null });
     notify('הבד״ח נוצר', 'ok');
     setCreating(false);
     setName('');
@@ -132,8 +138,13 @@ export default function TemplatesPage() {
             <div key={t.id} className="card p-4">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="mb-0.5 inline-flex items-center gap-1 text-[11.5px] font-semibold text-brand-700">
-                    <Icon name="database" size={12} /> {sysName.get(t.system_id) ?? 'ללא מערכת'}
+                  <div className="mb-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11.5px] font-semibold text-brand-700">
+                    <span className="inline-flex items-center gap-1">
+                      <Icon name="database" size={12} /> {sysName.get(t.system_id) ?? 'ללא מערכת'}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-ink-400">
+                      <Icon name="layers" size={12} /> {t.rank_id ? rankName.get(t.rank_id) ?? '—' : 'כל הדרגים'}
+                    </span>
                   </div>
                   <div className="text-[15px] font-bold text-ink-900">{t.name}</div>
                   <div className="text-[13px] text-ink-500">{t.description || '—'}</div>
@@ -166,17 +177,32 @@ export default function TemplatesPage() {
 
       <Modal open={creating} onClose={() => setCreating(false)} title="בד״ח חדש" icon="file">
         <form onSubmit={create} className="space-y-4">
-          <div>
-            <label className="label">מערכת</label>
-            <select className="input" value={systemId} onChange={(e) => setSystemId(e.target.value)}>
-              {systems
-                .filter((s) => s.active)
-                .map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-            </select>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">סוג מערכת</label>
+              <select className="input" value={systemId} onChange={(e) => setSystemId(e.target.value)}>
+                {systems
+                  .filter((s) => s.active)
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">דרג בדיקה</label>
+              <select className="input" value={rankId} onChange={(e) => setRankId(e.target.value)}>
+                <option value="">כל הדרגים</option>
+                {ranks
+                  .filter((r) => r.active)
+                  .map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
           </div>
           <div>
             <label className="label">שם הבד״ח</label>

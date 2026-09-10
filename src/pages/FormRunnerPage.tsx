@@ -193,13 +193,25 @@ export default function FormRunnerPage() {
                   <Icon name="lock" size={12} /> נעול
                 </span>
               )}
+            </div>
+            <h1 className="truncate text-[18px] font-extrabold text-ink-900">{form.name}</h1>
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px]">
               {form.system_name_snapshot && (
-                <span className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-brand-700">
+                <span className="inline-flex items-center gap-1 font-semibold text-brand-700">
                   <Icon name="database" size={13} /> {form.system_name_snapshot}
                 </span>
               )}
+              {form.unit_name_snapshot && (
+                <span className="inline-flex items-center gap-1 text-ink-500">
+                  <Icon name="layers" size={13} /> {form.unit_name_snapshot}
+                </span>
+              )}
+              {form.rank_name_snapshot && (
+                <span className="inline-flex items-center gap-1 text-ink-500">
+                  <Icon name="shield-check" size={13} /> {form.rank_name_snapshot}
+                </span>
+              )}
             </div>
-            <h1 className="truncate text-[18px] font-extrabold text-ink-900">{form.name}</h1>
           </div>
           <div className="flex gap-2">
             <Link to={`/view/${form.id}`} className="btn-secondary btn-sm gap-1.5">
@@ -405,7 +417,7 @@ export default function FormRunnerPage() {
               )}
             </div>
             <button className="btn-primary btn-lg gap-2" onClick={submit}>
-              שמור והעבר לאישור
+              סיום והעברה לאישור
               <Icon name="arrow-start" size={17} />
             </button>
           </div>

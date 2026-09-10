@@ -58,7 +58,10 @@ export async function exportFormToExcel(formId: string): Promise<void> {
   ws.getRow(2).height = 26;
 
   const meta: Array<[string, string]> = [
-    ['מערכת', form.system_name_snapshot || '—'],
+    ['סוג מערכת', form.system_name_snapshot || '—'],
+    ['מערכת / יחידה', form.unit_name_snapshot || '—'],
+    ['דרג בדיקה', form.rank_name_snapshot || '—'],
+    ['סוג בדיקה', form.template_name_snapshot || form.name],
     ['מספר בד״ח', form.number || '—'],
     ['תאריך', form.date],
     ['מבצע', form.performer_name],

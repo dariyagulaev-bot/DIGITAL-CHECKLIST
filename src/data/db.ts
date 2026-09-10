@@ -4,6 +4,8 @@ import type {
   Role,
   UserRole,
   System,
+  Unit,
+  Rank,
   Template,
   TemplateTask,
   CompletedForm,
@@ -23,6 +25,8 @@ export class ChecklistDB extends Dexie {
   roles!: Table<Role, string>;
   user_roles!: Table<UserRole, string>;
   systems!: Table<System, string>;
+  units!: Table<Unit, string>;
+  ranks!: Table<Rank, string>;
   templates!: Table<Template, string>;
   template_tasks!: Table<TemplateTask, string>;
   completed_forms!: Table<CompletedForm, string>;
@@ -74,6 +78,43 @@ export class ChecklistDB extends Dexie {
               .map((t: Template) => tx.table('templates').update(t.id, { system_id: defaultId }))
           );
         }
+      });
+
+    // v3: dynamic hierarchy — add units + ranks; templates gain rank_id + version.
+    this.version(3)
+      .stores({
+        systems: 'id, name, sort_order',
+        units: 'id, system_id, sort_order',
+        ranks: 'id, sort_order',
+        templates: 'id, name, system_id, rank_id',
+      })
+      .upgrade(async (tx) => {
+        const now = new Date().toISOString();
+        const rankId = crypto.randomUUID();
+        await tx.table('ranks').put({
+          id: rankId,
+          name: 'דרג א׳',
+          active: true,
+          sort_order: 0,
+          created_at: now,
+          updated_at: now,
+        });
+        const templates = await tx.table('templates').toArray();
+        await Promise.all(
+          templates.map((t: Template) =>
+            tx.table('templates').update(t.id, {
+              rank_id: t.rank_id ?? rankId,
+              version: t.version ?? 1,
+            })
+          )
+        );
+        // Give existing system types a stable display order.
+        const systems = await tx.table('systems').toArray();
+        await Promise.all(
+          systems.map((s: System, i: number) =>
+            tx.table('systems').update(s.id, { sort_order: s.sort_order ?? i })
+          )
+        );
       });
   }
 }

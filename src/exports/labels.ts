@@ -1,4 +1,18 @@
-import { FormStatus, RoleName, TaskResult } from '@/types';
+import { FormStatus, RoleName, TaskResult, type CompletedForm } from '@/types';
+
+/**
+ * Official document number in the format the client specified:
+ * "מס' בד״ח – [שם המערכת] – [מספר]". Parts that are missing are dropped so the
+ * line never shows dangling separators.
+ */
+export function formDocumentTitle(
+  form: Pick<CompletedForm, 'system_name_snapshot' | 'number' | 'name'>
+): string {
+  const parts = ["מס' בד״ח"];
+  if (form.system_name_snapshot) parts.push(form.system_name_snapshot);
+  parts.push(form.number?.trim() || form.name);
+  return parts.join(' – ');
+}
 
 export function statusLabel(status: FormStatus): string {
   switch (status) {
