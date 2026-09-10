@@ -12,6 +12,12 @@ const singleFile = process.env.SINGLEFILE === '1';
 export default defineConfig({
   plugins: [react(), ...(singleFile ? [viteSingleFile()] : [])],
   base: './',
+  build: {
+    // In the single-file preview, inline every asset (incl. self-hosted fonts)
+    // as data: URIs so the whole app is one offline HTML. Normal device builds
+    // keep assets as separate local files (better caching, smaller SW entries).
+    assetsInlineLimit: singleFile ? 100_000_000 : 4096,
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

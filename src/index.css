@@ -1,3 +1,6 @@
+/* Self-hosted Heebo (local woff2, no network). Must precede Tailwind layers. */
+@import './assets/fonts/heebo.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -22,6 +25,10 @@
 
   html {
     direction: rtl;
+    /* Dedicated-tablet app feel: no rubber-band scroll, no pull-to-refresh,
+       no long-press callout, no double-tap zoom delay on controls. */
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
   }
   html,
   body,
@@ -37,6 +44,16 @@
     font-size: 15px;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    overscroll-behavior: none;
+    -webkit-touch-callout: none;
+  }
+  button,
+  a,
+  [role='button'],
+  label,
+  select,
+  .seg-btn {
+    touch-action: manipulation;
   }
 
   h1,
