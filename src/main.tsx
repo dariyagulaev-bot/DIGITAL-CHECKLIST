@@ -4,6 +4,7 @@ import { HashRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
 import { runSeed } from './data/seed';
+import { installPwaManifest } from './pwa/installManifest';
 
 /**
  * Force full RTL at the document level. index.html already sets dir="rtl",
@@ -25,6 +26,10 @@ function enforceRtl() {
 
 async function bootstrap() {
   enforceRtl();
+
+  // Make VERO installable as a standalone app (real icon) on any delivery,
+  // without a separate manifest file. Progressive enhancement — never blocks.
+  installPwaManifest();
 
   // Ensure roles / default admin / demo template exist before first render.
   try {
