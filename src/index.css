@@ -167,6 +167,33 @@
     @apply mb-1 block text-[13px] font-semibold;
     color: var(--text-soft);
   }
+
+  /* ---- Login screen (large touch targets, premium micro-interactions) --- */
+  .login-field:focus-within {
+    border-color: #3b6ae8;
+    box-shadow: 0 0 0 4px rgba(29, 78, 216, 0.12);
+  }
+  .login-cta {
+    background: linear-gradient(180deg, #2f6ae6 0%, #1d4ed8 100%);
+    border: 1px solid #1a41b3;
+    box-shadow: 0 10px 22px -12px rgba(29, 78, 216, 0.7);
+    transition:
+      transform 0.15s ease,
+      box-shadow 0.2s ease,
+      filter 0.2s ease;
+  }
+  .login-cta:hover:not(:disabled) {
+    filter: brightness(1.05);
+    box-shadow: 0 14px 26px -12px rgba(29, 78, 216, 0.8);
+  }
+  .login-cta:active:not(:disabled) {
+    transform: translateY(1px) scale(0.992);
+    box-shadow: 0 6px 16px -10px rgba(29, 78, 216, 0.7);
+  }
+  .login-cta:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(29, 78, 216, 0.28);
+  }
   .eyebrow {
     @apply text-[11px] font-bold uppercase tracking-[0.12em];
     color: var(--text-faint);

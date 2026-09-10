@@ -103,11 +103,27 @@ export default {
           from: { opacity: '0', transform: 'translateY(8px)' },
           to: { opacity: '1', transform: 'translateY(0)' },
         },
+        // Gentle, premium entrance + ambient motion for the login screen.
+        'rise-in': {
+          from: { opacity: '0', transform: 'translateY(14px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        'float-slow': {
+          '0%, 100%': { transform: 'translateY(0) rotate(0deg)' },
+          '50%': { transform: 'translateY(-14px) rotate(-1.2deg)' },
+        },
+        'float-slower': {
+          '0%, 100%': { transform: 'translateY(0) scale(1)' },
+          '50%': { transform: 'translateY(10px) scale(1.03)' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 0.16s ease-out',
         'scale-in': 'scale-in 0.16s ease-out',
         'slide-up': 'slide-up 0.2s ease-out',
+        'rise-in': 'rise-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both',
+        'float-slow': 'float-slow 11s ease-in-out infinite',
+        'float-slower': 'float-slower 16s ease-in-out infinite',
       },
     },
   },
