@@ -74,3 +74,35 @@ export function formatDate(iso: string | null): string {
   if (isNaN(d.getTime())) return iso;
   return d.toLocaleDateString('he-IL', { year: 'numeric', month: '2-digit', day: '2-digit' });
 }
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+/** DD.MM.YYYY with leading zeros (official report footer format). */
+export function formatDateDots(iso: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}.${d.getFullYear()}`;
+}
+
+/** HH:MM (24h). */
+export function formatTimeHM(iso: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+/**
+ * The בד״ח number as shown in the report footer. Uses the number the performer
+ * entered (the serial we already defined, e.g. "מערכת אלפא-03-000026"); when it
+ * is empty, falls back to the frozen system/unit snapshot so the footer is never
+ * blank. This does NOT generate or alter the number — display only.
+ */
+export function formFooterNumber(
+  form: Pick<CompletedForm, 'number' | 'system_name_snapshot' | 'unit_name_snapshot' | 'name'>
+): string {
+  if (form.number?.trim()) return form.number.trim();
+  const parts = [form.system_name_snapshot, form.unit_name_snapshot].filter(Boolean);
+  return parts.length ? parts.join('-') : form.name || '—';
+}

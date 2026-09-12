@@ -296,6 +296,11 @@
 }
 
 /* ---- Print ---- */
+/* Repeating report footer — hidden on screen; shown on every printed page. */
+.print-footer {
+  display: none;
+}
+
 @media print {
   body {
     background: #fff;
@@ -311,12 +316,34 @@
   }
   @page {
     size: A4;
-    margin: 12mm;
+    /* Extra bottom margin reserves the band the fixed footer sits in, so it
+       never overlaps content on any page. */
+    margin: 12mm 12mm 18mm;
   }
   thead {
     display: table-header-group;
   }
   tr {
     page-break-inside: avoid;
+  }
+
+  /* A fixed-position element repeats on every page in Chromium print output. */
+  .print-footer {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding-top: 1.6mm;
+    border-top: 0.3mm solid #d3dae4;
+    background: #fff;
+    text-align: center;
+    font-size: 8.5pt;
+    line-height: 1.2;
+    color: #5a6579;
+  }
+  .print-footer .pf-sep {
+    margin: 0 4px;
+    color: #b0bccd;
   }
 }

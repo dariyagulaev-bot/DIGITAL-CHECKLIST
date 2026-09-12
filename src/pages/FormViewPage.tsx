@@ -8,7 +8,15 @@ import { BackButton } from '@/components/Layout';
 import { Icon } from '@/components/Icon';
 import { VeroLogo } from '@/components/VeroLogo';
 import { useToast } from '@/context/ToastContext';
-import { formatDate, formatDateTime, formDocumentTitle, statusLabel } from '@/exports/labels';
+import {
+  formatDate,
+  formatDateTime,
+  formatDateDots,
+  formatTimeHM,
+  formDocumentTitle,
+  formFooterNumber,
+  statusLabel,
+} from '@/exports/labels';
 import { FormStatus, SignerType, TaskResult, type Signature } from '@/types';
 
 export default function FormViewPage() {
@@ -38,11 +46,20 @@ export default function FormViewPage() {
   const okCount = tasks.filter((t) => t.result === TaskResult.OK).length;
   const faultCount = tasks.filter((t) => t.result === TaskResult.FAULT).length;
 
+  // Report footer identity (number the performer entered + date + time).
+  const footerNumber = formFooterNumber(form);
+  const footerDate = formatDateDots(form.date);
+  const footerTime = formatTimeHM(form.completed_at || form.created_at);
+
   const doPdf = async () => {
     if (!docRef.current) return;
     setBusyPdf(true);
     try {
-      await elementToPdf(docRef.current, `badach_${form.name}_${form.date}.pdf`);
+      await elementToPdf(docRef.current, `badach_${form.name}_${form.date}.pdf`, {
+        number: footerNumber,
+        date: footerDate,
+        time: footerTime,
+      });
       notify('קובץ PDF נוצר', 'ok');
     } catch (e) {
       notify('יצירת ה-PDF נכשלה: ' + (e as Error).message, 'error');
@@ -61,7 +78,7 @@ export default function FormViewPage() {
   };
 
   return (
-    <div className="min-h-full bg-slate-200 py-6">
+    <div className="min-h-full bg-slate-200 py-6 print:bg-white print:py-0">
       {/* Toolbar */}
       <div className="no-print mx-auto mb-4 flex max-w-4xl flex-wrap items-center justify-between gap-2 px-4">
         <div className="flex gap-2">
@@ -231,13 +248,25 @@ export default function FormViewPage() {
           <SignatureBlock title="מאשר הבדיקה" sig={appr} />
         </div>
 
-        {/* Branded document footer (part of the printed document) */}
-        <div className="mt-8 flex items-center justify-between border-t border-slate-200 pt-3">
+        {/* On-screen footer (web view only — excluded from print & PDF, which
+            use the repeating per-page footer instead). */}
+        <div className="pdf-ignore no-print mt-8 flex items-center justify-between border-t border-slate-200 pt-3">
           <VeroLogo variant="compact" tone="light" />
           <div className="text-left text-[11px] text-slate-400">
-            מסמך זה הופק ממערכת VERO · {formatDateTime(new Date().toISOString())}
+            מס' בד״ח: {footerNumber} · מסמך זה הופק ממערכת VERO ·{' '}
+            {formatDateTime(new Date().toISOString())}
           </div>
         </div>
+      </div>
+
+      {/* Repeating print footer — rendered at the bottom of EVERY printed page
+          (fixed position repeats per page in Chromium). Hidden on screen and in
+          the PDF raster (.pdf-ignore); the PDF stamps its own per-page footer. */}
+      <div className="print-footer pdf-ignore" aria-hidden="true">
+        <span className="pf-line">
+          מס' בד״ח: {footerNumber} <span className="pf-sep">|</span> תאריך: {footerDate}{' '}
+          <span className="pf-sep">|</span> שעה: {footerTime}
+        </span>
       </div>
     </div>
   );
