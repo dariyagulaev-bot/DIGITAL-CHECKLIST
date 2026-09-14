@@ -31,13 +31,36 @@ export function isLocked(form: CompletedForm): boolean {
   return form.status === FormStatus.APPROVED;
 }
 
+/** Zero-pad a serial to 6 digits (e.g. 26 → "000026"). */
+function pad6(n: number): string {
+  return String(n).padStart(6, '0');
+}
+
+/**
+ * Atomically issue the next serial for a counter key (one counter per physical
+ * unit). Monotonic — never reused, even if a form is later deleted.
+ */
+export async function nextSequence(key: string): Promise<number> {
+  return db.transaction('rw', db.counters, async () => {
+    const row = await db.counters.get(key);
+    const next = (row?.value ?? 0) + 1;
+    await db.counters.put({ id: key, value: next });
+    return next;
+  });
+}
+
+/** Build the running בד״ח number: [system]-[unit]-[000001] (unit optional). */
+export function buildBadachNumber(systemName: string, unitName: string, serial: number): string {
+  const prefix = [systemName, unitName].filter((s) => s && s.trim()).join('-');
+  return prefix ? `${prefix}-${pad6(serial)}` : pad6(serial);
+}
+
 /** Create a new draft form: freezes a snapshot of the template + hierarchy. */
 export async function createDraftForm(params: {
   templateId: string;
   performer: UserWithRoles;
   unitId?: string;
   name?: string;
-  number?: string;
   date?: string;
 }): Promise<string> {
   const template = await getTemplate(params.templateId);
@@ -46,6 +69,12 @@ export async function createDraftForm(params: {
   const system = template.system_id ? await getSystem(template.system_id) : undefined;
   const unit = params.unitId ? await getUnit(params.unitId) : undefined;
   const rank = template.rank_id ? await getRank(template.rank_id) : undefined;
+
+  // Mint the running בד״ח number ONCE, at creation. Numbering advances per
+  // physical unit (or per system when the form has no unit).
+  const counterKey = params.unitId ?? template.system_id ?? 'GLOBAL';
+  const serial = await nextSequence(counterKey);
+  const badachNumber = buildBadachNumber(system?.name ?? '', unit?.name ?? '', serial);
 
   const snapshot: TemplateSnapshot = {
     template_id: template.id,
@@ -76,7 +105,7 @@ export async function createDraftForm(params: {
     template_name_snapshot: template.name,
     template_version_snapshot: template.version ?? 1,
     name: params.name?.trim() || template.name,
-    number: params.number?.trim() || '',
+    number: badachNumber,
     performer_user_id: params.performer.id,
     performer_name: params.performer.full_name,
     performer2_id: null,
@@ -148,7 +177,7 @@ async function assertEditable(formId: string, userId: string): Promise<Completed
 export async function updateFormMeta(
   formId: string,
   userId: string,
-  patch: Partial<Pick<CompletedForm, 'name' | 'number' | 'date' | 'performer2_id' | 'performer2_name'>>
+  patch: Partial<Pick<CompletedForm, 'name' | 'date' | 'performer2_id' | 'performer2_name'>>
 ): Promise<void> {
   const form = await assertEditable(formId, userId);
   await db.completed_forms.update(formId, patch);

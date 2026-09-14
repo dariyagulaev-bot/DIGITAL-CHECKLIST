@@ -14,6 +14,7 @@ import type {
   Signature,
   AuditEntry,
   Setting,
+  Counter,
 } from '@/types';
 
 /**
@@ -36,6 +37,7 @@ export class ChecklistDB extends Dexie {
   signatures!: Table<Signature, string>;
   audit_log!: Table<AuditEntry, string>;
   settings!: Table<Setting, string>;
+  counters!: Table<Counter, string>;
 
   constructor(name = 'digital_checklist') {
     super(name);
@@ -147,6 +149,13 @@ export class ChecklistDB extends Dexie {
             .map((f: CompletedForm) => tx.table('completed_forms').update(f.id, { performer2_id: null }))
         );
       });
+
+    // v6: automatic running בד״ח number. Add a per-unit serial counter table.
+    // No backfill: existing forms keep their number as-is; new forms mint a
+    // serial number on creation.
+    this.version(6).stores({
+      counters: 'id',
+    });
   }
 }
 

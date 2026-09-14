@@ -16,6 +16,7 @@ import type {
   Signature,
   AuditEntry,
   Setting,
+  Counter,
   UserWithRoles,
 } from '@/types';
 
@@ -53,6 +54,7 @@ export interface FullBackup {
     signatures: Signature[];
     audit_log: AuditEntry[];
     settings: Setting[];
+    counters: Counter[];
   };
 }
 
@@ -99,6 +101,7 @@ async function collectAll() {
     signatures,
     audit_log,
     settings,
+    counters,
   ] = await Promise.all([
     db.users.toArray(),
     db.roles.toArray(),
@@ -114,6 +117,7 @@ async function collectAll() {
     db.signatures.toArray(),
     db.audit_log.toArray(),
     db.settings.toArray(),
+    db.counters.toArray(),
   ]);
   return {
     users,
@@ -130,6 +134,7 @@ async function collectAll() {
     signatures,
     audit_log,
     settings,
+    counters,
   };
 }
 
@@ -174,6 +179,7 @@ export async function restoreFullBackup(
       db.signatures,
       db.audit_log,
       db.settings,
+      db.counters,
     ],
     async () => {
       await Promise.all([
@@ -191,6 +197,7 @@ export async function restoreFullBackup(
         db.signatures.clear(),
         db.audit_log.clear(),
         db.settings.clear(),
+        db.counters.clear(),
       ]);
       await Promise.all([
         db.users.bulkAdd(d.users),
@@ -207,6 +214,7 @@ export async function restoreFullBackup(
         db.signatures.bulkAdd(d.signatures),
         db.audit_log.bulkAdd(d.audit_log),
         db.settings.bulkAdd(d.settings),
+        db.counters.bulkAdd(d.counters ?? []),
       ]);
     }
   );

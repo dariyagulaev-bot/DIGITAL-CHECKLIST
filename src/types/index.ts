@@ -217,6 +217,16 @@ export interface Setting {
   value: string;
 }
 
+/**
+ * Monotonic serial counter, one row per physical unit (or system when a form
+ * has no unit). Used to mint the running בד״ח number. Never decreases, so a
+ * number is never reused even if a form is deleted.
+ */
+export interface Counter {
+  id: string; // counter key (unit id, else system id, else 'GLOBAL')
+  value: number; // last serial issued
+}
+
 /** Convenience view model: a user with resolved role names. */
 export interface UserWithRoles extends User {
   roles: RoleName[];
