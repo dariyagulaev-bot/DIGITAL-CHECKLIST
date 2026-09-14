@@ -8,6 +8,7 @@ import type {
   System,
   Unit,
   Rank,
+  Performer,
   Template,
   TemplateTask,
   CompletedForm,
@@ -44,6 +45,7 @@ export interface FullBackup {
     systems: System[];
     units: Unit[];
     ranks: Rank[];
+    performers: Performer[];
     templates: Template[];
     template_tasks: TemplateTask[];
     completed_forms: CompletedForm[];
@@ -75,6 +77,7 @@ export interface ConfigBundle {
   systems: System[];
   units: Unit[];
   ranks: Rank[];
+  performers: Performer[];
   templates: Template[];
   template_tasks: TemplateTask[];
   settings: Setting[];
@@ -88,6 +91,7 @@ async function collectAll() {
     systems,
     units,
     ranks,
+    performers,
     templates,
     template_tasks,
     completed_forms,
@@ -102,6 +106,7 @@ async function collectAll() {
     db.systems.toArray(),
     db.units.toArray(),
     db.ranks.toArray(),
+    db.performers.toArray(),
     db.templates.toArray(),
     db.template_tasks.toArray(),
     db.completed_forms.toArray(),
@@ -117,6 +122,7 @@ async function collectAll() {
     systems,
     units,
     ranks,
+    performers,
     templates,
     template_tasks,
     completed_forms,
@@ -160,6 +166,7 @@ export async function restoreFullBackup(
       db.systems,
       db.units,
       db.ranks,
+      db.performers,
       db.templates,
       db.template_tasks,
       db.completed_forms,
@@ -176,6 +183,7 @@ export async function restoreFullBackup(
         db.systems.clear(),
         db.units.clear(),
         db.ranks.clear(),
+        db.performers.clear(),
         db.templates.clear(),
         db.template_tasks.clear(),
         db.completed_forms.clear(),
@@ -191,6 +199,7 @@ export async function restoreFullBackup(
         db.systems.bulkAdd(d.systems),
         db.units.bulkAdd(d.units),
         db.ranks.bulkAdd(d.ranks),
+        db.performers.bulkAdd(d.performers ?? []),
         db.templates.bulkAdd(d.templates),
         db.template_tasks.bulkAdd(d.template_tasks),
         db.completed_forms.bulkAdd(d.completed_forms),
@@ -275,6 +284,7 @@ export async function exportConfigBundle(): Promise<ConfigBundle> {
     systems: all.systems,
     units: all.units,
     ranks: all.ranks,
+    performers: all.performers,
     templates: all.templates,
     template_tasks: all.template_tasks,
     settings: all.settings,
@@ -288,7 +298,7 @@ export async function importConfigBundle(payload: ConfigBundle): Promise<void> {
   }
   await db.transaction(
     'rw',
-    [db.users, db.roles, db.user_roles, db.systems, db.units, db.ranks, db.templates, db.template_tasks, db.settings],
+    [db.users, db.roles, db.user_roles, db.systems, db.units, db.ranks, db.performers, db.templates, db.template_tasks, db.settings],
     async () => {
       await db.roles.bulkPut(payload.roles);
       await db.users.bulkPut(payload.users);
@@ -296,6 +306,7 @@ export async function importConfigBundle(payload: ConfigBundle): Promise<void> {
       await db.systems.bulkPut(payload.systems);
       await db.units.bulkPut(payload.units);
       await db.ranks.bulkPut(payload.ranks);
+      await db.performers.bulkPut(payload.performers ?? []);
       await db.templates.bulkPut(payload.templates);
       await db.template_tasks.bulkPut(payload.template_tasks);
       await db.settings.bulkPut(payload.settings);

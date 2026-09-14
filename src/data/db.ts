@@ -6,6 +6,7 @@ import type {
   System,
   Unit,
   Rank,
+  Performer,
   Template,
   TemplateTask,
   CompletedForm,
@@ -27,6 +28,7 @@ export class ChecklistDB extends Dexie {
   systems!: Table<System, string>;
   units!: Table<Unit, string>;
   ranks!: Table<Rank, string>;
+  performers!: Table<Performer, string>;
   templates!: Table<Template, string>;
   template_tasks!: Table<TemplateTask, string>;
   completed_forms!: Table<CompletedForm, string>;
@@ -127,6 +129,22 @@ export class ChecklistDB extends Dexie {
           forms
             .filter((f: CompletedForm) => f.performer2_name === undefined)
             .map((f: CompletedForm) => tx.table('completed_forms').update(f.id, { performer2_name: '' }))
+        );
+      });
+
+    // v5: second performer is now a managed, selectable person. Add the
+    // performers table and backfill performer2_id (null = not yet linked) on
+    // existing forms. Historical name snapshots are preserved untouched.
+    this.version(5)
+      .stores({
+        performers: 'id, sort_order',
+      })
+      .upgrade(async (tx) => {
+        const forms = await tx.table('completed_forms').toArray();
+        await Promise.all(
+          forms
+            .filter((f: CompletedForm) => f.performer2_id === undefined)
+            .map((f: CompletedForm) => tx.table('completed_forms').update(f.id, { performer2_id: null }))
         );
       });
   }

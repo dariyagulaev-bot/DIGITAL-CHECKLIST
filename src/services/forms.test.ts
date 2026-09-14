@@ -94,7 +94,7 @@ describe('forms service', () => {
     });
     v = await validateForSubmit(formId);
     expect(v.ok).toBe(false); // still missing the second performer
-    expect(v.errors.join(' ')).toContain('מבצע השני');
+    expect(v.errors.join(' ')).toContain('שני מבצעים');
 
     await updateFormMeta(formId, performer.id, { performer2_name: 'דוד כהן' });
     v = await validateForSubmit(formId);

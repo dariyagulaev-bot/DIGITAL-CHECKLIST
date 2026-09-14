@@ -254,12 +254,13 @@ function WizardTrail({
   showRank: boolean;
   onJump: (from: StepId) => void;
 }) {
-  const nodes: { id: StepId; label: string; value?: string; show: boolean }[] = [
+  const allNodes: { id: StepId; label: string; value?: string; show: boolean }[] = [
     { id: 'system', label: 'סוג מערכת', value: systemLabel, show: true },
     { id: 'unit', label: 'יחידה', value: unitLabel, show: showUnit },
     { id: 'rank', label: 'דרג בדיקה', value: rankLabel, show: showRank },
     { id: 'template', label: 'סוג בדיקה', value: undefined, show: true },
-  ].filter((n) => n.show);
+  ];
+  const nodes = allNodes.filter((n) => n.show);
 
   return (
     <div className="mb-5 flex flex-wrap items-center gap-x-2 gap-y-2 text-[13px]">

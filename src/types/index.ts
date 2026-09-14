@@ -88,6 +88,21 @@ export interface Rank {
   updated_at: string;
 }
 
+/**
+ * A person who can be selected as the second performer (מבצע 2).
+ * Admin-managed and stored in the DB (never hard-coded), so admins can add
+ * real people and disable demo/placeholder ones. Disabling only hides a
+ * performer from NEW forms — historical forms keep their name snapshot.
+ */
+export interface Performer {
+  id: string;
+  full_name: string;
+  active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 /** A checklist/בד״ח template, associated with a system type + rank. */
 export interface Template {
   id: string;
@@ -148,6 +163,7 @@ export interface CompletedForm {
   number: string;
   performer_user_id: string; // performer 1 (the logged-in user)
   performer_name: string; // performer 1 full-name snapshot
+  performer2_id: string | null; // performer 2 reference (Performer.id), null until chosen
   performer2_name: string; // performer 2 full-name snapshot (required to submit)
   approver_user_id: string | null;
   approver_name: string | null;

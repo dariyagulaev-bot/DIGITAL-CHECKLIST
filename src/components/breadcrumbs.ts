@@ -25,6 +25,7 @@ export function buildCrumbs(pathname: string): Crumb[] {
   if (pathname === '/admin/units') return [root, admin, { label: 'יחידות' }];
   if (pathname === '/admin/ranks') return [root, admin, { label: 'דרגי בדיקה' }];
   if (pathname === '/admin/users') return [root, admin, { label: 'משתמשים' }];
+  if (pathname === '/admin/performers') return [root, admin, { label: 'ניהול מבצעים' }];
   if (pathname === '/admin/templates') return [root, admin, { label: 'תבניות בד״ח' }];
   if (pathname.startsWith('/admin/templates/'))
     return [root, admin, templates, { label: 'עריכת בד״ח' }];

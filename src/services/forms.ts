@@ -79,6 +79,7 @@ export async function createDraftForm(params: {
     number: params.number?.trim() || '',
     performer_user_id: params.performer.id,
     performer_name: params.performer.full_name,
+    performer2_id: null,
     performer2_name: '',
     approver_user_id: null,
     approver_name: null,
@@ -147,7 +148,7 @@ async function assertEditable(formId: string, userId: string): Promise<Completed
 export async function updateFormMeta(
   formId: string,
   userId: string,
-  patch: Partial<Pick<CompletedForm, 'name' | 'number' | 'date' | 'performer2_name'>>
+  patch: Partial<Pick<CompletedForm, 'name' | 'number' | 'date' | 'performer2_id' | 'performer2_name'>>
 ): Promise<void> {
   const form = await assertEditable(formId, userId);
   await db.completed_forms.update(formId, patch);
@@ -235,7 +236,7 @@ export async function validateForSubmit(formId: string): Promise<SubmitValidatio
   if (!form.name.trim()) errors.push('חסר שם בד״ח');
   if (!form.date) errors.push('חסר תאריך');
   if (!form.performer2_name?.trim())
-    errors.push('יש להזין את שם המבצע השני. הבדיקה מחייבת שני מבצעים.');
+    errors.push('יש לבחור מבצע שני. הבדיקה מחייבת שני מבצעים.');
   const unset = tasks.filter((t) => t.result === TaskResult.UNSET);
   if (unset.length) errors.push(`ישנם ${unset.length} סעיפים שלא סומנו (תקין/לא תקין)`);
   const faultsMissingDetail = tasks.filter(

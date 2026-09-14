@@ -17,7 +17,9 @@ import {
   type FormBundle,
 } from '@/services/forms';
 import { fileToManagedDataUrl } from '@/services/images';
-import { FormStatus, SignerType, TaskResult, type CompletedTask } from '@/types';
+import { listActivePerformers } from '@/services/performers';
+import { FormStatus, SignerType, TaskResult, type CompletedTask, type Performer } from '@/types';
+import { PerformerSelect } from '@/components/PerformerSelect';
 import { SignaturePad, type SignaturePadHandle } from '@/components/SignaturePad';
 import { Modal, Spinner, StatusBadge } from '@/components/ui';
 import { FaultModal } from '@/components/FaultModal';
@@ -36,7 +38,8 @@ export default function FormRunnerPage() {
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const sigRef = useRef<SignaturePadHandle>(null);
-  const performer2Ref = useRef<HTMLInputElement>(null);
+  const performer2Ref = useRef<HTMLButtonElement>(null);
+  const [performers, setPerformers] = useState<Performer[]>([]);
   const [signerRole, setSignerRole] = useState('');
   const [sigEmpty, setSigEmpty] = useState(true);
   const [resign, setResign] = useState(false);
@@ -52,6 +55,11 @@ export default function FormRunnerPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Active performers for the מבצע 2 dropdown (from the local DB — offline).
+  useEffect(() => {
+    listActivePerformers().then(setPerformers).catch(() => setPerformers([]));
+  }, []);
 
   // Guard back-navigation when a signature has been drawn but not yet saved.
   const dirtyRef = useRef(false);
@@ -150,10 +158,10 @@ export default function FormRunnerPage() {
   const submit = async () => {
     // A second performer is mandatory before submitting — guide the user to it.
     if (!form.performer2_name?.trim()) {
-      notify('יש להזין את שם המבצע השני. הבדיקה מחייבת שני מבצעים.', 'error');
+      notify('יש לבחור מבצע שני. הבדיקה מחייבת שני מבצעים.', 'error');
       performer2Ref.current?.focus();
       performer2Ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setErrors(['יש להזין את שם המבצע השני. הבדיקה מחייבת שני מבצעים.']);
+      setErrors(['יש לבחור מבצע שני. הבדיקה מחייבת שני מבצעים.']);
       return;
     }
     const v = await validateForSubmit(form.id);
@@ -286,16 +294,14 @@ export default function FormRunnerPage() {
           </div>
           <div>
             <label className="label">מבצע 2</label>
-            <input
+            <PerformerSelect
               ref={performer2Ref}
-              className={inputCls}
-              defaultValue={form.performer2_name}
+              options={performers}
+              value={form.performer2_id}
+              valueName={form.performer2_name}
+              excludeName={form.performer_name}
               disabled={!editable}
-              placeholder="הזן שם מלא"
-              onBlur={(e) =>
-                e.target.value !== form.performer2_name &&
-                onMeta({ performer2_name: e.target.value })
-              }
+              onChange={(sel) => onMeta({ performer2_id: sel.id, performer2_name: sel.name })}
             />
           </div>
         </div>

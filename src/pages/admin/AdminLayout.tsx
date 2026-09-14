@@ -27,7 +27,10 @@ const groups: NavGroup[] = [
   },
   {
     title: 'משתמשים והרשאות',
-    items: [{ to: '/admin/users', label: 'משתמשים', icon: 'users' }],
+    items: [
+      { to: '/admin/users', label: 'משתמשים', icon: 'users' },
+      { to: '/admin/performers', label: 'ניהול מבצעים', icon: 'users' },
+    ],
   },
   {
     title: 'סטטיסטיקות',

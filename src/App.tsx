@@ -22,6 +22,7 @@ import UsersPage from './pages/admin/UsersPage';
 import SystemsPage from './pages/admin/SystemsPage';
 import UnitsPage from './pages/admin/UnitsPage';
 import RanksPage from './pages/admin/RanksPage';
+import PerformersPage from './pages/admin/PerformersPage';
 import TemplatesPage from './pages/admin/TemplatesPage';
 import TemplateEditorPage from './pages/admin/TemplateEditorPage';
 import AuditPage from './pages/admin/AuditPage';
@@ -129,6 +130,7 @@ function AppRoutes() {
         <Route path="systems" element={<SystemsPage />} />
         <Route path="units" element={<UnitsPage />} />
         <Route path="ranks" element={<RanksPage />} />
+        <Route path="performers" element={<PerformersPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="templates" element={<TemplatesPage />} />
         <Route path="templates/:id" element={<TemplateEditorPage />} />
