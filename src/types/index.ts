@@ -146,8 +146,9 @@ export interface CompletedForm {
   template_version_snapshot: number;
   name: string;
   number: string;
-  performer_user_id: string;
-  performer_name: string;
+  performer_user_id: string; // performer 1 (the logged-in user)
+  performer_name: string; // performer 1 full-name snapshot
+  performer2_name: string; // performer 2 full-name snapshot (required to submit)
   approver_user_id: string | null;
   approver_name: string | null;
   date: string; // inspection date (ISO date)

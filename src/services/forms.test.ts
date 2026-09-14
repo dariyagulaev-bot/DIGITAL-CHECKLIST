@@ -93,6 +93,11 @@ describe('forms service', () => {
       signatureData: SIG,
     });
     v = await validateForSubmit(formId);
+    expect(v.ok).toBe(false); // still missing the second performer
+    expect(v.errors.join(' ')).toContain('מבצע השני');
+
+    await updateFormMeta(formId, performer.id, { performer2_name: 'דוד כהן' });
+    v = await validateForSubmit(formId);
     expect(v.ok).toBe(true);
   });
 
@@ -127,6 +132,7 @@ describe('forms service', () => {
       signerRole: '',
       signatureData: SIG,
     });
+    await updateFormMeta(formId, performer.id, { performer2_name: 'דוד כהן' });
     await submitForApproval(formId, performer.id);
 
     await expect(

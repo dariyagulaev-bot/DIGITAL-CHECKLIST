@@ -36,6 +36,7 @@ export default function FormRunnerPage() {
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const sigRef = useRef<SignaturePadHandle>(null);
+  const performer2Ref = useRef<HTMLInputElement>(null);
   const [signerRole, setSignerRole] = useState('');
   const [sigEmpty, setSigEmpty] = useState(true);
   const [resign, setResign] = useState(false);
@@ -147,6 +148,14 @@ export default function FormRunnerPage() {
   };
 
   const submit = async () => {
+    // A second performer is mandatory before submitting — guide the user to it.
+    if (!form.performer2_name?.trim()) {
+      notify('יש להזין את שם המבצע השני. הבדיקה מחייבת שני מבצעים.', 'error');
+      performer2Ref.current?.focus();
+      performer2Ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setErrors(['יש להזין את שם המבצע השני. הבדיקה מחייבת שני מבצעים.']);
+      return;
+    }
     const v = await validateForSubmit(form.id);
     if (!v.ok) {
       setErrors(v.errors);
@@ -257,16 +266,6 @@ export default function FormRunnerPage() {
             />
           </div>
           <div>
-            <label className="label">מספר</label>
-            <input
-              className={inputCls}
-              defaultValue={form.number}
-              disabled={!editable}
-              onBlur={(e) => e.target.value !== form.number && onMeta({ number: e.target.value })}
-              placeholder="—"
-            />
-          </div>
-          <div>
             <label className="label">תאריך</label>
             <input
               type="date"
@@ -277,13 +276,27 @@ export default function FormRunnerPage() {
             />
           </div>
           <div>
-            <label className="label">מי ביצע</label>
+            <label className="label">מבצע 1</label>
             <div className="flex min-h-[42px] items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3">
               <Icon name="users" size={16} className="text-ink-400" />
               <span className="truncate text-[14px] font-semibold text-ink-800">
                 {form.performer_name}
               </span>
             </div>
+          </div>
+          <div>
+            <label className="label">מבצע 2</label>
+            <input
+              ref={performer2Ref}
+              className={inputCls}
+              defaultValue={form.performer2_name}
+              disabled={!editable}
+              placeholder="הזן שם מלא"
+              onBlur={(e) =>
+                e.target.value !== form.performer2_name &&
+                onMeta({ performer2_name: e.target.value })
+              }
+            />
           </div>
         </div>
       </section>
@@ -331,7 +344,7 @@ export default function FormRunnerPage() {
       {/* Performer signature */}
       <section className="card">
         <div className="panel-head">
-          <span className="panel-title">חתימת מבצע הבדיקה</span>
+          <span className="panel-title">חתימת מבצע 1</span>
           <span className="text-[13px] font-medium text-ink-500">{form.performer_name}</span>
         </div>
         <div className="px-5 py-4">

@@ -45,7 +45,7 @@ export default function HistoryPage() {
     const needle = q.trim().toLowerCase();
     return rows.filter((r) => {
       if (needle) {
-        const hay = `${r.name} ${r.number} ${r.performer_name} ${r.approver_name ?? ''}`.toLowerCase();
+        const hay = `${r.name} ${r.number} ${r.performer_name} ${r.performer2_name ?? ''} ${r.approver_name ?? ''}`.toLowerCase();
         if (!hay.includes(needle)) return false;
       }
       if (status !== 'ALL' && r.status !== status) return false;
@@ -128,7 +128,7 @@ export default function HistoryPage() {
                 <th className="p-3 font-semibold">תאריך</th>
                 <th className="p-3 font-semibold">שם בד״ח</th>
                 <th className="p-3 font-semibold">מספר</th>
-                <th className="p-3 font-semibold">מבצע</th>
+                <th className="p-3 font-semibold">מבצעים</th>
                 <th className="p-3 font-semibold">מאשר</th>
                 <th className="p-3 font-semibold">בדיקות</th>
                 <th className="p-3 font-semibold">תקלות</th>
@@ -142,7 +142,10 @@ export default function HistoryPage() {
                   <td className="p-3 whitespace-nowrap">{formatDate(r.date)}</td>
                   <td className="p-3 font-medium text-slate-800">{r.name}</td>
                   <td className="p-3">{r.number || '—'}</td>
-                  <td className="p-3">{r.performer_name}</td>
+                  <td className="p-3">
+                    {r.performer_name}
+                    {r.performer2_name ? `, ${r.performer2_name}` : ''}
+                  </td>
                   <td className="p-3">{r.approver_name || '—'}</td>
                   <td className="p-3 text-center">{r.taskCount}</td>
                   <td className={`p-3 text-center ${r.faultCount ? 'font-bold text-fault-600' : ''}`}>

@@ -159,9 +159,10 @@ export default function FormViewPage() {
               <span className="font-semibold">תאריך: </span>
               {formatDate(form.date)}
             </div>
-            <div>
-              <span className="font-semibold">מבצע: </span>
-              {form.performer_name}
+            <div className="col-span-2 sm:col-span-3">
+              <span className="font-semibold">מבצעים: </span>
+              1. {form.performer_name}
+              {form.performer2_name ? <span> &nbsp;·&nbsp; 2. {form.performer2_name}</span> : null}
             </div>
             <div>
               <span className="font-semibold">מאשר: </span>
@@ -244,7 +245,7 @@ export default function FormViewPage() {
 
         {/* Signatures */}
         <div className="mt-8 grid grid-cols-2 gap-6">
-          <SignatureBlock title="מבצע הבדיקה" sig={perf} />
+          <SignatureBlock title="חתימת מבצע 1" sig={perf} />
           <SignatureBlock title="מאשר הבדיקה" sig={appr} />
         </div>
 

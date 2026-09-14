@@ -29,7 +29,7 @@ async function buildSubmittedForm(performer: UserWithRoles): Promise<string> {
   const tasks = await getFormTasks(formId);
   await setTaskResult(formId, performer.id, tasks[0].id, TaskResult.OK);
   await setTaskResult(formId, performer.id, tasks[1].id, TaskResult.FAULT);
-  const { setTaskComment } = await import('./forms');
+  const { setTaskComment, updateFormMeta } = await import('./forms');
   await setTaskComment(formId, performer.id, tasks[1].id, 'חיבור רופף');
   await addSignature({
     formId,
@@ -38,6 +38,7 @@ async function buildSubmittedForm(performer: UserWithRoles): Promise<string> {
     signerRole: 'טכנאי',
     signatureData: SIG,
   });
+  await updateFormMeta(formId, performer.id, { performer2_name: 'דוד כהן' });
   await submitForApproval(formId, performer.id);
   return formId;
 }

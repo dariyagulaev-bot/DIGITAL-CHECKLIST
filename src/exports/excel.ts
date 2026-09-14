@@ -64,7 +64,8 @@ export async function exportFormToExcel(formId: string): Promise<void> {
     ['סוג בדיקה', form.template_name_snapshot || form.name],
     ['מספר בד״ח', form.number || '—'],
     ['תאריך', form.date],
-    ['מבצע', form.performer_name],
+    ['מבצע 1', form.performer_name],
+    ['מבצע 2', form.performer2_name || '—'],
     ['מאשר', form.approver_name || '—'],
     ['סטטוס', statusLabel(form.status)],
   ];
@@ -150,7 +151,8 @@ export async function exportFormToExcel(formId: string): Promise<void> {
     ['סה״כ בדיקות', tasks.length],
     ['תקין', okCount],
     ['לא תקין', faultCount],
-    ['מבצע', form.performer_name],
+    ['מבצע 1', form.performer_name],
+    ['מבצע 2', form.performer2_name || '—'],
     ['מאשר', form.approver_name || '—'],
     ['סטטוס', statusLabel(form.status)],
   ];

@@ -116,6 +116,19 @@ export class ChecklistDB extends Dexie {
           )
         );
       });
+
+    // v4: every inspection now records two performers. Backfill an empty
+    // second-performer name on existing forms (not indexed — data only).
+    this.version(4)
+      .stores({})
+      .upgrade(async (tx) => {
+        const forms = await tx.table('completed_forms').toArray();
+        await Promise.all(
+          forms
+            .filter((f: CompletedForm) => f.performer2_name === undefined)
+            .map((f: CompletedForm) => tx.table('completed_forms').update(f.id, { performer2_name: '' }))
+        );
+      });
   }
 }
 
