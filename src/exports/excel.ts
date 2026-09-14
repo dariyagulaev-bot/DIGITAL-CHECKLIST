@@ -61,7 +61,6 @@ export async function exportFormToExcel(formId: string): Promise<void> {
     ['סוג מערכת', form.system_name_snapshot || '—'],
     ['מערכת / יחידה', form.unit_name_snapshot || '—'],
     ['דרג בדיקה', form.rank_name_snapshot || '—'],
-    ['סוג בדיקה', form.template_name_snapshot || form.name],
     ['מספר בד״ח', form.number || '—'],
     ['תאריך', form.date],
     ['מבצע 1', form.performer_name],

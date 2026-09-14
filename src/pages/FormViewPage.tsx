@@ -148,10 +148,6 @@ export default function FormViewPage() {
               {form.rank_name_snapshot || '—'}
             </div>
             <div>
-              <span className="font-semibold">סוג בדיקה: </span>
-              {form.template_name_snapshot || form.name}
-            </div>
-            <div>
               <span className="font-semibold">מספר בד״ח: </span>
               {form.number || '—'}
             </div>

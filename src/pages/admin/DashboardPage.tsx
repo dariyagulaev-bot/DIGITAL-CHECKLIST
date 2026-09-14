@@ -172,7 +172,6 @@ export default function DashboardPage() {
         <BarList title="לפי סוג מערכת" icon="database" rows={breakdowns.bySystem} />
         <BarList title="לפי יחידה" icon="layers" rows={breakdowns.byUnit} />
         <BarList title="לפי דרג בדיקה" icon="shield-check" rows={breakdowns.byRank} />
-        <BarList title="לפי סוג בדיקה" icon="clipboard-check" rows={breakdowns.byTemplate} />
         <BarList title="לפי מבצע" icon="users" rows={breakdowns.byPerformer} />
       </div>
 

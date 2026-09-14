@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { canPerform } from '@/services/rbac';
@@ -88,20 +88,8 @@ export default function NewFormPage() {
     [systemTemplates, effectiveRankId]
   );
 
-  if (!user || !canPerform(user)) {
-    return <EmptyState icon="lock" title="אין לך הרשאת ביצוע בד״חים" />;
-  }
-  if (data === null) return <Spinner label="טוען…" />;
-  if (data.systems.length === 0) {
-    return (
-      <div>
-        <PageHeader title="בדיקה חדשה" />
-        <EmptyState icon="file" title="אין בד״חים פעילים" hint="פנה למנהל המערכת ליצירת בד״ח" />
-      </div>
-    );
-  }
-
-  // Determine the current step.
+  // Current wizard step (derived). Defined before any early return so the
+  // auto-advance effect below stays an unconditional hook.
   const unitStepDone = units.length === 0 || unitId !== undefined;
   const step: StepId = !systemId
     ? 'system'
@@ -112,7 +100,7 @@ export default function NewFormPage() {
         : 'template';
 
   const open = async (t: Template) => {
-    if (busy) return;
+    if (busy || !user) return;
     setBusy(true);
     try {
       const id = await createDraftForm({
@@ -126,6 +114,35 @@ export default function NewFormPage() {
       setBusy(false);
     }
   };
+
+  // The דרג is effectively the inspection type — there is no separate
+  // "סוג בדיקה" step. Once the rank is settled, if exactly one בד״ח matches we
+  // open it directly; only when several match is a choice screen shown.
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (step !== 'template') {
+      autoOpenedRef.current = false;
+      return;
+    }
+    if (busy || autoOpenedRef.current || templatesForRank.length !== 1) return;
+    autoOpenedRef.current = true;
+    void open(templatesForRank[0]);
+    // `open` is a stable one-shot here; keep deps minimal to avoid re-firing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, templatesForRank, busy]);
+
+  if (!user || !canPerform(user)) {
+    return <EmptyState icon="lock" title="אין לך הרשאת ביצוע בד״חים" />;
+  }
+  if (data === null) return <Spinner label="טוען…" />;
+  if (data.systems.length === 0) {
+    return (
+      <div>
+        <PageHeader title="בדיקה חדשה" />
+        <EmptyState icon="file" title="אין בד״חים פעילים" hint="פנה למנהל המערכת ליצירת בד״ח" />
+      </div>
+    );
+  }
 
   const reset = (from: StepId) => {
     // Clicking a completed step in the trail returns to it and clears later picks.
@@ -202,8 +219,15 @@ export default function NewFormPage() {
       {step === 'template' &&
         (templatesForRank.length === 0 ? (
           <EmptyState icon="file" title="אין בד״חים פעילים בבחירה זו" />
+        ) : templatesForRank.length === 1 ? (
+          // Exactly one בד״ח for this rank — open it directly (no choice screen).
+          <Spinner label="פותח את הבד״ח…" />
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <>
+            <div className="mb-3 text-[14px] font-semibold text-ink-700">
+              בחר בד״ח להתחלת הבדיקה:
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {templatesForRank.map((t) => (
               <button
                 key={t.id}
@@ -223,7 +247,8 @@ export default function NewFormPage() {
                 </div>
               </button>
             ))}
-          </div>
+            </div>
+          </>
         ))}
     </div>
   );
@@ -258,7 +283,7 @@ function WizardTrail({
     { id: 'system', label: 'סוג מערכת', value: systemLabel, show: true },
     { id: 'unit', label: 'יחידה', value: unitLabel, show: showUnit },
     { id: 'rank', label: 'דרג בדיקה', value: rankLabel, show: showRank },
-    { id: 'template', label: 'סוג בדיקה', value: undefined, show: true },
+    { id: 'template', label: 'בחירת בד״ח', value: undefined, show: true },
   ];
   const nodes = allNodes.filter((n) => n.show);
 
