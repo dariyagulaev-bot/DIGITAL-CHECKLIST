@@ -71,7 +71,7 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-full flex-col">
       {/* Official navy header */}
-      <header className="no-print sticky top-0 z-30 bg-navy-900 text-white shadow-header">
+      <header className="no-print sticky top-0 z-30 bg-navy-900 pt-[env(safe-area-inset-top)] text-white shadow-header">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
           <Link to="/" className="flex items-center" aria-label="VERO — דף הבית">
             <VeroLogo variant="compact" tone="dark" />
@@ -101,15 +101,19 @@ export function Layout({ children }: { children: ReactNode }) {
       {/* Sub-bar: back + breadcrumbs (internal screens only) */}
       {!isHome && (
         <div className="no-print border-b border-slate-200 bg-white">
-          <div className="mx-auto flex h-11 max-w-6xl items-center gap-3 px-4">
-            <BackButton />
-            <span className="h-4 w-px bg-slate-200" />
-            <Breadcrumbs pathname={location.pathname} />
+          <div className="mx-auto flex h-11 max-w-6xl items-center gap-3 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <BackButton className="shrink-0" />
+            <span className="h-4 w-px shrink-0 bg-slate-200" />
+            <div className="shrink-0">
+              <Breadcrumbs pathname={location.pathname} />
+            </div>
           </div>
         </div>
       )}
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">{children}</main>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        {children}
+      </main>
     </div>
   );
 }

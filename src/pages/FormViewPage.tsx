@@ -171,8 +171,9 @@ export default function FormViewPage() {
           </div>
         </div>
 
-        {/* Tasks table */}
-        <table className="w-full border-collapse text-right text-sm">
+        {/* Tasks table — scrolls horizontally on a narrow screen; prints full. */}
+        <div className="-mx-1 overflow-x-auto">
+        <table className="w-full min-w-[520px] border-collapse text-right text-sm">
           <thead>
             <tr className="bg-slate-800 text-white">
               <th className="border border-slate-300 p-2">שם האזור</th>
@@ -202,6 +203,7 @@ export default function FormViewPage() {
             })}
           </tbody>
         </table>
+        </div>
 
         {/* Totals */}
         <div className="mt-3 flex flex-wrap gap-4 text-sm font-semibold text-slate-700">

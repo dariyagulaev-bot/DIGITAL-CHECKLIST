@@ -286,6 +286,22 @@
   }
 }
 
+/* ============================================================================
+   Mobile / small-screen refinements. Scoped to phone widths so the Desktop /
+   Zebra tablet layout (which runs far wider) is left exactly as it is. This is
+   the SAME app — only the presentation adapts to a small touch screen.
+   ============================================================================ */
+@media (max-width: 640px) {
+  /* Slightly tighter table cells so 5-column tables fit more often before the
+     horizontal-scroll container kicks in. */
+  .tbl thead th {
+    @apply px-2.5 py-2.5 text-[11.5px];
+  }
+  .tbl tbody td {
+    @apply px-2.5 py-2.5;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

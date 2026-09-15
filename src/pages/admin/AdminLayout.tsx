@@ -1,4 +1,5 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Icon, type IconName } from '@/components/Icon';
 
 interface NavItem {
@@ -46,7 +47,27 @@ const groups: NavGroup[] = [
   },
 ];
 
+/** Flat lookup of the active nav item, for the mobile toggle label. */
+function activeLabel(pathname: string): string {
+  const all = groups.flatMap((g) => g.items);
+  // Longest matching path wins so /admin/systems beats /admin.
+  const match = all
+    .filter((it) => (it.end ? pathname === it.to : pathname.startsWith(it.to)))
+    .sort((a, b) => b.to.length - a.to.length)[0];
+  return match?.label ?? 'לוח בקרה';
+}
+
 export default function AdminLayout() {
+  const location = useLocation();
+  // Mobile-only: the nav is a menu that opens and closes. On lg+ it is always
+  // shown as a sidebar (the toggle is hidden), so desktop/Zebra is unchanged.
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Close the mobile menu after navigating to a section.
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
+
   return (
     <div>
       <div className="mb-5">
@@ -54,8 +75,24 @@ export default function AdminLayout() {
         <h1 className="text-[22px] font-extrabold text-ink-900">מרכז ניהול VERO</h1>
       </div>
 
+      {/* Mobile menu toggle — hidden on lg+ where the sidebar is always visible. */}
+      <button
+        type="button"
+        onClick={() => setMenuOpen((o) => !o)}
+        aria-expanded={menuOpen}
+        className="mb-3 flex w-full items-center justify-between gap-2 rounded-md border border-slate-300 bg-white px-3 py-2.5 text-[14px] font-semibold text-ink-700 lg:hidden"
+      >
+        <span className="flex items-center gap-2">
+          <Icon name="layers" size={18} />
+          תפריט ניהול
+          <span className="text-ink-400">·</span>
+          <span className="font-bold text-ink-900">{activeLabel(location.pathname)}</span>
+        </span>
+        <Icon name={menuOpen ? 'up' : 'down'} size={18} className="text-ink-400" />
+      </button>
+
       <div className="flex flex-col gap-5 lg:flex-row">
-        <nav className="lg:w-60 lg:shrink-0">
+        <nav className={`${menuOpen ? 'block' : 'hidden'} lg:block lg:w-60 lg:shrink-0`}>
           <div className="card divide-y divide-slate-100 p-2">
             {groups.map((g) => (
               <div key={g.title} className="py-2 first:pt-0 last:pb-0">
