@@ -30,8 +30,8 @@ export function FaultTimeline({
         return (
           <span key={i}>
             {i > 0 && <span className="mx-1 text-slate-300">›</span>}
-            <span className="tabular-nums text-slate-400">{stamp}</span>{' '}
-            {faultEventLabel(e.type, repairDone)}
+            {faultEventLabel(e.type, repairDone)}{' '}
+            <span className="tabular-nums text-slate-400">{stamp}</span>
           </span>
         );
       })}

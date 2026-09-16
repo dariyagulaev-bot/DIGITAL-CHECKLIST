@@ -4,7 +4,8 @@ import { useAuth } from '@/context/AuthContext';
 import { getFormStats, listPendingApproval } from '@/services/forms';
 import { PageHeader } from '@/components/Layout';
 import { EmptyState, Spinner } from '@/components/ui';
-import { formatDate } from '@/exports/labels';
+import { FormTitle } from '@/components/FormTitle';
+import { formatTimeHM } from '@/exports/labels';
 import type { CompletedForm } from '@/types';
 
 export default function PendingPage() {
@@ -41,10 +42,10 @@ export default function PendingPage() {
             return (
               <div key={f.id} className="card p-5">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-lg font-bold text-slate-800">{f.name}</div>
-                    <div className="text-sm text-slate-500">
-                      מבצע: {f.performer_name} · {formatDate(f.date)}
+                  <div className="min-w-0">
+                    <FormTitle form={f} className="text-[15px] font-bold text-slate-800" />
+                    <div className="mt-0.5 text-sm text-slate-500">
+                      מבצע: {f.performer_name} · שעה: {formatTimeHM(f.completed_at || f.updated_at || f.created_at)}
                     </div>
                   </div>
                   <span className="badge bg-pending-100 text-pending-700">ממתין</span>

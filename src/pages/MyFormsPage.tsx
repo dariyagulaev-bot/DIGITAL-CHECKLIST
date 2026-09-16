@@ -9,7 +9,8 @@ import {
 } from '@/services/forms';
 import { PageHeader } from '@/components/Layout';
 import { EmptyState, Spinner, StatusBadge } from '@/components/ui';
-import { formatDate, formatDateDots, formatTimeHM } from '@/exports/labels';
+import { FormTitle } from '@/components/FormTitle';
+import { formatTimeHM } from '@/exports/labels';
 import type { CompletedForm } from '@/types';
 
 function StatCard({ label, value, accent }: { label: string; value: number; accent: string }) {
@@ -60,12 +61,10 @@ export default function MyFormsPage() {
               className="flex items-center justify-between gap-3 p-4 hover:bg-slate-50"
             >
               <div className="min-w-0">
-                <div className="font-semibold text-slate-800">{f.name}</div>
-                <div className="text-sm text-slate-500">
+                <FormTitle form={f} className="font-semibold text-slate-800" />
+                <div className="mt-0.5 text-sm text-slate-500">
                   {f.number ? `מס' ${f.number} · ` : ''}
-                  {isEditableByPerformer(f)
-                    ? `${formatDateDots(f.updated_at ?? f.date)} | ${formatTimeHM(f.updated_at ?? f.date)}`
-                    : formatDate(f.date)}
+                  שעה: {formatTimeHM((isEditableByPerformer(f) ? f.updated_at : f.completed_at) ?? f.updated_at ?? f.date)}
                 </div>
               </div>
               <StatusBadge status={f.status} />
