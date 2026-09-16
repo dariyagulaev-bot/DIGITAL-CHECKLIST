@@ -217,27 +217,23 @@ export default function FormRunnerPage() {
                 </span>
               )}
             </div>
-            <h1 className="truncate text-[18px] font-extrabold text-ink-900">{form.name}</h1>
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px]">
-              {form.system_name_snapshot && (
-                <span className="inline-flex items-center gap-1 font-semibold text-brand-700">
-                  <Icon name="database" size={13} /> {form.system_name_snapshot}
-                </span>
-              )}
-              {form.unit_name_snapshot && (
-                <span className="inline-flex items-center gap-1 text-ink-500">
-                  <Icon name="layers" size={13} /> מספר מערכת {form.unit_name_snapshot}
-                </span>
-              )}
-              <span className="inline-flex items-center gap-1 text-ink-500">
-                <Icon name="clock" size={13} /> {formatDateDots(form.date)}
-              </span>
-              {form.rank_name_snapshot && (
+            {/* Fixed, automatic title: system name · system number · date */}
+            <h1 className="text-[18px] font-extrabold leading-snug text-ink-900">
+              {[
+                form.system_name_snapshot,
+                form.unit_name_snapshot && `מספר מערכת ${form.unit_name_snapshot}`,
+                formatDateDots(form.date),
+              ]
+                .filter(Boolean)
+                .join('  |  ')}
+            </h1>
+            {form.rank_name_snapshot && (
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px]">
                 <span className="inline-flex items-center gap-1 text-ink-500">
                   <Icon name="shield-check" size={13} /> {form.rank_name_snapshot}
                 </span>
-              )}
-            </div>
+              </div>
+            )}
           </div>
           <div className="flex gap-2">
             <Link to={`/view/${form.id}`} className="btn-secondary btn-sm gap-1.5">

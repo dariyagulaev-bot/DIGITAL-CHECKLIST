@@ -141,7 +141,15 @@ export default function FormViewPage() {
         {/* Header */}
         <div className="mb-4 border-b-2 border-slate-800 pb-3">
           <div className="text-sm font-bold text-brand-700">{formDocumentTitle(form)}</div>
-          <h1 className="text-2xl font-bold text-slate-900">{form.name}</h1>
+          <h1 className="text-2xl font-bold text-slate-900">
+            {[
+              form.system_name_snapshot,
+              form.unit_name_snapshot && `מספר מערכת ${form.unit_name_snapshot}`,
+              formatDateDots(form.date),
+            ]
+              .filter(Boolean)
+              .join('  |  ')}
+          </h1>
           <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-sm text-slate-700 sm:grid-cols-3">
             <div>
               <span className="font-semibold">סוג מערכת: </span>
