@@ -298,9 +298,11 @@ export default function FormRunnerPage() {
         </section>
       )}
 
-      {/* Consolidated equipment checklist — a pre-work aid for the performer only.
-          Deliberately NOT part of the report / PDF / print / view. */}
-      {toolList.length > 0 && (
+      {/* Consolidated equipment checklist — a pre-work aid for the performer only,
+          shown while the בד״ח is still editable. Once it is submitted for approval
+          it disappears, so the approver (and any later viewer) never sees it.
+          Deliberately NOT part of the report / PDF / print / view either. */}
+      {editable && toolList.length > 0 && (
         <section className="card no-print">
           <div className="panel-head">
             <span className="panel-title">ציוד נדרש לבדיקה</span>
