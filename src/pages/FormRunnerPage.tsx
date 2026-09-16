@@ -217,15 +217,24 @@ export default function FormRunnerPage() {
                 </span>
               )}
             </div>
-            {/* Fixed, automatic title: system name · system number · date */}
-            <h1 className="text-[18px] font-extrabold leading-snug text-ink-900">
-              {[
-                form.system_name_snapshot,
-                form.unit_name_snapshot && `מספר מערכת ${form.unit_name_snapshot}`,
-                formatDateDots(form.date),
-              ]
-                .filter(Boolean)
-                .join('  |  ')}
+            {/* Fixed, automatic title: system name · system number · date.
+                Each field is bidi-isolated so numbers/date never bleed between
+                boxes in the RTL layout. */}
+            <h1
+              dir="rtl"
+              className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[18px] font-extrabold leading-snug text-ink-900"
+            >
+              {form.system_name_snapshot && <bdi>{form.system_name_snapshot}</bdi>}
+              {form.unit_name_snapshot && (
+                <>
+                  <span className="font-normal text-ink-300">|</span>
+                  <span>
+                    מספר מערכת <bdi>{form.unit_name_snapshot}</bdi>
+                  </span>
+                </>
+              )}
+              <span className="font-normal text-ink-300">|</span>
+              <bdi>{formatDateDots(form.date)}</bdi>
             </h1>
             {form.rank_name_snapshot && (
               <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px]">
