@@ -1,7 +1,15 @@
 import type ExcelJSType from 'exceljs';
 import { getFormBundle } from '@/services/forms';
-import { statusLabel } from './labels';
+import { statusLabel, equipmentItemsOf } from './labels';
 import { FormStatus, SignerType, TaskResult } from '@/types';
+
+/** Equipment as a bulleted, one-per-line cell value (never a comma sentence). */
+function equipmentCellValue(items: string[] | undefined, fallback: string): string {
+  const list = equipmentItemsOf(items, fallback);
+  if (list.length === 0) return '';
+  if (list.length === 1) return list[0];
+  return list.map((s) => `• ${s}`).join('\n');
+}
 
 const GREEN = 'FFD1FAE5';
 const GREEN_TEXT = 'FF047857';
@@ -62,6 +70,7 @@ export async function exportFormToExcel(formId: string): Promise<void> {
     ['מערכת / יחידה', form.unit_name_snapshot || '—'],
     ['דרג בדיקה', form.rank_name_snapshot || '—'],
     ['מספר בד״ח', form.number || '—'],
+    ['סיווג', form.classification || 'בלמ״ס'],
     ['תאריך', form.date],
     ['מבצע 1', form.performer_name],
     ['מבצע 2', form.performer2_name || '—'],
@@ -104,7 +113,7 @@ export async function exportFormToExcel(formId: string): Promise<void> {
     const row = ws.getRow(r);
     row.getCell(1).value = t.part_name_snapshot;
     row.getCell(2).value = t.action_snapshot;
-    row.getCell(3).value = t.equipment_snapshot;
+    row.getCell(3).value = equipmentCellValue(t.equipment_items_snapshot, t.equipment_snapshot);
     row.getCell(4).value = isOk ? '✓' : '';
     row.getCell(5).value = isFault ? '✕' : '';
     for (let c = 1; c <= 5; c++) {

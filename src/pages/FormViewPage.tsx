@@ -16,6 +16,7 @@ import {
   formDocumentTitle,
   formFooterNumber,
   statusLabel,
+  equipmentItemsOf,
 } from '@/exports/labels';
 import { FormStatus, SignerType, TaskResult, type Signature } from '@/types';
 
@@ -106,9 +107,9 @@ export default function FormViewPage() {
         className="print-page mx-auto max-w-4xl bg-white p-8 shadow-soft"
         style={{ width: '210mm', maxWidth: '100%' }}
       >
-        {/* Branded document header */}
-        <div className="mb-4 flex items-center justify-between border-b border-slate-200 pb-3">
-          <VeroLogo variant="compact" tone="light" />
+        {/* Branded document header — enlarged VERO logo (vector, stays crisp). */}
+        <div className="mb-4 flex items-center justify-between border-b border-slate-200 pb-4">
+          <VeroLogo variant="compact" tone="light" scale={1.6} />
           <div className="text-right">
             <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
               דוח בדיקה
@@ -152,6 +153,10 @@ export default function FormViewPage() {
               {form.number || '—'}
             </div>
             <div>
+              <span className="font-semibold">סיווג: </span>
+              <span className="font-bold text-slate-900">{form.classification ?? 'בלמ״ס'}</span>
+            </div>
+            <div>
               <span className="font-semibold">תאריך: </span>
               {formatDate(form.date)}
             </div>
@@ -189,9 +194,11 @@ export default function FormViewPage() {
               const isFault = t.result === TaskResult.FAULT;
               return (
                 <tr key={t.id} className={isFault ? 'bg-fault-50' : ''}>
-                  <td className="border border-slate-300 p-2 font-medium">{t.part_name_snapshot}</td>
-                  <td className="border border-slate-300 p-2">{t.action_snapshot}</td>
-                  <td className="border border-slate-300 p-2">{t.equipment_snapshot || 'ללא'}</td>
+                  <td className="border border-slate-300 p-2 align-top font-medium">{t.part_name_snapshot}</td>
+                  <td className="border border-slate-300 p-2 align-top">{t.action_snapshot}</td>
+                  <td className="border border-slate-300 p-2 align-top">
+                    <ReportEquipment items={t.equipment_items_snapshot} fallback={t.equipment_snapshot} />
+                  </td>
                   <td className="border border-slate-300 p-2 text-center text-lg font-bold text-ok-600">
                     {isOk ? '✓' : ''}
                   </td>
@@ -247,6 +254,13 @@ export default function FormViewPage() {
           <SignatureBlock title="מאשר הבדיקה" sig={appr} />
         </div>
 
+        {/* Discreet development credit — printed & included in the PDF, kept
+            small and grey so it never competes with the signatures, number,
+            date or professional content. */}
+        <div className="mt-8 text-center text-[9.5px] font-normal text-slate-400">
+          פיתוח המערכת: דריה ג.
+        </div>
+
         {/* On-screen footer (web view only — excluded from print & PDF, which
             use the repeating per-page footer instead). */}
         <div className="pdf-ignore no-print mt-8 flex items-center justify-between border-t border-slate-200 pt-3">
@@ -268,6 +282,24 @@ export default function FormViewPage() {
         </span>
       </div>
     </div>
+  );
+}
+
+/** Equipment rendered as an orderly list inside the report's "ציוד נדרש" column
+ *  (wraps and grows the row automatically; never breaks the table). */
+function ReportEquipment({ items, fallback }: { items?: string[]; fallback?: string }) {
+  const list = equipmentItemsOf(items, fallback);
+  if (list.length === 0) return <span>ללא</span>;
+  if (list.length === 1) return <span>{list[0]}</span>;
+  return (
+    <ul className="space-y-0.5">
+      {list.map((it, i) => (
+        <li key={i} className="flex gap-1.5">
+          <span className="shrink-0">•</span>
+          <span>{it}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 

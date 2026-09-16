@@ -16,6 +16,7 @@ import { listRanks } from '@/services/ranks';
 import { useToast } from '@/context/ToastContext';
 import { Modal, Spinner } from '@/components/ui';
 import { Icon } from '@/components/Icon';
+import { equipmentItemsOf } from '@/exports/labels';
 import type { Rank, System, Template, TemplateTask } from '@/types';
 
 export default function TemplateEditorPage() {
@@ -252,9 +253,27 @@ function TaskEditor({
 }) {
   const [partName, setPartName] = useState(task?.part_name ?? '');
   const [action, setAction] = useState(task?.action ?? '');
-  const [equipment, setEquipment] = useState(task?.equipment ?? '');
+  // Equipment is an ordered list of items (start with one empty row to type in).
+  const [equipmentItems, setEquipmentItems] = useState<string[]>(() => {
+    const list = equipmentItemsOf(task?.equipment_items, task?.equipment);
+    return list.length ? list : [''];
+  });
   const [image, setImage] = useState<string | null>(task?.image_data ?? null);
   const [busy, setBusy] = useState(false);
+
+  const setItem = (i: number, val: string) =>
+    setEquipmentItems((prev) => prev.map((v, idx) => (idx === i ? val : v)));
+  const addItem = () => setEquipmentItems((prev) => [...prev, '']);
+  const removeItem = (i: number) =>
+    setEquipmentItems((prev) => (prev.length <= 1 ? [''] : prev.filter((_, idx) => idx !== i)));
+  const moveItem = (i: number, dir: -1 | 1) =>
+    setEquipmentItems((prev) => {
+      const j = i + dir;
+      if (j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
 
   const pickImage = async (file: File | null) => {
     if (!file) return;
@@ -271,15 +290,21 @@ function TaskEditor({
       notify('יש למלא שם אזור ופעולה', 'error');
       return;
     }
+    const items = equipmentItems.map((s) => s.trim()).filter(Boolean);
     setBusy(true);
     try {
       if (task) {
-        await updateTask(task.id, { part_name: partName, action, equipment, image_data: image });
+        await updateTask(task.id, {
+          part_name: partName,
+          action,
+          equipment_items: items,
+          image_data: image,
+        });
       } else {
         await addTask(templateId, {
           part_name: partName,
           action,
-          equipment,
+          equipment_items: items,
           image_data: image,
         });
       }
@@ -304,7 +329,47 @@ function TaskEditor({
         </div>
         <div>
           <label className="label">ציוד נדרש</label>
-          <input className="input" value={equipment} onChange={(e) => setEquipment(e.target.value)} />
+          <div className="space-y-2">
+            {equipmentItems.map((val, i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                <input
+                  className="input flex-1"
+                  value={val}
+                  placeholder={`פריט ציוד ${i + 1}`}
+                  onChange={(e) => setItem(i, e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="btn-ghost !min-h-0 !px-1.5 !py-1.5"
+                  onClick={() => moveItem(i, -1)}
+                  disabled={i === 0}
+                  title="העלה"
+                >
+                  <Icon name="up" size={15} />
+                </button>
+                <button
+                  type="button"
+                  className="btn-ghost !min-h-0 !px-1.5 !py-1.5"
+                  onClick={() => moveItem(i, 1)}
+                  disabled={i === equipmentItems.length - 1}
+                  title="הורד"
+                >
+                  <Icon name="down" size={15} />
+                </button>
+                <button
+                  type="button"
+                  className="btn-ghost !min-h-0 !px-1.5 !py-1.5 text-fault-600"
+                  onClick={() => removeItem(i)}
+                  title="מחק פריט"
+                >
+                  <Icon name="trash" size={15} />
+                </button>
+              </div>
+            ))}
+            <button type="button" className="btn-secondary btn-sm gap-1.5" onClick={addItem}>
+              <Icon name="plus" size={15} /> הוסף פריט ציוד
+            </button>
+          </div>
         </div>
         <div>
           <label className="label">תמונה מתארת (אופציונלי)</label>

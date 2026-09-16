@@ -18,7 +18,16 @@ import {
 } from '@/services/forms';
 import { fileToManagedDataUrl } from '@/services/images';
 import { listActivePerformers } from '@/services/performers';
-import { FormStatus, SignerType, TaskResult, type CompletedTask, type Performer } from '@/types';
+import {
+  FormStatus,
+  SignerType,
+  TaskResult,
+  CLASSIFICATIONS,
+  type Classification,
+  type CompletedTask,
+  type Performer,
+} from '@/types';
+import { equipmentItemsOf } from '@/exports/labels';
 import { PerformerSelect } from '@/components/PerformerSelect';
 import { SignaturePad, type SignaturePadHandle } from '@/components/SignaturePad';
 import { Modal, Spinner, StatusBadge } from '@/components/ui';
@@ -304,6 +313,21 @@ export default function FormRunnerPage() {
               onChange={(sel) => onMeta({ performer2_id: sel.id, performer2_name: sel.name })}
             />
           </div>
+          <div>
+            <label className="label">סיווג</label>
+            <select
+              className="input"
+              value={form.classification ?? 'בלמ״ס'}
+              disabled={!editable}
+              onChange={(e) => onMeta({ classification: e.target.value as Classification })}
+            >
+              {CLASSIFICATIONS.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </section>
 
@@ -475,6 +499,23 @@ export default function FormRunnerPage() {
   );
 }
 
+/** Equipment shown as an orderly stacked list inside the single "ציוד נדרש" cell. */
+function EquipmentCell({ items, fallback }: { items?: string[]; fallback?: string }) {
+  const list = equipmentItemsOf(items, fallback);
+  if (list.length === 0) return <span className="text-ink-400">ללא</span>;
+  if (list.length === 1) return <span>{list[0]}</span>;
+  return (
+    <ul className="space-y-0.5">
+      {list.map((it, i) => (
+        <li key={i} className="flex gap-1.5">
+          <span className="mt-[1px] shrink-0 text-ink-300">•</span>
+          <span>{it}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function TaskRow({
   task,
   editable,
@@ -497,7 +538,12 @@ function TaskRow({
       <tr className={`row-hover ${isFault ? 'bg-fault-50/40' : isOk ? 'bg-ok-50/30' : ''}`}>
         <td className="font-semibold text-ink-900">{task.part_name_snapshot}</td>
         <td className="text-ink-700">{task.action_snapshot}</td>
-        <td className="text-ink-600">{task.equipment_snapshot || 'ללא'}</td>
+        <td className="align-top text-ink-600">
+          <EquipmentCell
+            items={task.equipment_items_snapshot}
+            fallback={task.equipment_snapshot}
+          />
+        </td>
         <td className="text-center">
           {task.image_snapshot ? (
             <button

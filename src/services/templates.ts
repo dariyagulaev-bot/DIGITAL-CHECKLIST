@@ -2,7 +2,14 @@ import { db } from '@/data/db';
 import { newId, nowIso } from './ids';
 import { ensureDefaultSystem } from './systems';
 import { ensureDefaultRank } from './ranks';
+import { equipmentItemsOf } from '@/exports/labels';
 import type { Template, TemplateTask } from '@/types';
+
+/** Normalize equipment input into a clean list + a joined legacy string. */
+function normalizeEquipment(items?: string[], text?: string): { items: string[]; text: string } {
+  const list = equipmentItemsOf(items, text);
+  return { items: list, text: list.join(', ') };
+}
 
 /** Bump a template's version + updated_at whenever its structure changes. */
 async function touchTemplate(templateId: string): Promise<void> {
@@ -121,15 +128,23 @@ export async function duplicateTemplate(id: string): Promise<Template> {
 
 export async function addTask(
   templateId: string,
-  params: { part_name: string; action: string; equipment: string; image_data?: string | null }
+  params: {
+    part_name: string;
+    action: string;
+    equipment?: string;
+    equipment_items?: string[];
+    image_data?: string | null;
+  }
 ): Promise<TemplateTask> {
   const existing = await getTemplateTasks(templateId);
+  const eq = normalizeEquipment(params.equipment_items, params.equipment);
   const task: TemplateTask = {
     id: newId(),
     template_id: templateId,
     part_name: params.part_name.trim(),
     action: params.action.trim(),
-    equipment: params.equipment.trim(),
+    equipment: eq.text,
+    equipment_items: eq.items,
     image_data: params.image_data ?? null,
     sort_order: existing.length,
   };
@@ -140,9 +155,18 @@ export async function addTask(
 
 export async function updateTask(
   taskId: string,
-  patch: Partial<Pick<TemplateTask, 'part_name' | 'action' | 'equipment' | 'image_data'>>
+  patch: Partial<
+    Pick<TemplateTask, 'part_name' | 'action' | 'equipment' | 'equipment_items' | 'image_data'>
+  >
 ): Promise<void> {
-  await db.template_tasks.update(taskId, patch);
+  // When equipment is edited, keep the list and the legacy joined string in sync.
+  const finalPatch: Partial<TemplateTask> = { ...patch };
+  if (patch.equipment_items !== undefined || patch.equipment !== undefined) {
+    const eq = normalizeEquipment(patch.equipment_items, patch.equipment);
+    finalPatch.equipment_items = eq.items;
+    finalPatch.equipment = eq.text;
+  }
+  await db.template_tasks.update(taskId, finalPatch);
   const task = await db.template_tasks.get(taskId);
   if (task) await touchTemplate(task.template_id);
 }

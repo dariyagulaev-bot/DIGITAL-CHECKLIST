@@ -132,7 +132,13 @@ async function ensureTemplate(
   };
   await db.templates.add(template);
   for (const t of tasks) {
-    await db.template_tasks.add({ id: newId(), template_id: template.id, ...t });
+    // Equipment is a list; derive items from the demo text so seeded data uses
+    // the same structured form as admin-entered equipment.
+    const equipment_items = (t.equipment || '')
+      .split(/[\n,]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    await db.template_tasks.add({ id: newId(), template_id: template.id, ...t, equipment_items });
   }
 }
 

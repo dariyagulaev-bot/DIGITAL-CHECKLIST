@@ -14,6 +14,27 @@ export function formDocumentTitle(
   return parts.join(' – ');
 }
 
+/** Split legacy equipment text into a list (on commas / new lines). */
+export function splitEquipmentText(text: string | undefined | null): string[] {
+  return (text ?? '')
+    .split(/[\n,]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Resolve the equipment of a task to an ordered list of items. Prefers the
+ * structured `equipment_items` list; falls back to splitting the legacy
+ * `equipment` string so old data still renders as a clean list.
+ */
+export function equipmentItemsOf(
+  items: string[] | undefined,
+  fallbackText: string | undefined | null
+): string[] {
+  const list = (items ?? []).map((s) => s.trim()).filter(Boolean);
+  return list.length ? list : splitEquipmentText(fallbackText);
+}
+
 export function statusLabel(status: FormStatus): string {
   switch (status) {
     case FormStatus.DRAFT:

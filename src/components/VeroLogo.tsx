@@ -41,16 +41,18 @@ export function VeroMark({ size = 30, tone = 'light' }: { size?: number; tone?: 
 interface Props {
   variant?: 'full' | 'compact' | 'mark';
   tone?: 'light' | 'dark';
+  /** Uniform enlargement (crisp — the mark is vector). 1 = default size. */
+  scale?: number;
   className?: string;
 }
 
-export function VeroLogo({ variant = 'compact', tone = 'light', className = '' }: Props) {
+export function VeroLogo({ variant = 'compact', tone = 'light', scale = 1, className = '' }: Props) {
   const wordColor = tone === 'dark' ? '#ffffff' : '#0f2b52';
   const tagColor = tone === 'dark' ? 'rgba(255,255,255,0.62)' : '#64748b';
   const dividerColor = tone === 'dark' ? 'rgba(255,255,255,0.28)' : '#cbd5e1';
 
-  const markSize = variant === 'full' ? 46 : 28;
-  const wordSize = variant === 'full' ? 30 : 19;
+  const markSize = (variant === 'full' ? 46 : 28) * scale;
+  const wordSize = (variant === 'full' ? 30 : 19) * scale;
 
   return (
     <span className={`inline-flex items-center gap-2.5 ${className}`} dir="ltr">

@@ -116,12 +116,23 @@ export interface Template {
   updated_at: string;
 }
 
+/**
+ * Security classification (סיווג) of a בד״ח. Fixed, ordered list — lowest to
+ * highest. Stored as data on the form and frozen into the historical snapshot.
+ */
+export type Classification = 'בלמ״ס' | 'שמור' | 'סודי' | 'סודי ביותר';
+export const CLASSIFICATIONS: Classification[] = ['בלמ״ס', 'שמור', 'סודי', 'סודי ביותר'];
+export const DEFAULT_CLASSIFICATION: Classification = 'בלמ״ס';
+
 export interface TemplateTask {
   id: string;
   template_id: string;
   part_name: string; // שם החלק
   action: string; // הפעולה
-  equipment: string; // ציוד
+  equipment: string; // ציוד — legacy single string (kept as a joined fallback)
+  /** Required equipment as an ordered list of items. Source of truth going
+   *  forward; `equipment` mirrors it (joined) for backward compatibility. */
+  equipment_items?: string[];
   image_data: string | null; // data URL (managed copy, not original path)
   sort_order: number;
 }
@@ -131,6 +142,7 @@ export interface TaskSnapshot {
   part_name: string;
   action: string;
   equipment: string;
+  equipment_items?: string[];
   image_data: string | null;
   sort_order: number;
 }
@@ -161,6 +173,8 @@ export interface CompletedForm {
   template_version_snapshot: number;
   name: string;
   number: string;
+  classification?: Classification; // סיווג — chosen by the performer, frozen on the form
+
   performer_user_id: string; // performer 1 (the logged-in user)
   performer_name: string; // performer 1 full-name snapshot
   performer2_id: string | null; // performer 2 reference (Performer.id), null until chosen
@@ -179,7 +193,8 @@ export interface CompletedTask {
   completed_form_id: string;
   part_name_snapshot: string;
   action_snapshot: string;
-  equipment_snapshot: string;
+  equipment_snapshot: string; // legacy single-string fallback
+  equipment_items_snapshot?: string[]; // frozen equipment list at execution time
   image_snapshot: string | null; // reference image (data URL)
   result: TaskResult;
   comment: string; // fault detail

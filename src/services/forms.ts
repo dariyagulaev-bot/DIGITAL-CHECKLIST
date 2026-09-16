@@ -8,12 +8,14 @@ import {
   FormStatus,
   SignerType,
   TaskResult,
+  DEFAULT_CLASSIFICATION,
   type CompletedForm,
   type CompletedTask,
   type Signature,
   type TemplateSnapshot,
   type UserWithRoles,
 } from '@/types';
+import { equipmentItemsOf } from '@/exports/labels';
 
 /** Full aggregate for a form. */
 export interface FormBundle {
@@ -85,6 +87,7 @@ export async function createDraftForm(params: {
       part_name: t.part_name,
       action: t.action,
       equipment: t.equipment,
+      equipment_items: equipmentItemsOf(t.equipment_items, t.equipment),
       image_data: t.image_data,
       sort_order: t.sort_order,
     })),
@@ -106,6 +109,7 @@ export async function createDraftForm(params: {
     template_version_snapshot: template.version ?? 1,
     name: params.name?.trim() || template.name,
     number: badachNumber,
+    classification: DEFAULT_CLASSIFICATION,
     performer_user_id: params.performer.id,
     performer_name: params.performer.full_name,
     performer2_id: null,
@@ -126,6 +130,7 @@ export async function createDraftForm(params: {
     part_name_snapshot: t.part_name,
     action_snapshot: t.action,
     equipment_snapshot: t.equipment,
+    equipment_items_snapshot: equipmentItemsOf(t.equipment_items, t.equipment),
     image_snapshot: t.image_data,
     result: TaskResult.UNSET,
     comment: '',
@@ -177,7 +182,9 @@ async function assertEditable(formId: string, userId: string): Promise<Completed
 export async function updateFormMeta(
   formId: string,
   userId: string,
-  patch: Partial<Pick<CompletedForm, 'name' | 'date' | 'performer2_id' | 'performer2_name'>>
+  patch: Partial<
+    Pick<CompletedForm, 'name' | 'date' | 'performer2_id' | 'performer2_name' | 'classification'>
+  >
 ): Promise<void> {
   const form = await assertEditable(formId, userId);
   await db.completed_forms.update(formId, patch);

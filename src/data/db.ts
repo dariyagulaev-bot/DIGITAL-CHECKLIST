@@ -156,6 +156,55 @@ export class ChecklistDB extends Dexie {
     this.version(6).stores({
       counters: 'id',
     });
+
+    // v7: (a) equipment becomes a LIST of items; (b) forms gain a classification
+    // (סיווג). Safe, non-destructive migration — no existing data is lost:
+    //   • template tasks & completed-task snapshots keep their `equipment` text
+    //     and gain an `equipment_items` list derived from it (split on commas /
+    //     new lines). Both forms of the data are retained.
+    //   • completed forms with no classification default to בלמ״ס (unclassified),
+    //     the safe lowest level — never over-classifying a historical document.
+    // No indexes change (these are data-only fields), so `stores({})` is enough.
+    this.version(7)
+      .stores({})
+      .upgrade(async (tx) => {
+        const splitItems = (text: unknown): string[] =>
+          typeof text === 'string'
+            ? text
+                .split(/[\n,]+/)
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : [];
+
+        const tmplTasks = await tx.table('template_tasks').toArray();
+        await Promise.all(
+          tmplTasks
+            .filter((t: TemplateTask) => t.equipment_items === undefined)
+            .map((t: TemplateTask) =>
+              tx.table('template_tasks').update(t.id, { equipment_items: splitItems(t.equipment) })
+            )
+        );
+
+        const compTasks = await tx.table('completed_tasks').toArray();
+        await Promise.all(
+          compTasks
+            .filter((t: CompletedTask) => t.equipment_items_snapshot === undefined)
+            .map((t: CompletedTask) =>
+              tx
+                .table('completed_tasks')
+                .update(t.id, { equipment_items_snapshot: splitItems(t.equipment_snapshot) })
+            )
+        );
+
+        const forms = await tx.table('completed_forms').toArray();
+        await Promise.all(
+          forms
+            .filter((f: CompletedForm) => f.classification === undefined)
+            .map((f: CompletedForm) =>
+              tx.table('completed_forms').update(f.id, { classification: 'בלמ״ס' })
+            )
+        );
+      });
   }
 }
 
