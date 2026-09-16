@@ -107,9 +107,15 @@ export default function FormViewPage() {
         className="print-page mx-auto max-w-4xl bg-white p-8 shadow-soft"
         style={{ width: '210mm', maxWidth: '100%' }}
       >
-        {/* Branded document header — enlarged VERO logo (vector, stays crisp). */}
-        <div className="mb-4 flex items-center justify-between border-b border-slate-200 pb-4">
-          <VeroLogo variant="compact" tone="light" scale={1.6} />
+        {/* Branded document header — enlarged VERO logo (vector, stays crisp),
+            with a tiny discreet development credit tucked directly beneath it. */}
+        <div className="mb-4 flex items-start justify-between border-b border-slate-200 pb-4">
+          <div className="flex flex-col items-start gap-0.5">
+            <VeroLogo variant="compact" tone="light" scale={1.6} />
+            <div className="text-[8px] font-normal leading-none text-slate-400">
+              פיתוח המערכת: דריה ג.
+            </div>
+          </div>
           <div className="text-right">
             <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
               דוח בדיקה
@@ -252,13 +258,6 @@ export default function FormViewPage() {
         <div className="mt-8 grid grid-cols-2 gap-6">
           <SignatureBlock title="חתימת מבצע 1" sig={perf} />
           <SignatureBlock title="מאשר הבדיקה" sig={appr} />
-        </div>
-
-        {/* Discreet development credit — printed & included in the PDF, kept
-            small and grey so it never competes with the signatures, number,
-            date or professional content. */}
-        <div className="mt-8 text-center text-[9.5px] font-normal text-slate-400">
-          פיתוח המערכת: דריה ג.
         </div>
 
         {/* On-screen footer (web view only — excluded from print & PDF, which
