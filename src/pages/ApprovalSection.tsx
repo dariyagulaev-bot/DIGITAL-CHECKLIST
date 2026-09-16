@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { canApprove } from '@/services/rbac';
 import { finalizeApproval, returnForFix } from '@/services/approval';
 import { addSignature, type FormBundle } from '@/services/forms';
-import { FormStatus, SignerType } from '@/types';
+import { FormStatus, SignerType, TaskResult } from '@/types';
 import { SignaturePad, type SignaturePadHandle } from '@/components/SignaturePad';
 import { Modal } from '@/components/ui';
 import { Icon } from '@/components/Icon';
@@ -25,14 +25,24 @@ export function ApprovalSection({
   bundle: FormBundle;
   onChanged: () => Promise<void>;
 }) {
-  const { form, signatures } = bundle;
+  const { form, tasks, signatures } = bundle;
   const { user } = useAuth();
   const { notify } = useToast();
   const [sigEmpty, setSigEmpty] = useState(true);
   const [busy, setBusy] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
-  const [returnNote, setReturnNote] = useState('');
+  const [returnGeneral, setReturnGeneral] = useState('');
+  const [sectionNotes, setSectionNotes] = useState<Record<string, string>>({});
+  const [checked, setChecked] = useState<Set<string>>(new Set());
   const sigRef = useRef<SignaturePadHandle>(null);
+
+  const faultTasks = tasks.filter((t) => t.result === TaskResult.FAULT);
+  const toggleSection = (id: string) =>
+    setChecked((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
 
   const approverSig = signatures.find((s) => s.signer_type === SignerType.APPROVER);
 
@@ -121,16 +131,26 @@ export function ApprovalSection({
   };
 
   const submitReturn = async () => {
-    if (!returnNote.trim()) {
-      notify('יש לכתוב הערה למבצע', 'error');
+    const sections = [...checked]
+      .map((taskId) => ({ taskId, note: (sectionNotes[taskId] ?? '').trim() }))
+      .filter((s) => s.note);
+    const missingNote = [...checked].some((id) => !(sectionNotes[id] ?? '').trim());
+    if (missingNote) {
+      notify('יש לכתוב הערה לכל סעיף שנבחר', 'error');
+      return;
+    }
+    if (sections.length === 0 && !returnGeneral.trim()) {
+      notify('בחר סעיף להחזרה (עם הערה) או כתוב הערה כללית', 'error');
       return;
     }
     setBusy(true);
     try {
-      await returnForFix(form.id, user, returnNote.trim());
+      await returnForFix(form.id, user, sections, returnGeneral.trim());
       notify('הבד״ח הוחזר לתיקון', 'info');
       setReturnOpen(false);
-      setReturnNote('');
+      setReturnGeneral('');
+      setSectionNotes({});
+      setChecked(new Set());
       await onChanged();
     } catch (err) {
       notify((err as Error).message, 'error');
@@ -170,23 +190,79 @@ export function ApprovalSection({
         title="החזרת בד״ח לתיקון"
         tone="fault"
         icon="alert"
+        maxWidth="max-w-2xl"
       >
         <div className="space-y-4">
+          {faultTasks.length > 0 ? (
+            <div>
+              <label className="label">בחר את הסעיפים להחזרה לתיקון והוסף הערה לכל אחד</label>
+              <div className="space-y-2">
+                {faultTasks.map((t) => {
+                  const on = checked.has(t.id);
+                  return (
+                    <div
+                      key={t.id}
+                      className={`rounded-lg border p-3 transition-colors ${
+                        on ? 'border-fault-300 bg-fault-50/60' : 'border-slate-200 bg-white'
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleSection(t.id)}
+                        className="flex w-full items-start gap-2.5 text-right"
+                      >
+                        <span
+                          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-[5px] border-2 ${
+                            on ? 'border-fault-500 bg-fault-500 text-white' : 'border-slate-300'
+                          }`}
+                        >
+                          {on && <Icon name="check" size={13} />}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[14px] font-semibold text-ink-900">
+                            {t.part_name_snapshot} · {t.action_snapshot}
+                          </span>
+                          {t.comment.trim() && (
+                            <span className="block truncate text-[12.5px] text-ink-500">
+                              תקלה: {t.comment}
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                      {on && (
+                        <textarea
+                          className="input mt-2 min-h-[70px] text-[13.5px]"
+                          value={sectionNotes[t.id] ?? ''}
+                          onChange={(e) =>
+                            setSectionNotes((p) => ({ ...p, [t.id]: e.target.value }))
+                          }
+                          placeholder="הערת המאשר / מה יש לתקן בסעיף זה…"
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <p className="text-[13px] text-ink-500">אין בבד״ח סעיפים המסומנים כלא תקינים.</p>
+          )}
+
           <div>
-            <label className="label">הערה למבצע / סיבת החזרה לתיקון</label>
+            <label className="label">הערה כללית (אופציונלי)</label>
             <textarea
-              className="input min-h-[110px]"
-              value={returnNote}
-              onChange={(e) => setReturnNote(e.target.value)}
-              placeholder="פרט מה יש לתקן בבד״ח…"
-              autoFocus
+              className="input min-h-[70px]"
+              value={returnGeneral}
+              onChange={(e) => setReturnGeneral(e.target.value)}
+              placeholder="הערה כללית למבצע…"
             />
-            <p className="mt-1 text-[12.5px] text-ink-500">
-              ההערה תוצג למבצע. החזרה לתיקון מבטלת את החתימות הקיימות — יידרשו חתימות מחדש.
-            </p>
           </div>
+
+          <p className="text-[12.5px] text-ink-500">
+            החזרה לתיקון מבטלת את החתימות הקיימות — יידרשו חתימות מחדש לאחר תיעוד הטיפול.
+          </p>
           <div className="flex gap-3">
-            <button className="btn-danger-solid flex-1" onClick={submitReturn} disabled={busy || !returnNote.trim()}>
+            <button className="btn-danger-solid flex-1" onClick={submitReturn} disabled={busy}>
               <Icon name="back" size={17} /> החזר לתיקון
             </button>
             <button className="btn-ghost" onClick={() => setReturnOpen(false)} disabled={busy}>

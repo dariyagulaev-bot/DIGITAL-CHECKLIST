@@ -13,12 +13,15 @@ import {
   formatDateTime,
   formatDateDots,
   formatTimeHM,
+  formatStamp,
+  faultTreatmentStatus,
   formDocumentTitle,
   formFooterNumber,
   statusLabel,
   equipmentItemsOf,
 } from '@/exports/labels';
-import { FormStatus, SignerType, TaskResult, type Signature } from '@/types';
+import { FaultTimeline } from '@/components/FaultTimeline';
+import { FormStatus, SignerType, TaskResult, type Signature, type CompletedTask } from '@/types';
 
 export default function FormViewPage() {
   const { id } = useParams<{ id: string }>();
@@ -241,30 +244,16 @@ export default function FormViewPage() {
           <span className="text-fault-600">לא תקין: {faultCount}</span>
         </div>
 
-        {/* Fault details (no permanent notes column — details live here) */}
+        {/* Faults, and — where they occurred — the full, continuous treatment.
+            An official, compact part of the report (never a bolted-on appendix). */}
         {faults.length > 0 && (
           <div className="mt-5">
-            <h3 className="mb-2 font-bold text-fault-700">פירוט אי-תקינות</h3>
+            <h3 className="mb-2 font-bold text-fault-700">
+              {faults.some((t) => t.returned_for_fix) ? 'תקלות וטיפול שבוצע' : 'פירוט אי-תקינות'}
+            </h3>
             <div className="space-y-2">
               {faults.map((t) => (
-                <div key={t.id} className="rounded-lg border border-fault-200 bg-fault-50 p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="font-semibold text-slate-800">{t.part_name_snapshot}</div>
-                      <div className="text-xs text-slate-500">{t.action_snapshot}</div>
-                      <div className="mt-1 text-sm text-slate-700">
-                        {t.comment.trim() || '— לא הוזן פירוט —'}
-                      </div>
-                    </div>
-                    {t.fault_image && (
-                      <img
-                        src={t.fault_image}
-                        alt="תמונת תקלה"
-                        className="h-24 w-24 shrink-0 rounded object-cover"
-                      />
-                    )}
-                  </div>
-                </div>
+                <FaultReportCard key={t.id} task={t} />
               ))}
             </div>
           </div>
@@ -297,6 +286,96 @@ export default function FormViewPage() {
           <span className="pf-sep">|</span> שעה: {footerTime}
         </span>
       </div>
+    </div>
+  );
+}
+
+/**
+ * One fault in the report: the fault description reads first and largest; the
+ * approver note and the documented treatment follow; the timeline is a single
+ * small, muted line at the bottom (secondary). Compact and official — never a
+ * bulky card per event.
+ */
+function FaultReportCard({ task: t }: { task: CompletedTask }) {
+  const treated = !!t.returned_for_fix;
+  const status = faultTreatmentStatus(t);
+  return (
+    <div className="rounded-lg border border-fault-200 bg-fault-50 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-baseline gap-x-2">
+            <span className="font-semibold text-slate-800">{t.part_name_snapshot}</span>
+            <span className="text-xs text-slate-500">{t.action_snapshot}</span>
+            {treated && (
+              <span
+                className={`rounded px-1.5 py-0.5 text-[11px] font-bold ${
+                  status.includes('אומת')
+                    ? 'bg-ok-100 text-ok-700'
+                    : status.includes('לא תוקן')
+                      ? 'bg-fault-100 text-fault-700'
+                      : 'bg-pending-100 text-pending-700'
+                }`}
+              >
+                {status}
+              </span>
+            )}
+          </div>
+          <div className="mt-1 text-sm text-slate-800">
+            <span className="font-semibold text-fault-700">תקלה: </span>
+            {t.comment.trim() || '— לא הוזן פירוט —'}
+          </div>
+
+          {treated && (
+            <div className="mt-1.5 space-y-0.5 text-[12.5px] text-slate-700">
+              {t.return_note && (
+                <div>
+                  <span className="font-semibold text-pending-700">הערת המאשר: </span>
+                  {t.return_note}
+                </div>
+              )}
+              {t.repair_reported && (
+                <div>
+                  <span className="font-semibold text-brand-700">טיפול שבוצע: </span>
+                  {t.repair_done ? t.repair_description || '—' : 'התקלה לא תוקנה'}
+                  {t.repair_done && t.repair_description ? '' : ''}
+                </div>
+              )}
+              {t.repaired_by_name && (
+                <div className="text-slate-500">
+                  טופל ע״י: {t.repaired_by_name} · {formatStamp(t.repaired_at)}
+                </div>
+              )}
+              {t.verified && (
+                <div className="text-slate-500">
+                  אומת ע״י: {t.verified_by_name} · {formatStamp(t.verified_at)}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Before / after images, compact */}
+        <div className="flex shrink-0 gap-1.5">
+          {t.fault_image && (
+            <figure className="text-center">
+              <img src={t.fault_image} alt="לפני" className="h-20 w-20 rounded object-cover" />
+              <figcaption className="text-[10px] text-slate-500">לפני</figcaption>
+            </figure>
+          )}
+          {t.repair_image && (
+            <figure className="text-center">
+              <img src={t.repair_image} alt="אחרי" className="h-20 w-20 rounded object-cover" />
+              <figcaption className="text-[10px] text-slate-500">אחרי</figcaption>
+            </figure>
+          )}
+        </div>
+      </div>
+
+      {treated && (t.fault_events?.length ?? 0) > 1 && (
+        <div className="mt-2 border-t border-fault-200/70 pt-1.5">
+          <FaultTimeline events={t.fault_events} repairDone={t.repair_done} />
+        </div>
+      )}
     </div>
   );
 }

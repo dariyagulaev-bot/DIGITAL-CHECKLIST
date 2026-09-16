@@ -15,6 +15,7 @@ import {
   deleteDraft,
   getFormBundle,
   isEditableByPerformer,
+  reportRepair,
   setTaskComment,
   setTaskFaultImage,
   setTaskResult,
@@ -26,11 +27,13 @@ import {
 import { fileToManagedDataUrl } from '@/services/images';
 import { listPerformerUsers } from '@/services/auth';
 import { FormStatus, SignerType, TaskResult, type CompletedTask, type Signature } from '@/types';
-import { equipmentItemsOf, formatDateDots, formatDateTime } from '@/exports/labels';
+import { equipmentItemsOf, formatDateDots, formatDateTime, formatStamp, faultTreatmentStatus } from '@/exports/labels';
 import { PerformerSelect } from '@/components/PerformerSelect';
 import { SignaturePad, type SignaturePadHandle } from '@/components/SignaturePad';
 import { Modal, Spinner, StatusBadge } from '@/components/ui';
 import { FaultModal } from '@/components/FaultModal';
+import { RepairModal } from '@/components/RepairModal';
+import { FaultTimeline } from '@/components/FaultTimeline';
 import { Icon } from '@/components/Icon';
 import { ApprovalSection } from './ApprovalSection';
 
@@ -52,6 +55,7 @@ export default function FormRunnerPage() {
   const performer2Ref = useRef<HTMLButtonElement>(null);
   const [performers, setPerformers] = useState<Array<{ id: string; full_name: string }>>([]);
   const [faultTaskId, setFaultTaskId] = useState<string | null>(null);
+  const [repairTaskId, setRepairTaskId] = useState<string | null>(null);
   const [checkedTools, setCheckedTools] = useState<Set<string>>(new Set());
 
   const sig1 = useRef<PerfSigHandle>(null);
@@ -154,6 +158,13 @@ export default function FormRunnerPage() {
     } catch (e) {
       notify((e as Error).message, 'error');
     }
+  };
+
+  const onSubmitRepair = async (r: { done: boolean; description: string; image: string | null }) => {
+    if (!repairTaskId) return;
+    await reportRepair({ formId: form.id, userId: user.id, taskId: repairTaskId, ...r });
+    notify('הדיווח על הטיפול נשמר', 'ok');
+    await load();
   };
 
   const saveSig = async (type: SignerType, signer: { id: string; full_name: string }, dataUrl: string) => {
@@ -402,8 +413,11 @@ export default function FormRunnerPage() {
                   key={task.id}
                   task={task}
                   editable={editable}
+                  resultsLocked={returned}
+                  canReport={editable && returned}
                   onResult={(r) => onResult(task, r)}
                   onOpenFault={() => openFault(task)}
+                  onReportRepair={() => setRepairTaskId(task.id)}
                   onViewImage={(src) => setLightbox(src)}
                 />
               ))}
@@ -494,7 +508,7 @@ export default function FormRunnerPage() {
       <FaultModal
         open={!!faultTaskId}
         task={tasks.find((t) => t.id === faultTaskId) ?? null}
-        editable={editable}
+        editable={editable && !returned}
         onClose={() => setFaultTaskId(null)}
         onSaveDetail={async (text) => {
           const t = tasks.find((x) => x.id === faultTaskId);
@@ -505,6 +519,15 @@ export default function FormRunnerPage() {
           const t = tasks.find((x) => x.id === faultTaskId);
           if (t) await onFaultImage(t, file);
         }}
+        onViewImage={(src) => setLightbox(src)}
+        notifyError={(m) => notify(m, 'error')}
+      />
+
+      <RepairModal
+        open={!!repairTaskId}
+        task={tasks.find((t) => t.id === repairTaskId) ?? null}
+        onClose={() => setRepairTaskId(null)}
+        onSubmit={onSubmitRepair}
         onViewImage={(src) => setLightbox(src)}
         notifyError={(m) => notify(m, 'error')}
       />
@@ -622,19 +645,27 @@ function EquipmentCell({ items, fallback }: { items?: string[]; fallback?: strin
 function TaskRow({
   task,
   editable,
+  resultsLocked,
+  canReport,
   onResult,
   onOpenFault,
+  onReportRepair,
   onViewImage,
 }: {
   task: CompletedTask;
   editable: boolean;
+  resultsLocked: boolean;
+  canReport: boolean;
   onResult: (r: TaskResult) => void;
   onOpenFault: () => void;
+  onReportRepair: () => void;
   onViewImage: (src: string) => void;
 }) {
   const isOk = task.result === TaskResult.OK;
   const isFault = task.result === TaskResult.FAULT;
   const hasDetail = !!(task.comment.trim() || task.fault_image);
+  const canToggle = editable && !resultsLocked;
+  const returned = !!task.returned_for_fix;
 
   return (
     <>
@@ -670,16 +701,16 @@ function TaskRow({
               <button
                 type="button"
                 className={`seg-btn ${isOk ? 'seg-on-ok' : ''}`}
-                onClick={() => editable && onResult(TaskResult.OK)}
-                disabled={!editable}
+                onClick={() => canToggle && onResult(TaskResult.OK)}
+                disabled={!canToggle}
               >
                 <Icon name="check" size={16} /> תקין
               </button>
               <button
                 type="button"
                 className={`seg-btn ${isFault ? 'seg-on-fault' : ''}`}
-                onClick={() => editable && onResult(TaskResult.FAULT)}
-                disabled={!editable}
+                onClick={() => canToggle && onResult(TaskResult.FAULT)}
+                disabled={!canToggle}
               >
                 <Icon name="x" size={16} /> לא תקין
               </button>
@@ -687,7 +718,7 @@ function TaskRow({
           </div>
         </td>
       </tr>
-      {isFault && (
+      {isFault && !returned && (
         <tr className="bg-fault-50/40">
           <td colSpan={5} className="border-r-2 border-r-fault-500 !py-2.5">
             <div className="flex flex-wrap items-center gap-2">
@@ -703,6 +734,72 @@ function TaskRow({
               {hasDetail && task.comment.trim() && (
                 <span className="truncate text-[13px] text-ink-600">— {task.comment}</span>
               )}
+            </div>
+          </td>
+        </tr>
+      )}
+
+      {isFault && returned && (
+        <tr className="bg-pending-50/50">
+          <td colSpan={5} className="border-r-2 border-r-pending-500 !py-3">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="badge border-pending-200 bg-pending-100 text-pending-700">
+                  <Icon name="alert" size={12} /> נדרש תיקון
+                </span>
+                <span className="text-[12.5px] font-semibold text-ink-500">
+                  {faultTreatmentStatus(task)}
+                </span>
+              </div>
+
+              {/* Original fault + approver note (always visible for continuity) */}
+              {task.comment.trim() && (
+                <div className="text-[13px] text-ink-700">
+                  <span className="font-semibold text-fault-700">התקלה: </span>
+                  {task.comment}
+                </div>
+              )}
+              {task.return_note && (
+                <div className="rounded-md border border-pending-200 bg-white px-3 py-1.5 text-[13px] text-ink-800">
+                  <span className="font-semibold text-pending-700">הערת המאשר: </span>
+                  {task.return_note}
+                </div>
+              )}
+
+              {/* Treatment report (if already documented) */}
+              {task.repair_reported && (
+                <div className="text-[13px] text-ink-700">
+                  <span className="font-semibold text-brand-700">טיפול שבוצע: </span>
+                  {task.repair_done
+                    ? task.repair_description || '—'
+                    : 'התקלה לא תוקנה' + (task.repair_description ? ` — ${task.repair_description}` : '')}
+                  {task.repaired_by_name && (
+                    <span className="text-ink-500">
+                      {' '}· {task.repaired_by_name} · {formatStamp(task.repaired_at)}
+                    </span>
+                  )}
+                  {task.repair_image && (
+                    <button type="button" className="mr-2 align-middle" onClick={() => onViewImage(task.repair_image!)}>
+                      <img src={task.repair_image} alt="לאחר תיקון" className="inline h-9 w-9 rounded border border-slate-200 object-cover" />
+                    </button>
+                  )}
+                </div>
+              )}
+              {task.verified && (
+                <div className="text-[13px] font-medium text-ok-700">
+                  <Icon name="check" size={13} /> אומת ע״י {task.verified_by_name} · {formatStamp(task.verified_at)}
+                </div>
+              )}
+
+              {/* Performer action */}
+              {canReport && (
+                <button type="button" className="btn-primary btn-sm gap-1.5" onClick={onReportRepair}>
+                  <Icon name="clipboard-check" size={15} />
+                  {task.repair_reported ? 'עדכן דיווח תיקון' : 'דווח על ביצוע תיקון'}
+                </button>
+              )}
+
+              <FaultTimeline events={task.fault_events} repairDone={task.repair_done} className="no-print pt-0.5" />
             </div>
           </td>
         </tr>

@@ -9,9 +9,10 @@ import {
   FormStatus,
   SignerType,
   type CompletedForm,
+  type FaultEvent,
   type UserWithRoles,
 } from '@/types';
-import { getForm, getFormSignatures } from './forms';
+import { getForm, getFormSignatures, getFormTasks } from './forms';
 
 export const SELF_APPROVAL_MESSAGE =
   'לא ניתן לאשר בד״ח שביצעת בעצמך. נדרש מאשר אחר.';
@@ -90,11 +91,31 @@ export async function finalizeApproval(
   );
   assert(!!approverSig, 'חסרה חתימת מאשר. יש לחתום לפני האישור.');
 
+  const now = nowIso();
+  // Final approval also VERIFIES every section that had been returned and
+  // treated — stamping who verified and when onto each such section.
+  const tasks = await getFormTasks(formId);
+  await Promise.all(
+    tasks
+      .filter((t) => t.returned_for_fix && t.repair_reported)
+      .map((t) =>
+        db.completed_tasks.update(t.id, {
+          verified: true,
+          verified_by_name: approver.full_name,
+          verified_at: now,
+          fault_events: [
+            ...(t.fault_events ?? []),
+            { type: 'verified', at: now, by_id: approver.id, by_name: approver.full_name },
+          ],
+        })
+      )
+  );
+
   await db.completed_forms.update(formId, {
     status: FormStatus.APPROVED,
     approver_user_id: approver.id,
     approver_name: approver.full_name,
-    approved_at: nowIso(),
+    approved_at: now,
   });
 
   await logAudit({
@@ -107,18 +128,28 @@ export async function finalizeApproval(
   });
 }
 
+/** One section the approver is returning, with its own reason. */
+export interface ReturnSection {
+  taskId: string;
+  note: string;
+}
+
 /**
- * Return a form to the performer for correction, with a mandatory note.
+ * Return specific section(s) of a form to the performer for correction, each
+ * with a mandatory reason. Records — per section — who returned it, when, and
+ * the note, and stamps a "returned" event onto the section's timeline. An
+ * optional general note is kept at form level for the banner.
  *
- * Because the content will change, any existing performer signatures are
- * invalidated (deleted) — an old signature must never vouch for content that
- * was altered after it was signed. The performer re-signs before re-submitting.
- * The note and the whole action are kept in the audit trail (never erased).
+ * Because the content will change, existing performer signatures are
+ * invalidated (deleted) — an old signature must never vouch for content altered
+ * after it was signed. The performer documents the treatment, re-signs, and
+ * re-submits. Nothing here erases the original result or the fault history.
  */
 export async function returnForFix(
   formId: string,
   approver: UserWithRoles,
-  note: string
+  sections: ReturnSection[],
+  generalNote = ''
 ): Promise<void> {
   const form = await getForm(formId);
   assert(!!form, 'הבד״ח לא נמצא');
@@ -128,17 +159,53 @@ export async function returnForFix(
   );
   assert(canApprove(approver), 'למשתמש אין הרשאת מאשר.');
   assert(approver.id !== form!.performer_user_id, SELF_APPROVAL_MESSAGE);
-  assert(!!note.trim(), 'יש להזין הערה למבצע לפני החזרה לתיקון.');
+
+  const picked = sections.filter((s) => s.taskId && s.note.trim());
+  assert(
+    picked.length > 0 || !!generalNote.trim(),
+    'יש לבחור לפחות סעיף אחד עם הערה, או להזין הערה כללית.'
+  );
 
   const now = nowIso();
+  const tasks = await getFormTasks(formId);
+  const byId = new Map(tasks.map((t) => [t.id, t]));
+
+  for (const sel of picked) {
+    const t = byId.get(sel.taskId);
+    if (!t) continue;
+    const ev: FaultEvent = {
+      type: 'returned',
+      at: now,
+      by_id: approver.id,
+      by_name: approver.full_name,
+      note: sel.note.trim(),
+    };
+    await db.completed_tasks.update(sel.taskId, {
+      returned_for_fix: true,
+      return_note: sel.note.trim(),
+      returned_by_name: approver.full_name,
+      returned_at: now,
+      // Returning again after a previous cycle clears the old repair report so a
+      // fresh treatment is required, while the event log keeps the full history.
+      repair_reported: false,
+      fault_events: [...(t.fault_events ?? []), ev],
+    });
+  }
+
   // Invalidate every prior signature so the performer must re-sign the corrected
   // content before it can be re-submitted for approval.
   const sigs = await getFormSignatures(formId);
   if (sigs.length) await db.signatures.bulkDelete(sigs.map((s) => s.id));
 
+  const summary =
+    generalNote.trim() ||
+    (picked.length === 1
+      ? picked[0].note.trim()
+      : `הוחזרו ${picked.length} סעיפים לתיקון`);
+
   await db.completed_forms.update(formId, {
     status: FormStatus.REJECTED,
-    rejection_note: note.trim(),
+    rejection_note: summary,
     rejected_by_name: approver.full_name,
     rejected_at: now,
     updated_at: now,
@@ -150,6 +217,6 @@ export async function returnForFix(
     entity_type: 'completed_form',
     entity_id: formId,
     new_value: FormStatus.REJECTED,
-    reason: note.trim(),
+    reason: [generalNote.trim(), ...picked.map((p) => p.note.trim())].filter(Boolean).join(' | '),
   });
 }

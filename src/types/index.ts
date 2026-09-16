@@ -198,6 +198,22 @@ export interface CompletedForm {
   rejected_at?: string;
 }
 
+/** A single, immutable event in a task's fault-handling lifecycle. */
+export type FaultEventType =
+  | 'discovered' // תקלה התגלתה (marked "לא תקין")
+  | 'returned' // הוחזר לתיקון (approver returned this section)
+  | 'repair_reported' // דווח על ביצוע תיקון (performer documented the treatment)
+  | 'resubmitted' // נשלח מחדש לאישור
+  | 'verified'; // אומת ואושר (approver's final approval)
+
+export interface FaultEvent {
+  type: FaultEventType;
+  at: string; // ISO timestamp WITH seconds — never overwritten
+  by_id: string;
+  by_name: string;
+  note?: string; // approver note / short context
+}
+
 export interface CompletedTask {
   id: string;
   completed_form_id: string;
@@ -206,10 +222,35 @@ export interface CompletedTask {
   equipment_snapshot: string; // legacy single-string fallback
   equipment_items_snapshot?: string[]; // frozen equipment list at execution time
   image_snapshot: string | null; // reference image (data URL)
-  result: TaskResult;
-  comment: string; // fault detail
-  fault_image: string | null; // data URL of fault photo
+  result: TaskResult; // ORIGINAL inspection result — never changed by a later repair
+  comment: string; // fault detail (original description of the fault)
+  fault_image: string | null; // data URL of fault photo (before)
   sort_order: number;
+
+  // ---- Fault-handling lifecycle (all optional; only set for faulty items) ----
+  // Discovery — who found the fault and exactly when (kept forever).
+  fault_reported_by_id?: string;
+  fault_reported_by_name?: string;
+  fault_reported_at?: string;
+  // Return-for-fix — this specific section was returned by the approver.
+  returned_for_fix?: boolean;
+  return_note?: string; // approver's reason for THIS section
+  returned_by_name?: string;
+  returned_at?: string;
+  // Repair report — the performer's documentation of the treatment.
+  repair_reported?: boolean;
+  repair_done?: boolean; // כן / לא
+  repair_description?: string; // מה בוצע בתיקון
+  repair_image?: string | null; // תמונה לאחר תיקון (after)
+  repaired_by_id?: string;
+  repaired_by_name?: string;
+  repaired_at?: string;
+  // Verification — stamped when the approver gives final approval.
+  verified?: boolean;
+  verified_by_name?: string;
+  verified_at?: string;
+  // Ordered event log powering the compact treatment timeline.
+  fault_events?: FaultEvent[];
 }
 
 export interface Signature {

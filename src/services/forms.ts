@@ -11,6 +11,7 @@ import {
   DEFAULT_CLASSIFICATION,
   type CompletedForm,
   type CompletedTask,
+  type FaultEvent,
   type Signature,
   type TemplateSnapshot,
   type UserWithRoles,
@@ -210,14 +211,82 @@ export async function setTaskResult(
   result: TaskResult
 ): Promise<void> {
   const form = await assertEditable(formId, userId);
+  const task = await db.completed_tasks.get(taskId);
+  if (!task) throw new Error('הסעיף לא נמצא');
+  // The ORIGINAL results are frozen once a בד״ח has been returned for fix —
+  // the performer documents the treatment instead of re-marking (history intact).
+  if (form.status === FormStatus.REJECTED)
+    throw new Error('לא ניתן לשנות תוצאת סעיף לאחר החזרה לתיקון. יש לדווח על ביצוע התיקון.');
+
   const patch: Partial<CompletedTask> = { result };
-  // Marking OK clears any fault detail so both can never be set at once.
-  if (result !== TaskResult.FAULT) {
+  if (result === TaskResult.FAULT) {
+    // Record the discovery once — who found it and the exact time — and never
+    // overwrite it, even if detail is edited later.
+    if (!task.fault_reported_at) {
+      const now = nowIso();
+      patch.fault_reported_by_id = form.performer_user_id;
+      patch.fault_reported_by_name = form.performer_name;
+      patch.fault_reported_at = now;
+      patch.fault_events = [
+        ...(task.fault_events ?? []),
+        { type: 'discovered', at: now, by_id: form.performer_user_id, by_name: form.performer_name },
+      ];
+    }
+  } else {
+    // Marking OK (still during the initial inspection) clears the fault detail
+    // and its not-yet-submitted discovery so both can never be set at once.
     patch.comment = '';
     patch.fault_image = null;
+    patch.fault_reported_by_id = '';
+    patch.fault_reported_by_name = '';
+    patch.fault_reported_at = '';
+    patch.fault_events = [];
   }
   await db.completed_tasks.update(taskId, patch);
   await touchInProgress(form);
+}
+
+/**
+ * Document the treatment of a section that the approver returned for fix.
+ * Adds a repair_reported event (never overwrites the original result or the
+ * fault history). If the fault was fixed, a description of what was done is
+ * mandatory; an "after" photo is optional. The reporter, date and exact time
+ * are captured automatically and cannot be edited by hand.
+ */
+export async function reportRepair(params: {
+  formId: string;
+  userId: string;
+  taskId: string;
+  done: boolean;
+  description: string;
+  image: string | null;
+}): Promise<void> {
+  const form = await assertEditable(params.formId, params.userId);
+  const task = await db.completed_tasks.get(params.taskId);
+  if (!task) throw new Error('הסעיף לא נמצא');
+  if (!task.returned_for_fix) throw new Error('סעיף זה לא הוחזר לתיקון.');
+  const desc = params.description.trim();
+  if (params.done && !desc) throw new Error('יש לפרט מה בוצע בתיקון.');
+
+  const now = nowIso();
+  const ev: FaultEvent = {
+    type: 'repair_reported',
+    at: now,
+    by_id: form.performer_user_id,
+    by_name: form.performer_name,
+    note: desc || undefined,
+  };
+  await db.completed_tasks.update(params.taskId, {
+    repair_reported: true,
+    repair_done: params.done,
+    repair_description: desc,
+    repair_image: params.image ?? null,
+    repaired_by_id: form.performer_user_id,
+    repaired_by_name: form.performer_name,
+    repaired_at: now,
+    fault_events: [...(task.fault_events ?? []), ev],
+  });
+  await db.completed_forms.update(form.id, { updated_at: now });
 }
 
 export async function setTaskComment(
@@ -300,6 +369,13 @@ export async function validateForSubmit(formId: string): Promise<SubmitValidatio
   if (!perf1Sig) errors.push('חסרה חתימת מבצע 1');
   const perf2Sig = signatures.find((s) => s.signer_type === SignerType.PERFORMER2);
   if (!perf2Sig) errors.push('חסרה חתימת מבצע 2');
+  // A returned בד״ח can be re-submitted only once every returned section has a
+  // documented treatment.
+  if (form.status === FormStatus.REJECTED) {
+    const untreated = tasks.filter((t) => t.returned_for_fix && !t.repair_reported);
+    if (untreated.length)
+      errors.push(`ישנם ${untreated.length} סעיפים שהוחזרו לתיקון וטרם דווח עליהם טיפול`);
+  }
   return { ok: errors.length === 0, errors };
 }
 
@@ -311,10 +387,28 @@ export async function submitForApproval(formId: string, userId: string): Promise
   if (!isEditableByPerformer(form)) throw new Error('הבד״ח כבר הועבר לאישור');
   const v = await validateForSubmit(formId);
   if (!v.ok) throw new Error(v.errors.join(' · '));
+  const now = nowIso();
+  // Re-submission after a return: stamp a "resubmitted" event on every section
+  // that was returned and treated, so its timeline stays continuous.
+  if (form.status === FormStatus.REJECTED) {
+    const tasks = await getFormTasks(formId);
+    await Promise.all(
+      tasks
+        .filter((t) => t.returned_for_fix && t.repair_reported)
+        .map((t) =>
+          db.completed_tasks.update(t.id, {
+            fault_events: [
+              ...(t.fault_events ?? []),
+              { type: 'resubmitted', at: now, by_id: form.performer_user_id, by_name: form.performer_name },
+            ],
+          })
+        )
+    );
+  }
   await db.completed_forms.update(formId, {
     status: FormStatus.PENDING_APPROVAL,
-    completed_at: nowIso(),
-    updated_at: nowIso(),
+    completed_at: now,
+    updated_at: now,
   });
 }
 

@@ -114,6 +114,51 @@ export function formatTimeHM(iso: string | null): string {
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
+/** Clean stamp for UI / documents: "16.09.2026 | 14:37" (seconds kept in DB). */
+export function formatStamp(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  return `${formatDateDots(iso)} | ${formatTimeHM(iso)}`;
+}
+
+/** Short day+time for the compact treatment timeline: "16.09 14:37". */
+export function formatDayTime(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  return `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+/** Human label for a fault-lifecycle event (used in the compact timeline). */
+export function faultEventLabel(type: string, repairDone?: boolean): string {
+  switch (type) {
+    case 'discovered':
+      return 'תקלה התגלתה';
+    case 'returned':
+      return 'הוחזר לתיקון';
+    case 'repair_reported':
+      return repairDone === false ? 'דווח כלא תוקן' : 'דווח כתוקן';
+    case 'resubmitted':
+      return 'נשלח מחדש';
+    case 'verified':
+      return 'אומת ואושר';
+    default:
+      return type;
+  }
+}
+
+/** Status of a handled fault, for the report chip. */
+export function faultTreatmentStatus(t: {
+  returned_for_fix?: boolean;
+  repair_reported?: boolean;
+  repair_done?: boolean;
+  verified?: boolean;
+}): string {
+  if (!t.returned_for_fix) return 'לא תקין';
+  if (t.verified) return t.repair_done === false ? 'לא תוקן — אומת' : 'תוקן ואומת';
+  if (t.repair_reported) return t.repair_done === false ? 'לא תוקן' : 'תוקן — ממתין לאימות';
+  return 'הוחזר לתיקון';
+}
+
 /**
  * The בד״ח number as shown in the report footer. Uses the number the performer
  * entered (the serial we already defined, e.g. "מערכת אלפא-03-000026"); when it
