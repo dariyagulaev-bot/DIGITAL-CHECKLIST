@@ -24,9 +24,16 @@ export interface FormBundle {
   signatures: Signature[];
 }
 
-/** A form is editable by the performer only while it is a draft / in progress. */
+/**
+ * A form is editable by the performer while it is a draft / in progress, or
+ * after an approver returned it for correction (REJECTED).
+ */
 export function isEditableByPerformer(form: CompletedForm): boolean {
-  return form.status === FormStatus.DRAFT || form.status === FormStatus.IN_PROGRESS;
+  return (
+    form.status === FormStatus.DRAFT ||
+    form.status === FormStatus.IN_PROGRESS ||
+    form.status === FormStatus.REJECTED
+  );
 }
 
 export function isLocked(form: CompletedForm): boolean {
@@ -109,7 +116,9 @@ export async function createDraftForm(params: {
     template_version_snapshot: template.version ?? 1,
     name: params.name?.trim() || template.name,
     number: badachNumber,
-    classification: DEFAULT_CLASSIFICATION,
+    // Classification is inherited from the rank (admin-set) and frozen here — a
+    // later change to the rank never alters this historical document.
+    classification: rank?.classification ?? DEFAULT_CLASSIFICATION,
     performer_user_id: params.performer.id,
     performer_name: params.performer.full_name,
     performer2_id: null,
@@ -119,6 +128,7 @@ export async function createDraftForm(params: {
     date: params.date || nowIso().slice(0, 10),
     status: FormStatus.DRAFT,
     created_at: nowIso(),
+    updated_at: nowIso(),
     completed_at: null,
     approved_at: null,
   };
@@ -164,10 +174,14 @@ export async function getFormBundle(formId: string): Promise<FormBundle | null> 
   return { form, tasks, signatures };
 }
 
+/**
+ * Record activity on a form: always refreshes updated_at (drives the drafts
+ * time-stamp) and promotes a fresh DRAFT to IN_PROGRESS on first edit.
+ */
 async function touchInProgress(form: CompletedForm): Promise<void> {
-  if (form.status === FormStatus.DRAFT) {
-    await db.completed_forms.update(form.id, { status: FormStatus.IN_PROGRESS });
-  }
+  const patch: Partial<CompletedForm> = { updated_at: nowIso() };
+  if (form.status === FormStatus.DRAFT) patch.status = FormStatus.IN_PROGRESS;
+  await db.completed_forms.update(form.id, patch);
 }
 
 /** Guard: ensure the performer may still edit this form. */
@@ -182,9 +196,7 @@ async function assertEditable(formId: string, userId: string): Promise<Completed
 export async function updateFormMeta(
   formId: string,
   userId: string,
-  patch: Partial<
-    Pick<CompletedForm, 'name' | 'date' | 'performer2_id' | 'performer2_name' | 'classification'>
-  >
+  patch: Partial<Pick<CompletedForm, 'performer2_id' | 'performer2_name'>>
 ): Promise<void> {
   const form = await assertEditable(formId, userId);
   await db.completed_forms.update(formId, patch);
@@ -230,12 +242,15 @@ export async function setTaskFaultImage(
   await touchInProgress(form);
 }
 
-/** Add (or replace) a signature of a given type for a form. */
+/**
+ * Add (or replace) a signature of a given type for a form. The signer identity
+ * (id + name) is taken from the system, not typed by hand. Each signature is
+ * stored separately with its signer identity and timestamp.
+ */
 export async function addSignature(params: {
   formId: string;
-  signer: UserWithRoles;
+  signer: { id: string; full_name: string };
   type: SignerType;
-  signerRole: string;
   signatureData: string;
 }): Promise<void> {
   const existing = await db.signatures
@@ -251,11 +266,12 @@ export async function addSignature(params: {
     signer_user_id: params.signer.id,
     signer_type: params.type,
     signer_name: params.signer.full_name,
-    signer_role: params.signerRole.trim(),
+    signer_role: '',
     signature_data: params.signatureData,
     signed_at: nowIso(),
   };
   await db.signatures.add(sig);
+  await db.completed_forms.update(params.formId, { updated_at: nowIso() });
 }
 
 export interface SubmitValidation {
@@ -280,8 +296,10 @@ export async function validateForSubmit(formId: string): Promise<SubmitValidatio
   );
   if (faultsMissingDetail.length)
     errors.push(`ישנם ${faultsMissingDetail.length} סעיפים לא תקינים ללא פירוט תקלה`);
-  const perfSig = signatures.find((s) => s.signer_type === SignerType.PERFORMER);
-  if (!perfSig) errors.push('חסרה חתימת מבצע');
+  const perf1Sig = signatures.find((s) => s.signer_type === SignerType.PERFORMER);
+  if (!perf1Sig) errors.push('חסרה חתימת מבצע 1');
+  const perf2Sig = signatures.find((s) => s.signer_type === SignerType.PERFORMER2);
+  if (!perf2Sig) errors.push('חסרה חתימת מבצע 2');
   return { ok: errors.length === 0, errors };
 }
 
@@ -296,6 +314,7 @@ export async function submitForApproval(formId: string, userId: string): Promise
   await db.completed_forms.update(formId, {
     status: FormStatus.PENDING_APPROVAL,
     completed_at: nowIso(),
+    updated_at: nowIso(),
   });
 }
 

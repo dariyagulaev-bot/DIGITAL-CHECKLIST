@@ -42,6 +42,7 @@ export default function FormViewPage() {
   const { form, tasks, signatures } = bundle;
   const approved = form.status === FormStatus.APPROVED;
   const perf = signatures.find((s) => s.signer_type === SignerType.PERFORMER);
+  const perf2 = signatures.find((s) => s.signer_type === SignerType.PERFORMER2);
   const appr = signatures.find((s) => s.signer_type === SignerType.APPROVER);
   const faults = tasks.filter((t) => t.result === TaskResult.FAULT);
   const okCount = tasks.filter((t) => t.result === TaskResult.OK).length;
@@ -147,7 +148,7 @@ export default function FormViewPage() {
               {form.system_name_snapshot || '—'}
             </div>
             <div>
-              <span className="font-semibold">מערכת / יחידה: </span>
+              <span className="font-semibold">מספר מערכת: </span>
               {form.unit_name_snapshot || '—'}
             </div>
             <div>
@@ -254,9 +255,10 @@ export default function FormViewPage() {
           </div>
         )}
 
-        {/* Signatures */}
-        <div className="mt-8 grid grid-cols-2 gap-6">
+        {/* Signatures — two performers + approver */}
+        <div className="mt-8 grid grid-cols-3 gap-4">
           <SignatureBlock title="חתימת מבצע 1" sig={perf} />
+          <SignatureBlock title="חתימת מבצע 2" sig={perf2} />
           <SignatureBlock title="מאשר הבדיקה" sig={appr} />
         </div>
 
@@ -313,10 +315,6 @@ function SignatureBlock({ title, sig }: { title: string; sig: Signature | undefi
           <div className="text-sm text-slate-700">
             <span className="font-semibold">שם: </span>
             {sig.signer_name}
-          </div>
-          <div className="text-sm text-slate-700">
-            <span className="font-semibold">תפקיד/מספר: </span>
-            {sig.signer_role || '—'}
           </div>
           <div className="my-2 flex h-24 items-center justify-center rounded bg-slate-50">
             <img src={sig.signature_data} alt="חתימה" className="max-h-24" />

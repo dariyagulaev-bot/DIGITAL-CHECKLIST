@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
@@ -17,24 +24,20 @@ import {
   type FormBundle,
 } from '@/services/forms';
 import { fileToManagedDataUrl } from '@/services/images';
-import { listActivePerformers } from '@/services/performers';
-import {
-  FormStatus,
-  SignerType,
-  TaskResult,
-  CLASSIFICATIONS,
-  type Classification,
-  type CompletedTask,
-  type Performer,
-} from '@/types';
-import { equipmentItemsOf } from '@/exports/labels';
+import { listPerformerUsers } from '@/services/auth';
+import { FormStatus, SignerType, TaskResult, type CompletedTask, type Signature } from '@/types';
+import { equipmentItemsOf, formatDateDots, formatDateTime } from '@/exports/labels';
 import { PerformerSelect } from '@/components/PerformerSelect';
 import { SignaturePad, type SignaturePadHandle } from '@/components/SignaturePad';
 import { Modal, Spinner, StatusBadge } from '@/components/ui';
 import { FaultModal } from '@/components/FaultModal';
 import { Icon } from '@/components/Icon';
-import { formatDateTime } from '@/exports/labels';
 import { ApprovalSection } from './ApprovalSection';
+
+interface PerfSigHandle {
+  isDirty: () => boolean;
+  save: () => Promise<void>;
+}
 
 export default function FormRunnerPage() {
   const { id } = useParams<{ id: string }>();
@@ -46,13 +49,13 @@ export default function FormRunnerPage() {
   const [loading, setLoading] = useState(true);
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
-  const sigRef = useRef<SignaturePadHandle>(null);
   const performer2Ref = useRef<HTMLButtonElement>(null);
-  const [performers, setPerformers] = useState<Performer[]>([]);
-  const [signerRole, setSignerRole] = useState('');
-  const [sigEmpty, setSigEmpty] = useState(true);
-  const [resign, setResign] = useState(false);
+  const [performers, setPerformers] = useState<Array<{ id: string; full_name: string }>>([]);
   const [faultTaskId, setFaultTaskId] = useState<string | null>(null);
+  const [checkedTools, setCheckedTools] = useState<Set<string>>(new Set());
+
+  const sig1 = useRef<PerfSigHandle>(null);
+  const sig2 = useRef<PerfSigHandle>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -65,17 +68,18 @@ export default function FormRunnerPage() {
     load();
   }, [load]);
 
-  // Active performers for the מבצע 2 dropdown (from the local DB — offline).
+  // מבצע 2 options: real active users who hold the PERFORMER role (offline, local DB).
   useEffect(() => {
-    listActivePerformers().then(setPerformers).catch(() => setPerformers([]));
+    listPerformerUsers().then(setPerformers).catch(() => setPerformers([]));
   }, []);
 
-  // Guard back-navigation when a signature has been drawn but not yet saved.
-  const dirtyRef = useRef(false);
-  const saveSigRef = useRef<() => Promise<void>>(async () => {});
+  // Guard back-navigation while either performer has drawn but not saved a signature.
   useUnsavedGuard(
-    () => dirtyRef.current,
-    () => saveSigRef.current()
+    () => !!(sig1.current?.isDirty() || sig2.current?.isDirty()),
+    async () => {
+      await sig1.current?.save();
+      await sig2.current?.save();
+    }
   );
 
   if (loading) return <Spinner label="טוען בד״ח…" />;
@@ -83,16 +87,30 @@ export default function FormRunnerPage() {
 
   const { form, tasks, signatures } = bundle;
   const editable = isEditableByPerformer(form) && form.performer_user_id === user.id;
-  const performerSig = signatures.find((s) => s.signer_type === SignerType.PERFORMER);
+  const perf1Sig = signatures.find((s) => s.signer_type === SignerType.PERFORMER);
+  const perf2Sig = signatures.find((s) => s.signer_type === SignerType.PERFORMER2);
 
   const total = tasks.length;
   const marked = tasks.filter((t) => t.result !== TaskResult.UNSET).length;
   const faultCount = tasks.filter((t) => t.result === TaskResult.FAULT).length;
   const progress = total ? Math.round((marked / total) * 100) : 0;
 
-  const onMeta = async (patch: Partial<typeof form>) => {
+  // Consolidated shopping-list of all unique equipment across the whole בד״ח —
+  // a pre-work aid for the performer only (never shown in view / PDF / print).
+  const toolList: string[] = [];
+  const seenTool = new Set<string>();
+  for (const t of tasks) {
+    for (const it of equipmentItemsOf(t.equipment_items_snapshot, t.equipment_snapshot)) {
+      if (!seenTool.has(it)) {
+        seenTool.add(it);
+        toolList.push(it);
+      }
+    }
+  }
+
+  const onPickPerformer2 = async (sel: { id: string; name: string }) => {
     try {
-      await updateFormMeta(form.id, user.id, patch);
+      await updateFormMeta(form.id, user.id, { performer2_id: sel.id, performer2_name: sel.name });
       await load();
     } catch (e) {
       notify((e as Error).message, 'error');
@@ -100,9 +118,7 @@ export default function FormRunnerPage() {
   };
 
   const onResult = async (task: CompletedTask, result: TaskResult) => {
-    // Toggle off if the same result is tapped again.
     const next = task.result === result ? TaskResult.UNSET : result;
-    // Warn before discarding an existing fault detail when leaving "לא תקין".
     if (
       task.result === TaskResult.FAULT &&
       next !== TaskResult.FAULT &&
@@ -116,7 +132,6 @@ export default function FormRunnerPage() {
     try {
       await setTaskResult(form.id, user.id, task.id, next);
       await load();
-      // Marking "לא תקין" opens the fault-detail popup automatically.
       if (next === TaskResult.FAULT) setFaultTaskId(task.id);
     } catch (e) {
       notify((e as Error).message, 'error');
@@ -124,7 +139,6 @@ export default function FormRunnerPage() {
   };
 
   const openFault = (task: CompletedTask) => setFaultTaskId(task.id);
-
   const onComment = async (task: CompletedTask, comment: string) => {
     try {
       await setTaskComment(form.id, user.id, task.id, comment);
@@ -132,7 +146,6 @@ export default function FormRunnerPage() {
       notify((e as Error).message, 'error');
     }
   };
-
   const onFaultImage = async (task: CompletedTask, file: File | null) => {
     try {
       const data = file ? await fileToManagedDataUrl(file) : null;
@@ -143,21 +156,10 @@ export default function FormRunnerPage() {
     }
   };
 
-  const saveSignature = async () => {
-    if (!sigRef.current || sigRef.current.isEmpty()) {
-      notify('יש לחתום לפני השמירה', 'error');
-      return;
-    }
+  const saveSig = async (type: SignerType, signer: { id: string; full_name: string }, dataUrl: string) => {
     try {
-      await addSignature({
-        formId: form.id,
-        signer: user,
-        type: SignerType.PERFORMER,
-        signerRole,
-        signatureData: sigRef.current.toDataURL(),
-      });
-      notify('חתימת המבצע נשמרה', 'ok');
-      setResign(false);
+      await addSignature({ formId: form.id, signer, type, signatureData: dataUrl });
+      notify('החתימה נשמרה', 'ok');
       await load();
     } catch (e) {
       notify((e as Error).message, 'error');
@@ -165,7 +167,6 @@ export default function FormRunnerPage() {
   };
 
   const submit = async () => {
-    // A second performer is mandatory before submitting — guide the user to it.
     if (!form.performer2_name?.trim()) {
       notify('יש לבחור מבצע שני. הבדיקה מחייבת שני מבצעים.', 'error');
       performer2Ref.current?.focus();
@@ -181,7 +182,8 @@ export default function FormRunnerPage() {
     }
     try {
       await submitForApproval(form.id, user.id);
-      notify('הבד״ח הועבר לאישור', 'ok');
+      setErrors([]);
+      notify('הועבר לגורם מאשר', 'ok');
       await load();
     } catch (e) {
       notify((e as Error).message, 'error');
@@ -199,16 +201,11 @@ export default function FormRunnerPage() {
     }
   };
 
-  // Keep the guard refs current for this render.
-  const signaturePadShown = !performerSig || resign;
-  dirtyRef.current = editable && signaturePadShown && !sigEmpty;
-  saveSigRef.current = saveSignature;
-
-  const inputCls = 'input';
+  const returned = form.status === FormStatus.REJECTED;
 
   return (
     <div className="space-y-4 pb-24">
-      {/* Header */}
+      {/* Header — fixed, non-editable identity: system | system number | date */}
       <section className="card">
         <div className="panel-head">
           <div className="min-w-0">
@@ -229,9 +226,12 @@ export default function FormRunnerPage() {
               )}
               {form.unit_name_snapshot && (
                 <span className="inline-flex items-center gap-1 text-ink-500">
-                  <Icon name="layers" size={13} /> {form.unit_name_snapshot}
+                  <Icon name="layers" size={13} /> מספר מערכת {form.unit_name_snapshot}
                 </span>
               )}
+              <span className="inline-flex items-center gap-1 text-ink-500">
+                <Icon name="clock" size={13} /> {formatDateDots(form.date)}
+              </span>
               {form.rank_name_snapshot && (
                 <span className="inline-flex items-center gap-1 text-ink-500">
                   <Icon name="shield-check" size={13} /> {form.rank_name_snapshot}
@@ -267,31 +267,77 @@ export default function FormRunnerPage() {
         </div>
       </section>
 
-      {/* Details */}
+      {/* Returned-for-fix banner + approver note (performer must see it clearly) */}
+      {returned && (
+        <section className="card border-r-2 border-r-fault-500 bg-fault-50/60 p-4 sm:p-5">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-fault-100 text-fault-600">
+              <Icon name="alert" size={20} />
+            </span>
+            <div className="min-w-0">
+              <div className="text-[15px] font-extrabold text-fault-700">הבד״ח הוחזר לתיקון</div>
+              {form.rejection_note && (
+                <div className="mt-1 rounded-md border border-fault-200 bg-white px-3 py-2 text-[14px] text-ink-800">
+                  {form.rejection_note}
+                </div>
+              )}
+              <div className="mt-1.5 text-[12.5px] text-ink-500">
+                {form.rejected_by_name ? `מאת: ${form.rejected_by_name}` : ''}
+                {form.rejected_at ? ` · ${formatDateTime(form.rejected_at)}` : ''}
+              </div>
+              <div className="mt-2 text-[13px] font-medium text-ink-600">
+                בצע את התיקונים הנדרשים, חתום מחדש (שני המבצעים) ושלח שוב לאישור.
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Consolidated equipment checklist — a pre-work aid for the performer only.
+          Deliberately NOT part of the report / PDF / print / view. */}
+      {toolList.length > 0 && (
+        <section className="card no-print">
+          <div className="panel-head">
+            <span className="panel-title">ציוד נדרש לבדיקה</span>
+            <span className="text-[12.5px] font-medium text-ink-400">רשימת ריכוז — לוודא לפני התחלה</span>
+          </div>
+          <div className="grid gap-x-6 gap-y-1.5 px-5 py-4 sm:grid-cols-2">
+            {toolList.map((tool) => {
+              const on = checkedTools.has(tool);
+              return (
+                <button
+                  key={tool}
+                  type="button"
+                  onClick={() =>
+                    setCheckedTools((prev) => {
+                      const next = new Set(prev);
+                      next.has(tool) ? next.delete(tool) : next.add(tool);
+                      return next;
+                    })
+                  }
+                  className="flex items-center gap-2.5 py-1 text-right text-[14px]"
+                >
+                  <span
+                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-[5px] border-2 transition-colors ${
+                      on ? 'border-brand-600 bg-brand-600 text-white' : 'border-slate-300'
+                    }`}
+                  >
+                    {on && <Icon name="check" size={13} />}
+                  </span>
+                  <span className={on ? 'text-ink-400 line-through' : 'text-ink-800'}>{tool}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Details — the only editable field is מבצע 2 (name/date are set by the system) */}
       <section className="card">
         <div className="panel-head">
           <span className="panel-title">פרטי הבד״ח</span>
         </div>
-        <div className="grid gap-4 px-5 py-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <label className="label">שם</label>
-            <input
-              className={inputCls}
-              defaultValue={form.name}
-              disabled={!editable}
-              onBlur={(e) => e.target.value !== form.name && onMeta({ name: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="label">תאריך</label>
-            <input
-              type="date"
-              className={inputCls}
-              defaultValue={form.date}
-              disabled={!editable}
-              onBlur={(e) => e.target.value !== form.date && onMeta({ date: e.target.value })}
-            />
-          </div>
+        <div className="grid gap-4 px-5 py-4 sm:grid-cols-2 lg:grid-cols-3">
           <div>
             <label className="label">מבצע 1</label>
             <div className="flex min-h-[42px] items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3">
@@ -308,25 +354,20 @@ export default function FormRunnerPage() {
               options={performers}
               value={form.performer2_id}
               valueName={form.performer2_name}
+              excludeId={form.performer_user_id}
               excludeName={form.performer_name}
               disabled={!editable}
-              onChange={(sel) => onMeta({ performer2_id: sel.id, performer2_name: sel.name })}
+              onChange={onPickPerformer2}
             />
           </div>
           <div>
             <label className="label">סיווג</label>
-            <select
-              className="input"
-              value={form.classification ?? 'בלמ״ס'}
-              disabled={!editable}
-              onChange={(e) => onMeta({ classification: e.target.value as Classification })}
-            >
-              {CLASSIFICATIONS.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+            <div className="flex min-h-[42px] items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3">
+              <Icon name="lock" size={15} className="text-ink-400" />
+              <span className="truncate text-[14px] font-semibold text-ink-800">
+                {form.classification ?? 'בלמ״ס'}
+              </span>
+            </div>
           </div>
         </div>
       </section>
@@ -371,60 +412,36 @@ export default function FormRunnerPage() {
         </div>
       </section>
 
-      {/* Performer signature */}
-      <section className="card">
-        <div className="panel-head">
-          <span className="panel-title">חתימת מבצע 1</span>
-          <span className="text-[13px] font-medium text-ink-500">{form.performer_name}</span>
-        </div>
-        <div className="px-5 py-4">
-          {performerSig && !resign ? (
-            <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
-              <div className="mb-2 flex items-center gap-1.5 text-[13px] font-semibold text-ok-600">
-                <Icon name="check" size={15} /> נחתם
-              </div>
-              <img
-                src={performerSig.signature_data}
-                alt="חתימת מבצע"
-                className="max-h-36 rounded border border-slate-200 bg-white"
-              />
-              <div className="mt-2 text-[13px] text-ink-500">
-                {formatDateTime(performerSig.signed_at)}
-                {performerSig.signer_role ? ` · ${performerSig.signer_role}` : ''}
-              </div>
-              {editable && (
-                <button
-                  className="btn-secondary btn-sm mt-3 gap-1.5"
-                  onClick={() => {
-                    setSignerRole(performerSig.signer_role);
-                    setResign(true);
-                  }}
-                >
-                  <Icon name="refresh" size={15} /> חתום מחדש
-                </button>
-              )}
-            </div>
-          ) : editable ? (
-            <div className="space-y-3">
-              <div>
-                <label className="label">תפקיד / מספר מזהה (אופציונלי)</label>
-                <input
-                  className="input max-w-sm"
-                  value={signerRole}
-                  onChange={(e) => setSignerRole(e.target.value)}
-                  placeholder="לדוגמה: טכנאי / מס' עובד"
-                />
-              </div>
-              <SignaturePad ref={sigRef} onChange={setSigEmpty} />
-              <button className="btn-primary btn-sm gap-1.5" onClick={saveSignature} disabled={sigEmpty}>
-                <Icon name="check" size={16} /> שמור חתימה
-              </button>
-            </div>
-          ) : (
-            <div className="text-[14px] text-ink-400">לא נמצאה חתימת מבצע</div>
-          )}
-        </div>
-      </section>
+      {/* Two performer signatures (drawn on the touch screen; no manual fields) */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <PerformerSignature
+          ref={sig1}
+          title="חתימת מבצע 1"
+          signerName={form.performer_name}
+          existing={perf1Sig}
+          editable={editable}
+          notify={notify}
+          onSave={(dataUrl) =>
+            saveSig(SignerType.PERFORMER, { id: form.performer_user_id, full_name: form.performer_name }, dataUrl)
+          }
+        />
+        <PerformerSignature
+          ref={sig2}
+          title="חתימת מבצע 2"
+          signerName={form.performer2_name}
+          existing={perf2Sig}
+          editable={editable && !!form.performer2_id}
+          disabledHint={!form.performer2_id ? 'יש לבחור תחילה מבצע 2' : undefined}
+          notify={notify}
+          onSave={(dataUrl) =>
+            saveSig(
+              SignerType.PERFORMER2,
+              { id: form.performer2_id ?? '', full_name: form.performer2_name },
+              dataUrl
+            )
+          }
+        />
+      </div>
 
       {/* Approval area */}
       {(form.status === FormStatus.PENDING_APPROVAL || form.status === FormStatus.APPROVED) && (
@@ -499,6 +516,85 @@ export default function FormRunnerPage() {
   );
 }
 
+/**
+ * One performer signature block. Draws on the touch screen; the signer identity
+ * (name) is loaded from the system, never typed. Exposes dirty/save so the page
+ * can auto-save a drawn-but-unsaved signature on back-navigation.
+ */
+const PerformerSignature = forwardRef<
+  PerfSigHandle,
+  {
+    title: string;
+    signerName: string;
+    existing: Signature | undefined;
+    editable: boolean;
+    disabledHint?: string;
+    notify: (m: string, k?: 'ok' | 'error' | 'info') => void;
+    onSave: (dataUrl: string) => Promise<void>;
+  }
+>(function PerformerSignature({ title, signerName, existing, editable, disabledHint, notify, onSave }, ref) {
+  const padRef = useRef<SignaturePadHandle>(null);
+  const [empty, setEmpty] = useState(true);
+  const [resign, setResign] = useState(false);
+  const showPad = editable && (!existing || resign);
+
+  const save = async () => {
+    if (!padRef.current || padRef.current.isEmpty()) {
+      notify('יש לחתום לפני השמירה', 'error');
+      return;
+    }
+    await onSave(padRef.current.toDataURL());
+    setResign(false);
+  };
+
+  useImperativeHandle(ref, () => ({
+    isDirty: () => showPad && !empty,
+    save: async () => {
+      if (showPad && !empty) await save();
+    },
+  }));
+
+  return (
+    <section className="card">
+      <div className="panel-head">
+        <span className="panel-title">{title}</span>
+        <span className="text-[13px] font-medium text-ink-500">{signerName || '—'}</span>
+      </div>
+      <div className="px-5 py-4">
+        {existing && !resign ? (
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
+            <div className="mb-2 flex items-center gap-1.5 text-[13px] font-semibold text-ok-600">
+              <Icon name="check" size={15} /> נחתם
+            </div>
+            <img
+              src={existing.signature_data}
+              alt="חתימה"
+              className="max-h-36 rounded border border-slate-200 bg-white"
+            />
+            <div className="mt-2 text-[13px] text-ink-500">
+              {existing.signer_name} · {formatDateTime(existing.signed_at)}
+            </div>
+            {editable && (
+              <button className="btn-secondary btn-sm mt-3 gap-1.5" onClick={() => setResign(true)}>
+                <Icon name="refresh" size={15} /> חתום מחדש
+              </button>
+            )}
+          </div>
+        ) : editable ? (
+          <div className="space-y-3">
+            <SignaturePad ref={padRef} onChange={setEmpty} />
+            <button className="btn-primary btn-sm gap-1.5" onClick={save} disabled={empty}>
+              <Icon name="check" size={16} /> שמור חתימה
+            </button>
+          </div>
+        ) : (
+          <div className="text-[14px] text-ink-400">{disabledHint ?? 'לא נמצאה חתימה'}</div>
+        )}
+      </div>
+    </section>
+  );
+});
+
 /** Equipment shown as an orderly stacked list inside the single "ציוד נדרש" cell. */
 function EquipmentCell({ items, fallback }: { items?: string[]; fallback?: string }) {
   const list = equipmentItemsOf(items, fallback);
@@ -536,15 +632,12 @@ function TaskRow({
   return (
     <>
       <tr className={`row-hover ${isFault ? 'bg-fault-50/40' : isOk ? 'bg-ok-50/30' : ''}`}>
-        <td className="font-semibold text-ink-900">{task.part_name_snapshot}</td>
-        <td className="text-ink-700">{task.action_snapshot}</td>
+        <td className="align-top font-semibold text-ink-900">{task.part_name_snapshot}</td>
+        <td className="align-top text-ink-700">{task.action_snapshot}</td>
         <td className="align-top text-ink-600">
-          <EquipmentCell
-            items={task.equipment_items_snapshot}
-            fallback={task.equipment_snapshot}
-          />
+          <EquipmentCell items={task.equipment_items_snapshot} fallback={task.equipment_snapshot} />
         </td>
-        <td className="text-center">
+        <td className="text-center align-top">
           {task.image_snapshot ? (
             <button
               className="group relative mx-auto block h-11 w-11"
@@ -564,7 +657,7 @@ function TaskRow({
             <span className="text-ink-300">—</span>
           )}
         </td>
-        <td className="whitespace-nowrap text-center">
+        <td className="whitespace-nowrap text-center align-top">
           <div className="inline-flex">
             <div className="seg">
               <button

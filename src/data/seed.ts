@@ -7,7 +7,6 @@ import {
   type System,
   type Unit,
   type Rank,
-  type Performer,
   type Template,
   type TemplateTask,
   type User,
@@ -25,6 +24,13 @@ import { SettingKeys } from '@/services/settings';
 const DEFAULT_ADMIN = { username: 'admin', password: 'admin123', full_name: 'מנהל המערכת' };
 const DEMO_PERFORMER = { username: 'performer', password: '1234', full_name: 'ישראל ישראלי' };
 const DEMO_APPROVER = { username: 'approver', password: '1234', full_name: 'דנה כהן' };
+// Extra performer accounts so מבצע 2 can be chosen from real users (not a
+// separate directory). New performer users appear automatically; disabled ones
+// disappear from new forms.
+const DEMO_PERFORMERS_EXTRA = [
+  { username: 'performer2', password: '1234', full_name: 'דני כהן' },
+  { username: 'performer3', password: '1234', full_name: 'יוסי לוי' },
+];
 
 async function ensureRoles(): Promise<Record<RoleName, string>> {
   const existing = await db.roles.toArray();
@@ -142,29 +148,6 @@ async function ensureTemplate(
   }
 }
 
-/**
- * Seed demo people for the מבצע 2 directory. Saved in the DB like real
- * performers (never hard-coded in the UI), so an admin can disable these and
- * add real people. Idempotent: only seeds when the table is empty, so an admin
- * who later removes them won't have them silently reappear.
- */
-async function ensureDemoPerformers(): Promise<void> {
-  const existing = await db.performers.count();
-  if (existing > 0) return;
-  const names = ['ישראל ישראלי', 'דני כהן', 'יוסי לוי', 'דוד אברהם', 'משה כהן'];
-  for (let i = 0; i < names.length; i++) {
-    const p: Performer = {
-      id: newId(),
-      full_name: names[i],
-      active: true,
-      sort_order: i,
-      created_at: nowIso(),
-      updated_at: nowIso(),
-    };
-    await db.performers.add(p);
-  }
-}
-
 async function ensureSettings(): Promise<void> {
   const mode = await db.settings.get(SettingKeys.APPROVAL_MODE);
   if (!mode) await db.settings.put({ key: SettingKeys.APPROVAL_MODE, value: 'personal_accounts' });
@@ -180,6 +163,9 @@ export async function runSeed(): Promise<void> {
   await ensureUser(DEFAULT_ADMIN, [roles[RoleName.ADMIN]]);
   await ensureUser(DEMO_PERFORMER, [roles[RoleName.PERFORMER]]);
   await ensureUser(DEMO_APPROVER, [roles[RoleName.APPROVER]]);
+  for (const spec of DEMO_PERFORMERS_EXTRA) {
+    await ensureUser(spec, [roles[RoleName.PERFORMER]]);
+  }
 
   // A small but complete demo hierarchy so every wizard step has something to
   // choose from: two system types, two ranks, units per system, templates
@@ -204,8 +190,6 @@ export async function runSeed(): Promise<void> {
     { part_name: 'לוח בקרה', action: 'בדיקת נוריות', equipment: 'ללא', image_data: null, sort_order: 0 },
     { part_name: 'חיבורי תקשורת', action: 'בדיקת ממשקים', equipment: 'כבל בדיקה', image_data: null, sort_order: 1 },
   ]);
-
-  await ensureDemoPerformers();
 
   await ensureSettings();
 }

@@ -205,6 +205,29 @@ export class ChecklistDB extends Dexie {
             )
         );
       });
+
+    // v8: (a) classification now lives on the RANK (admin-set) and is inherited
+    // by new forms; existing ranks get בלמ״ס as a safe default. (b) forms gain
+    // an updated_at used for the drafts time-stamp — backfilled from created_at.
+    // Data-only, so stores({}) is enough.
+    this.version(8)
+      .stores({})
+      .upgrade(async (tx) => {
+        const ranks = await tx.table('ranks').toArray();
+        await Promise.all(
+          ranks
+            .filter((r: Rank) => r.classification === undefined)
+            .map((r: Rank) => tx.table('ranks').update(r.id, { classification: 'בלמ״ס' }))
+        );
+        const forms = await tx.table('completed_forms').toArray();
+        await Promise.all(
+          forms
+            .filter((f: CompletedForm) => f.updated_at === undefined)
+            .map((f: CompletedForm) =>
+              tx.table('completed_forms').update(f.id, { updated_at: f.created_at })
+            )
+        );
+      });
   }
 }
 

@@ -112,6 +112,20 @@ export async function listUsersWithRoles(): Promise<UserWithRoles[]> {
   return Promise.all(users.map(withRoles));
 }
 
+/**
+ * Active users who hold the PERFORMER role — the pool the מבצע 2 dropdown draws
+ * from. Driven entirely by real user accounts (no separate performers list).
+ * Disabling a user or removing their PERFORMER role hides them from NEW forms;
+ * historical forms keep their own name snapshot.
+ */
+export async function listPerformerUsers(): Promise<Array<{ id: string; full_name: string }>> {
+  const all = await listUsersWithRoles();
+  return all
+    .filter((u) => u.active && u.roles.includes(RoleName.PERFORMER))
+    .sort((a, b) => a.full_name.localeCompare(b.full_name, 'he'))
+    .map((u) => ({ id: u.id, full_name: u.full_name }));
+}
+
 export async function getUserById(userId: string): Promise<User | undefined> {
   return db.users.get(userId);
 }

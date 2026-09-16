@@ -67,7 +67,7 @@ export async function exportFormToExcel(formId: string): Promise<void> {
 
   const meta: Array<[string, string]> = [
     ['סוג מערכת', form.system_name_snapshot || '—'],
-    ['מערכת / יחידה', form.unit_name_snapshot || '—'],
+    ['מספר מערכת', form.unit_name_snapshot || '—'],
     ['דרג בדיקה', form.rank_name_snapshot || '—'],
     ['מספר בד״ח', form.number || '—'],
     ['סיווג', form.classification || 'בלמ״ס'],

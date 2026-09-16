@@ -18,7 +18,7 @@ const groups: NavGroup[] = [
     title: 'מבנה מערכות',
     items: [
       { to: '/admin/systems', label: 'סוגי מערכת', icon: 'database' },
-      { to: '/admin/units', label: 'יחידות', icon: 'layers' },
+      { to: '/admin/units', label: 'מספרי מערכת', icon: 'layers' },
       { to: '/admin/ranks', label: 'דרגי בדיקה', icon: 'shield-check' },
     ],
   },
@@ -28,10 +28,7 @@ const groups: NavGroup[] = [
   },
   {
     title: 'משתמשים והרשאות',
-    items: [
-      { to: '/admin/users', label: 'משתמשים', icon: 'users' },
-      { to: '/admin/performers', label: 'ניהול מבצעים', icon: 'users' },
-    ],
+    items: [{ to: '/admin/users', label: 'משתמשים', icon: 'users' }],
   },
   {
     title: 'סטטיסטיקות',

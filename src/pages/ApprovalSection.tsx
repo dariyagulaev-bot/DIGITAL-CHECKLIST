@@ -2,10 +2,11 @@ import { useRef, useState } from 'react';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { canApprove } from '@/services/rbac';
-import { finalizeApproval, rejectForm, SELF_APPROVAL_MESSAGE } from '@/services/approval';
+import { finalizeApproval, returnForFix, SELF_APPROVAL_MESSAGE } from '@/services/approval';
 import { addSignature, type FormBundle } from '@/services/forms';
 import { FormStatus, SignerType } from '@/types';
 import { SignaturePad, type SignaturePadHandle } from '@/components/SignaturePad';
+import { Modal } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { formatDateTime } from '@/exports/labels';
 
@@ -13,9 +14,9 @@ import { formatDateTime } from '@/exports/labels';
  * Approver area — session-based.
  *
  * The approver signs and approves from THEIR OWN logged-in session (a separate,
- * personal login from the performer). No shared password and no re-typing of
- * credentials inside the performer's session. All rules are enforced in the
- * approval service (role, self-approval by user id, status, signature present).
+ * personal login from the performer). The approver's identity is taken from the
+ * system — no name/role is typed by hand. They can either approve, or return the
+ * בד״ח to the performer for correction with a mandatory note.
  */
 export function ApprovalSection({
   bundle,
@@ -27,9 +28,10 @@ export function ApprovalSection({
   const { form, signatures } = bundle;
   const { user } = useAuth();
   const { notify } = useToast();
-  const [signerRole, setSignerRole] = useState('');
   const [sigEmpty, setSigEmpty] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [returnNote, setReturnNote] = useState('');
   const sigRef = useRef<SignaturePadHandle>(null);
 
   const approverSig = signatures.find((s) => s.signer_type === SignerType.APPROVER);
@@ -51,10 +53,7 @@ export function ApprovalSection({
         {approverSig && (
           <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
             <img src={approverSig.signature_data} alt="חתימת מאשר" className="max-h-40 rounded border border-slate-200 bg-white" />
-            <div className="mt-2 text-sm text-ink-500">
-              {approverSig.signer_name}
-              {approverSig.signer_role ? ` · ${approverSig.signer_role}` : ''}
-            </div>
+            <div className="mt-2 text-sm text-ink-500">{approverSig.signer_name}</div>
           </div>
         )}
       </section>
@@ -87,7 +86,7 @@ export function ApprovalSection({
     );
   }
 
-  // ---- Approver (this session) may sign & approve ----
+  // ---- Approver (this session) may sign & approve, or return for fix ----
   const approve = async () => {
     if (!sigRef.current || sigRef.current.isEmpty()) {
       notify('יש לחתום לפני האישור', 'error');
@@ -99,7 +98,6 @@ export function ApprovalSection({
         formId: form.id,
         signer: user,
         type: SignerType.APPROVER,
-        signerRole,
         signatureData: sigRef.current.toDataURL(),
       });
       await finalizeApproval(form.id, user);
@@ -112,13 +110,17 @@ export function ApprovalSection({
     }
   };
 
-  const reject = async () => {
-    const reason = prompt('סיבת הדחייה:');
-    if (reason === null) return;
+  const submitReturn = async () => {
+    if (!returnNote.trim()) {
+      notify('יש לכתוב הערה למבצע', 'error');
+      return;
+    }
     setBusy(true);
     try {
-      await rejectForm(form.id, user, reason || '');
-      notify('הבד״ח נדחה והוחזר לתיקון', 'info');
+      await returnForFix(form.id, user, returnNote.trim());
+      notify('הבד״ח הוחזר לתיקון', 'info');
+      setReturnOpen(false);
+      setReturnNote('');
       await onChanged();
     } catch (err) {
       notify((err as Error).message, 'error');
@@ -141,26 +143,48 @@ export function ApprovalSection({
         </div>
       </div>
 
-      <div className="mb-3">
-        <label className="label">תפקיד / מספר מזהה (אופציונלי)</label>
-        <input
-          className="input max-w-sm"
-          value={signerRole}
-          onChange={(e) => setSignerRole(e.target.value)}
-          placeholder="לדוגמה: מהנדס / מס' מזהה"
-        />
-      </div>
-
       <SignaturePad ref={sigRef} onChange={setSigEmpty} />
 
       <div className="mt-4 flex flex-wrap gap-3">
         <button className="btn-ok btn-lg gap-2" onClick={approve} disabled={busy || sigEmpty}>
           <Icon name="shield-check" size={18} /> אישור בד״ח
         </button>
-        <button className="btn-secondary" onClick={reject} disabled={busy}>
-          דחה / החזר לתיקון
+        <button className="btn-secondary gap-2" onClick={() => setReturnOpen(true)} disabled={busy}>
+          <Icon name="back" size={17} /> החזר לתיקון
         </button>
       </div>
+
+      <Modal
+        open={returnOpen}
+        onClose={() => setReturnOpen(false)}
+        title="החזרת בד״ח לתיקון"
+        tone="fault"
+        icon="alert"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="label">הערה למבצע / סיבת החזרה לתיקון</label>
+            <textarea
+              className="input min-h-[110px]"
+              value={returnNote}
+              onChange={(e) => setReturnNote(e.target.value)}
+              placeholder="פרט מה יש לתקן בבד״ח…"
+              autoFocus
+            />
+            <p className="mt-1 text-[12.5px] text-ink-500">
+              ההערה תוצג למבצע. החזרה לתיקון מבטלת את החתימות הקיימות — יידרשו חתימות מחדש.
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <button className="btn-danger-solid flex-1" onClick={submitReturn} disabled={busy || !returnNote.trim()}>
+              <Icon name="back" size={17} /> החזר לתיקון
+            </button>
+            <button className="btn-ghost" onClick={() => setReturnOpen(false)} disabled={busy}>
+              ביטול
+            </button>
+          </div>
+        </div>
+      </Modal>
     </section>
   );
 }

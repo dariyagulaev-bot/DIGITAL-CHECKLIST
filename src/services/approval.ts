@@ -107,29 +107,49 @@ export async function finalizeApproval(
   });
 }
 
-/** Reject a form back to the performer for correction (optional workflow). */
-export async function rejectForm(
+/**
+ * Return a form to the performer for correction, with a mandatory note.
+ *
+ * Because the content will change, any existing performer signatures are
+ * invalidated (deleted) — an old signature must never vouch for content that
+ * was altered after it was signed. The performer re-signs before re-submitting.
+ * The note and the whole action are kept in the audit trail (never erased).
+ */
+export async function returnForFix(
   formId: string,
   approver: UserWithRoles,
-  reason: string
+  note: string
 ): Promise<void> {
   const form = await getForm(formId);
   assert(!!form, 'הבד״ח לא נמצא');
   assert(
     form!.status === FormStatus.PENDING_APPROVAL,
-    'ניתן לדחות רק בד״ח הממתין לאישור'
+    'ניתן להחזיר לתיקון רק בד״ח הממתין לאישור'
   );
   assert(canApprove(approver), 'למשתמש אין הרשאת מאשר.');
   assert(approver.id !== form!.performer_user_id, SELF_APPROVAL_MESSAGE);
+  assert(!!note.trim(), 'יש להזין הערה למבצע לפני החזרה לתיקון.');
 
-  await db.completed_forms.update(formId, { status: FormStatus.REJECTED });
+  const now = nowIso();
+  // Invalidate every prior signature so the performer must re-sign the corrected
+  // content before it can be re-submitted for approval.
+  const sigs = await getFormSignatures(formId);
+  if (sigs.length) await db.signatures.bulkDelete(sigs.map((s) => s.id));
+
+  await db.completed_forms.update(formId, {
+    status: FormStatus.REJECTED,
+    rejection_note: note.trim(),
+    rejected_by_name: approver.full_name,
+    rejected_at: now,
+    updated_at: now,
+  });
   await logAudit({
     user_id: approver.id,
     user_name: approver.full_name,
-    action: 'REJECT_FORM',
+    action: 'RETURN_FOR_FIX',
     entity_type: 'completed_form',
     entity_id: formId,
     new_value: FormStatus.REJECTED,
-    reason,
+    reason: note.trim(),
   });
 }

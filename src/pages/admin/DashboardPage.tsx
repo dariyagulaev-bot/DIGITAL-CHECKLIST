@@ -170,7 +170,7 @@ export default function DashboardPage() {
 
       <div className="grid gap-3 lg:grid-cols-2">
         <BarList title="לפי סוג מערכת" icon="database" rows={breakdowns.bySystem} />
-        <BarList title="לפי יחידה" icon="layers" rows={breakdowns.byUnit} />
+        <BarList title="לפי מספר מערכת" icon="layers" rows={breakdowns.byUnit} />
         <BarList title="לפי דרג בדיקה" icon="shield-check" rows={breakdowns.byRank} />
         <BarList title="לפי מבצע" icon="users" rows={breakdowns.byPerformer} />
       </div>

@@ -3,7 +3,7 @@ import { createRank, listRanks, moveRank, updateRank } from '@/services/ranks';
 import { useToast } from '@/context/ToastContext';
 import { Modal, Spinner } from '@/components/ui';
 import { Icon } from '@/components/Icon';
-import type { Rank } from '@/types';
+import { CLASSIFICATIONS, type Rank, type Classification } from '@/types';
 
 export default function RanksPage() {
   const { notify } = useToast();
@@ -48,6 +48,7 @@ export default function RanksPage() {
               <tr>
                 <th className="w-16 text-center">סדר</th>
                 <th>שם הדרג</th>
+                <th>סיווג</th>
                 <th className="text-center">סטטוס</th>
                 <th>פעולות</th>
               </tr>
@@ -70,6 +71,7 @@ export default function RanksPage() {
                     </div>
                   </td>
                   <td className="font-semibold text-ink-900">{r.name}</td>
+                  <td className="font-medium text-ink-700">{r.classification ?? 'בלמ״ס'}</td>
                   <td className="text-center">
                     {r.active ? (
                       <span className="badge border-ok-200 bg-ok-50 text-ok-700">פעיל</span>
@@ -121,14 +123,17 @@ function RankEditor({
   notify: (m: string, k?: 'ok' | 'error' | 'info') => void;
 }) {
   const [name, setName] = useState(rank?.name ?? '');
+  const [classification, setClassification] = useState<Classification>(
+    rank?.classification ?? 'בלמ״ס'
+  );
   const [busy, setBusy] = useState(false);
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
     setBusy(true);
     try {
-      if (rank) await updateRank(rank.id, { name });
-      else await createRank(name);
+      if (rank) await updateRank(rank.id, { name, classification });
+      else await createRank(name, classification);
       notify('הדרג נשמר', 'ok');
       onSaved();
     } catch (err) {
@@ -149,6 +154,23 @@ function RankEditor({
             placeholder="לדוגמה: דרג א׳"
             autoFocus
           />
+        </div>
+        <div>
+          <label className="label">סיווג</label>
+          <select
+            className="input"
+            value={classification}
+            onChange={(e) => setClassification(e.target.value as Classification)}
+          >
+            {CLASSIFICATIONS.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-[12px] text-ink-500">
+            כל בד״ח שייפתח בדרג זה יקבל סיווג זה אוטומטית.
+          </p>
         </div>
         <div className="flex gap-3">
           <button type="submit" className="btn-primary flex-1" disabled={busy}>

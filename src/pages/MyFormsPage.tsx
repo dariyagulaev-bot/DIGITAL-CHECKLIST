@@ -9,7 +9,7 @@ import {
 } from '@/services/forms';
 import { PageHeader } from '@/components/Layout';
 import { EmptyState, Spinner, StatusBadge } from '@/components/ui';
-import { formatDate } from '@/exports/labels';
+import { formatDate, formatDateDots, formatTimeHM } from '@/exports/labels';
 import type { CompletedForm } from '@/types';
 
 function StatCard({ label, value, accent }: { label: string; value: number; accent: string }) {
@@ -63,7 +63,9 @@ export default function MyFormsPage() {
                 <div className="font-semibold text-slate-800">{f.name}</div>
                 <div className="text-sm text-slate-500">
                   {f.number ? `מס' ${f.number} · ` : ''}
-                  {formatDate(f.date)}
+                  {isEditableByPerformer(f)
+                    ? `${formatDateDots(f.updated_at ?? f.date)} | ${formatTimeHM(f.updated_at ?? f.date)}`
+                    : formatDate(f.date)}
                 </div>
               </div>
               <StatusBadge status={f.status} />

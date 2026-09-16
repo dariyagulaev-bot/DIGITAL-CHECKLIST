@@ -30,7 +30,7 @@ export default function UnitsPage() {
   );
 
   const toggle = async (u: Unit) => {
-    if (u.active && !confirm(`להשבית את היחידה "${u.name}"?`)) return;
+    if (u.active && !confirm(`להשבית את מספר המערכת "${u.name}"?`)) return;
     await updateUnit(u.id, { active: !u.active });
     load();
   };
@@ -41,8 +41,8 @@ export default function UnitsPage() {
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-[16px] font-bold text-ink-900">יחידות</h2>
-          <p className="text-[13px] text-ink-500">כל יחידה שייכת לסוג מערכת. הכמות אינה קבועה.</p>
+          <h2 className="text-[16px] font-bold text-ink-900">מספרי מערכת</h2>
+          <p className="text-[13px] text-ink-500">כל מספר מערכת שייך לסוג מערכת. הכמות אינה קבועה.</p>
         </div>
         <div className="flex items-center gap-2">
           {systems.length > 0 && (
@@ -64,7 +64,7 @@ export default function UnitsPage() {
             onClick={() => setEditing('new')}
             disabled={noSystems}
           >
-            <Icon name="plus" size={16} /> יחידה חדשה
+            <Icon name="plus" size={16} /> מספר מערכת חדש
           </button>
         </div>
       </div>
@@ -74,13 +74,13 @@ export default function UnitsPage() {
       ) : noSystems ? (
         <div className="card p-8 text-center text-ink-500">יש ליצור קודם סוג מערכת.</div>
       ) : visible.length === 0 ? (
-        <div className="card p-8 text-center text-ink-500">אין יחידות בסוג מערכת זה.</div>
+        <div className="card p-8 text-center text-ink-500">אין מספרי מערכת בסוג מערכת זה.</div>
       ) : (
         <div className="card overflow-hidden">
           <table className="tbl">
             <thead>
               <tr>
-                <th>שם / מספר יחידה</th>
+                <th>מספר מערכת</th>
                 <th className="text-center">סטטוס</th>
                 <th>פעולות</th>
               </tr>
@@ -155,7 +155,7 @@ function UnitEditor({
     try {
       if (unit) await updateUnit(unit.id, { name, system_id: systemId });
       else await createUnit(systemId, name);
-      notify('היחידה נשמרה', 'ok');
+      notify('מספר המערכת נשמר', 'ok');
       onSaved();
     } catch (err) {
       notify((err as Error).message, 'error');
@@ -164,7 +164,7 @@ function UnitEditor({
     }
   };
   return (
-    <Modal open onClose={onClose} title={unit ? 'עריכת יחידה' : 'יחידה חדשה'} icon="layers">
+    <Modal open onClose={onClose} title={unit ? 'עריכת מספר מערכת' : 'מספר מערכת חדש'} icon="layers">
       <form onSubmit={save} className="space-y-4">
         <div>
           <label className="label">סוג מערכת</label>
@@ -177,7 +177,7 @@ function UnitEditor({
           </select>
         </div>
         <div>
-          <label className="label">שם / מספר יחידה</label>
+          <label className="label">מספר מערכת</label>
           <input
             className="input"
             value={name}

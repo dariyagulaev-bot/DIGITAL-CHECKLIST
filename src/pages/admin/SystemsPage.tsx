@@ -59,7 +59,7 @@ export default function SystemsPage() {
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h2 className="text-[16px] font-bold text-ink-900">סוגי מערכת</h2>
-          <p className="text-[13px] text-ink-500">הרמה העליונה בהיררכיה. לכל סוג מערכת שייכות יחידות ובד״חים.</p>
+          <p className="text-[13px] text-ink-500">הרמה העליונה בהיררכיה. לכל סוג מערכת שייכים מספרי מערכת ובד״חים.</p>
         </div>
         <button className="btn-primary btn-sm gap-1.5" onClick={() => setEditing('new')}>
           <Icon name="plus" size={16} /> סוג מערכת חדש
@@ -119,7 +119,7 @@ export default function SystemsPage() {
                         {s.active ? 'השבת' : 'הפעל'}
                       </button>
                       <Link to="/admin/units" className="link">
-                        יחידות
+                        מספרי מערכת
                       </Link>
                     </div>
                   </td>

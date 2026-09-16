@@ -46,7 +46,7 @@ export function statusLabel(status: FormStatus): string {
     case FormStatus.APPROVED:
       return 'מאושר';
     case FormStatus.REJECTED:
-      return 'נדחה / דורש תיקון';
+      return 'הוחזר לתיקון';
     default:
       return status;
   }

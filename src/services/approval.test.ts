@@ -35,10 +35,18 @@ async function buildSubmittedForm(performer: UserWithRoles): Promise<string> {
     formId,
     signer: performer,
     type: SignerType.PERFORMER,
-    signerRole: 'טכנאי',
     signatureData: SIG,
   });
-  await updateFormMeta(formId, performer.id, { performer2_name: 'דוד כהן' });
+  await updateFormMeta(formId, performer.id, {
+    performer2_id: 'perf2-id',
+    performer2_name: 'דוד כהן',
+  });
+  await addSignature({
+    formId,
+    signer: { id: 'perf2-id', full_name: 'דוד כהן' },
+    type: SignerType.PERFORMER2,
+    signatureData: SIG,
+  });
   await submitForApproval(formId, performer.id);
   return formId;
 }
@@ -101,7 +109,6 @@ describe('approval & self-approval prevention', () => {
       formId,
       signer: performerAlsoApprover,
       type: SignerType.APPROVER,
-      signerRole: '',
       signatureData: SIG,
     });
     await expect(finalizeApproval(formId, performerAlsoApprover)).rejects.toThrow(
@@ -117,7 +124,6 @@ describe('approval & self-approval prevention', () => {
       formId,
       signer: a,
       type: SignerType.APPROVER,
-      signerRole: 'מהנדס',
       signatureData: SIG,
     });
     await finalizeApproval(formId, a);
@@ -140,7 +146,6 @@ describe('approval & self-approval prevention', () => {
       formId,
       signer: a,
       type: SignerType.APPROVER,
-      signerRole: '',
       signatureData: SIG,
     });
     await finalizeApproval(formId, a);

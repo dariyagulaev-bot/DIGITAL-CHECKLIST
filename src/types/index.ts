@@ -28,7 +28,8 @@ export enum TaskResult {
 
 /** Who signed. */
 export enum SignerType {
-  PERFORMER = 'PERFORMER',
+  PERFORMER = 'PERFORMER', // מבצע 1
+  PERFORMER2 = 'PERFORMER2', // מבצע 2
   APPROVER = 'APPROVER',
 }
 
@@ -82,6 +83,9 @@ export interface Unit {
 export interface Rank {
   id: string;
   name: string;
+  /** Security classification set by the admin — inherited by every בד״ח of this
+   *  rank at creation time (frozen onto the form; later edits don't change history). */
+  classification?: Classification;
   active: boolean;
   sort_order: number;
   created_at: string;
@@ -181,11 +185,17 @@ export interface CompletedForm {
   performer2_name: string; // performer 2 full-name snapshot (required to submit)
   approver_user_id: string | null;
   approver_name: string | null;
-  date: string; // inspection date (ISO date)
+  date: string; // inspection date (ISO date) — set automatically at creation
   status: FormStatus;
   created_at: string;
+  updated_at?: string; // last save/edit time (used for the drafts list time-stamp)
   completed_at: string | null; // submitted for approval
   approved_at: string | null;
+  // Return-for-fix (approver → performer) trail. Kept as history even after
+  // the form is fixed and re-submitted.
+  rejection_note?: string; // the approver's note to the performer
+  rejected_by_name?: string;
+  rejected_at?: string;
 }
 
 export interface CompletedTask {

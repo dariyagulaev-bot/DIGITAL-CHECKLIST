@@ -89,14 +89,25 @@ describe('forms service', () => {
       formId,
       signer: performer,
       type: SignerType.PERFORMER,
-      signerRole: '',
       signatureData: SIG,
     });
     v = await validateForSubmit(formId);
     expect(v.ok).toBe(false); // still missing the second performer
     expect(v.errors.join(' ')).toContain('שני מבצעים');
 
-    await updateFormMeta(formId, performer.id, { performer2_name: 'דוד כהן' });
+    await updateFormMeta(formId, performer.id, {
+      performer2_id: 'perf2-id',
+      performer2_name: 'דוד כהן',
+    });
+    v = await validateForSubmit(formId);
+    expect(v.ok).toBe(false); // still missing the second performer's signature
+
+    await addSignature({
+      formId,
+      signer: { id: 'perf2-id', full_name: 'דוד כהן' },
+      type: SignerType.PERFORMER2,
+      signatureData: SIG,
+    });
     v = await validateForSubmit(formId);
     expect(v.ok).toBe(true);
   });
@@ -111,7 +122,6 @@ describe('forms service', () => {
       formId,
       signer: performer,
       type: SignerType.PERFORMER,
-      signerRole: '',
       signatureData: SIG,
     });
     const v = await validateForSubmit(formId);
@@ -129,14 +139,22 @@ describe('forms service', () => {
       formId,
       signer: performer,
       type: SignerType.PERFORMER,
-      signerRole: '',
       signatureData: SIG,
     });
-    await updateFormMeta(formId, performer.id, { performer2_name: 'דוד כהן' });
+    await updateFormMeta(formId, performer.id, {
+      performer2_id: 'perf2-id',
+      performer2_name: 'דוד כהן',
+    });
+    await addSignature({
+      formId,
+      signer: { id: 'perf2-id', full_name: 'דוד כהן' },
+      type: SignerType.PERFORMER2,
+      signatureData: SIG,
+    });
     await submitForApproval(formId, performer.id);
 
     await expect(
-      updateFormMeta(formId, performer.id, { name: 'x' })
+      updateFormMeta(formId, performer.id, { performer2_name: 'x' })
     ).rejects.toThrow();
     await expect(
       setTaskResult(formId, performer.id, tasks[0].id, TaskResult.FAULT)
@@ -147,6 +165,6 @@ describe('forms service', () => {
     const other = await makeUser('other', 'אחר', [RoleName.PERFORMER]);
     const { template } = await setupTemplate();
     const formId = await createDraftForm({ templateId: template.id, performer });
-    await expect(updateFormMeta(formId, other.id, { name: 'x' })).rejects.toThrow();
+    await expect(updateFormMeta(formId, other.id, { performer2_name: 'x' })).rejects.toThrow();
   });
 });

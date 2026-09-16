@@ -210,7 +210,6 @@ export default function NewFormPage() {
             id: r.id,
             icon: 'clipboard-check' as const,
             title: r.name,
-            subtitle: `${templatesForRankCount(systemTemplates, r.id)} בד״חים`,
           }))}
           onPick={(id) => setRankId(id)}
         />
@@ -257,9 +256,6 @@ export default function NewFormPage() {
 function systemTemplatesCount(templates: Template[], systemId: string): number {
   return templates.filter((t) => t.system_id === systemId).length;
 }
-function templatesForRankCount(systemTemplates: Template[], rankId: string): number {
-  return systemTemplates.filter((t) => templateFitsRank(t, rankId)).length;
-}
 
 /** Compact horizontal trail of the hierarchy choices for the wizard. */
 function WizardTrail({
@@ -281,7 +277,7 @@ function WizardTrail({
 }) {
   const allNodes: { id: StepId; label: string; value?: string; show: boolean }[] = [
     { id: 'system', label: 'סוג מערכת', value: systemLabel, show: true },
-    { id: 'unit', label: 'יחידה', value: unitLabel, show: showUnit },
+    { id: 'unit', label: 'מספר מערכת', value: unitLabel, show: showUnit },
     { id: 'rank', label: 'דרג בדיקה', value: rankLabel, show: showRank },
     { id: 'template', label: 'בחירת בד״ח', value: undefined, show: true },
   ];

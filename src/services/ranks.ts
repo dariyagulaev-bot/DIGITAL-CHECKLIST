@@ -1,6 +1,6 @@
 import { db } from '@/data/db';
 import { newId, nowIso } from './ids';
-import type { Rank } from '@/types';
+import type { Rank, Classification } from '@/types';
 
 /** Inspection ranks/tiers (דרג). Global, reorderable, admin-managed. */
 
@@ -14,11 +14,12 @@ export async function getRank(id: string): Promise<Rank | undefined> {
   return db.ranks.get(id);
 }
 
-export async function createRank(name: string): Promise<Rank> {
+export async function createRank(name: string, classification: Classification = 'בלמ״ס'): Promise<Rank> {
   const existing = await db.ranks.toArray();
   const r: Rank = {
     id: newId(),
     name: name.trim(),
+    classification,
     active: true,
     sort_order: existing.length,
     created_at: nowIso(),
@@ -30,11 +31,12 @@ export async function createRank(name: string): Promise<Rank> {
 
 export async function updateRank(
   id: string,
-  patch: Partial<Pick<Rank, 'name' | 'active'>>
+  patch: Partial<Pick<Rank, 'name' | 'active' | 'classification'>>
 ): Promise<void> {
   const clean: Partial<Rank> = { updated_at: nowIso() };
   if (patch.name !== undefined) clean.name = patch.name.trim();
   if (patch.active !== undefined) clean.active = patch.active;
+  if (patch.classification !== undefined) clean.classification = patch.classification;
   await db.ranks.update(id, clean);
 }
 
