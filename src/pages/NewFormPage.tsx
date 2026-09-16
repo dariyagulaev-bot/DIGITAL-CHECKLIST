@@ -184,7 +184,6 @@ export default function NewFormPage() {
             id: s.id,
             icon: 'database' as const,
             title: s.name,
-            subtitle: `${systemTemplatesCount(data.templates, s.id)} בד״חים`,
           }))}
           onPick={(id) => {
             setSystemId(id);
@@ -251,10 +250,6 @@ export default function NewFormPage() {
         ))}
     </div>
   );
-}
-
-function systemTemplatesCount(templates: Template[], systemId: string): number {
-  return templates.filter((t) => t.system_id === systemId).length;
 }
 
 /** Compact horizontal trail of the hierarchy choices for the wizard. */
