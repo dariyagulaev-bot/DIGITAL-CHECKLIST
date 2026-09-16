@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:offline": "tsc -b && OFFLINE_APP=1 vite build && cp dist/index.html dist/VERO.html",
+    "build:offline": "tsc -b && OFFLINE_APP=1 vite build && node scripts/finalize-offline.mjs",
     "build:preview": "SINGLEFILE=1 vite build",
     "preview": "vite preview",
     "test": "vitest run",

@@ -29,6 +29,21 @@ export default defineConfig({
     // (incl. self-hosted fonts) as data: URIs so the whole app is one offline
     // HTML. Normal device builds keep assets as separate local files.
     assetsInlineLimit: inlineAll ? 100_000_000 : 4096,
+    // The OFFLINE app is opened as a local file (file://) on the device — iPad
+    // Safari (and Chrome) refuse to run `<script type="module">` from file://,
+    // which would show a blank white screen. Emit a single classic (IIFE)
+    // bundle instead, and target a widely-supported baseline so it runs on
+    // older iPads too. The finalize step strips the module/crossorigin attrs.
+    ...(offlineApp
+      ? {
+          target: 'es2019',
+          modulePreload: false,
+          cssCodeSplit: false,
+          rollupOptions: {
+            output: { format: 'iife' as const, inlineDynamicImports: true },
+          },
+        }
+      : {}),
   },
   resolve: {
     alias: {
