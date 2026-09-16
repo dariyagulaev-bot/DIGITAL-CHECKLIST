@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { canApprove } from '@/services/rbac';
-import { finalizeApproval, returnForFix, SELF_APPROVAL_MESSAGE } from '@/services/approval';
+import { finalizeApproval, returnForFix } from '@/services/approval';
 import { addSignature, type FormBundle } from '@/services/forms';
 import { FormStatus, SignerType } from '@/types';
 import { SignaturePad, type SignaturePadHandle } from '@/components/SignaturePad';
@@ -67,6 +67,20 @@ export function ApprovalSection({
 
   // ---- Locked states (not an approver, or self-approval) ----
   if (!userCanApprove || isSelf) {
+    // The performer viewing their own submitted בד״ח: show a plain confirmation
+    // that it was handed off — not a "you can't approve your own" lock.
+    if (isSelf) {
+      return (
+        <section className="card border-r-2 border-r-pending-500 p-5 sm:p-6">
+          <div className="flex flex-col items-center gap-3 py-5 text-center">
+            <span className="flex h-14 w-14 items-center justify-center rounded-lg bg-pending-50 text-pending-600 ring-1 ring-pending-100">
+              <Icon name="shield-check" size={28} />
+            </span>
+            <div className="text-lg font-extrabold text-ink-900">הועבר לגורם מאשר</div>
+          </div>
+        </section>
+      );
+    }
     return (
       <section className="card border-r-2 border-r-pending-500 p-5 sm:p-6">
         <div className="flex flex-col items-center gap-3 py-5 text-center">
@@ -74,13 +88,9 @@ export function ApprovalSection({
             <Icon name="lock" size={28} />
           </span>
           <div className="text-lg font-extrabold text-ink-900">חתימת מאשר</div>
-          {isSelf ? (
-            <div className="max-w-md text-sm font-semibold text-fault-600">{SELF_APPROVAL_MESSAGE}</div>
-          ) : (
-            <div className="max-w-md text-sm text-ink-500">
-              אזור זה נעול. כדי לאשר בד״ח זה יש להתחבר עם משתמש בעל הרשאת מאשר (APPROVER).
-            </div>
-          )}
+          <div className="max-w-md text-sm text-ink-500">
+            אזור זה נעול. כדי לאשר בד״ח זה יש להתחבר עם משתמש בעל הרשאת מאשר (APPROVER).
+          </div>
         </div>
       </section>
     );
