@@ -8,6 +8,7 @@ import { verifyPassword } from './auth';
 import {
   FormStatus,
   SignerType,
+  TaskResult,
   type CompletedForm,
   type FaultEvent,
   type UserWithRoles,
@@ -160,15 +161,31 @@ export async function returnForFix(
   assert(canApprove(approver), 'למשתמש אין הרשאת מאשר.');
   assert(approver.id !== form!.performer_user_id, SELF_APPROVAL_MESSAGE);
 
-  const picked = sections.filter((s) => s.taskId && s.note.trim());
-  assert(
-    picked.length > 0 || !!generalNote.trim(),
-    'יש לבחור לפחות סעיף אחד עם הערה, או להזין הערה כללית.'
-  );
-
   const now = nowIso();
   const tasks = await getFormTasks(formId);
   const byId = new Map(tasks.map((t) => [t.id, t]));
+
+  // Core business rule — enforced here, not only by hiding a button:
+  // a בד״ח may be returned for correction ONLY when it contains at least one
+  // section whose ORIGINAL result is "לא תקין" (FAULT), and ONLY such sections
+  // may be selected. A fully-passing בד״ח can never be returned, by any path.
+  const failIds = new Set(
+    tasks.filter((t) => t.result === TaskResult.FAULT).map((t) => t.id)
+  );
+  assert(
+    failIds.size > 0,
+    'לא ניתן להחזיר לתיקון בד״ח שכל סעיפיו תקינים — נדרש לפחות סעיף אחד "לא תקין".'
+  );
+
+  const picked = sections.filter((s) => s.taskId && s.note.trim());
+  assert(
+    picked.length > 0,
+    'יש לבחור לפחות סעיף אחד (לא תקין) עם הערה להחזרה.'
+  );
+  assert(
+    picked.every((s) => failIds.has(s.taskId)),
+    'ניתן להחזיר לתיקון רק סעיפים שתוצאתם המקורית "לא תקין".'
+  );
 
   for (const sel of picked) {
     const t = byId.get(sel.taskId);

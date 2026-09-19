@@ -134,13 +134,15 @@ export function ApprovalSection({
     const sections = [...checked]
       .map((taskId) => ({ taskId, note: (sectionNotes[taskId] ?? '').trim() }))
       .filter((s) => s.note);
+    // A return must target at least one "לא תקין" section — a general note alone
+    // can never return a בד״ח (only fault sections may be returned).
+    if (checked.size === 0) {
+      notify('יש לבחור לפחות סעיף לא תקין להחזרה לתיקון', 'error');
+      return;
+    }
     const missingNote = [...checked].some((id) => !(sectionNotes[id] ?? '').trim());
     if (missingNote) {
       notify('יש לכתוב הערה לכל סעיף שנבחר', 'error');
-      return;
-    }
-    if (sections.length === 0 && !returnGeneral.trim()) {
-      notify('בחר סעיף להחזרה (עם הערה) או כתוב הערה כללית', 'error');
       return;
     }
     setBusy(true);
@@ -179,9 +181,13 @@ export function ApprovalSection({
         <button className="btn-ok btn-lg gap-2" onClick={approve} disabled={busy || sigEmpty}>
           <Icon name="shield-check" size={18} /> אישור בד״ח
         </button>
-        <button className="btn-secondary gap-2" onClick={() => setReturnOpen(true)} disabled={busy}>
-          <Icon name="back" size={17} /> החזר לתיקון
-        </button>
+        {/* "החזר לתיקון" is offered only when the בד״ח has at least one section
+            marked "לא תקין". A fully-passing בד״ח can only be approved. */}
+        {faultTasks.length > 0 && (
+          <button className="btn-secondary gap-2" onClick={() => setReturnOpen(true)} disabled={busy}>
+            <Icon name="back" size={17} /> החזר לתיקון
+          </button>
+        )}
       </div>
 
       <Modal

@@ -117,4 +117,35 @@ describe('fault-handling lifecycle', () => {
       setTaskResult(formId, performer.id, faultTaskId, TaskResult.OK)
     ).rejects.toThrow(/לא ניתן לשנות/);
   });
+
+  it('rejects returning a "תקין" section — only "לא תקין" sections may be returned', async () => {
+    const okTaskId = (await getFormTasks(formId)).find((t) => t.result === TaskResult.OK)!.id;
+    await expect(
+      returnForFix(formId, approver, [{ taskId: okTaskId, note: 'לא אמור להתאפשר' }])
+    ).rejects.toThrow(/לא תקין/);
+  });
+
+  it('blocks returning a fully-passing בד״ח (no "לא תקין"); it can only be approved', async () => {
+    // A separate בד״ח whose every section is "תקין".
+    const t = await createTemplate({ name: 'הכל תקין' });
+    await addTask(t.id, { part_name: 'א', action: 'בדיקה', equipment: '' });
+    await addTask(t.id, { part_name: 'ב', action: 'בדיקה', equipment: '' });
+    const okFormId = await createDraftForm({ templateId: t.id, performer });
+    const okTasks = await getFormTasks(okFormId);
+    await setTaskResult(okFormId, performer.id, okTasks[0].id, TaskResult.OK);
+    await setTaskResult(okFormId, performer.id, okTasks[1].id, TaskResult.OK);
+    await updateFormMeta(okFormId, performer.id, { performer2_id: 'perf2', performer2_name: 'דוד כהן' });
+    await signBoth(okFormId, performer);
+    await submitForApproval(okFormId, performer.id);
+
+    // Even addressing an OK section directly must fail — there is no fault to return.
+    await expect(
+      returnForFix(okFormId, approver, [{ taskId: okTasks[0].id, note: 'x' }])
+    ).rejects.toThrow(/כל סעיפיו תקינים/);
+
+    // The fully-passing בד״ח can still be approved through the normal path.
+    await addSignature({ formId: okFormId, signer: approver, type: SignerType.APPROVER, signatureData: SIG });
+    await finalizeApproval(okFormId, approver);
+    expect((await getForm(okFormId))!.status).toBe(FormStatus.APPROVED);
+  });
 });
