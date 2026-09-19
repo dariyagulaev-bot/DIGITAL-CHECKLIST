@@ -342,6 +342,13 @@
   tr {
     page-break-inside: avoid;
   }
+  /* Keep whole blocks together so a page never breaks mid-card or leaves a
+     near-empty trailing page. */
+  .sig-grid,
+  .fault-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
 
   /* A fixed-position element repeats on every page in Chromium print output. */
   .print-footer {

@@ -260,7 +260,7 @@ export default function FormViewPage() {
         )}
 
         {/* Signatures — two performers + approver */}
-        <div className="mt-8 grid grid-cols-3 gap-4">
+        <div className="sig-grid mt-8 grid grid-cols-3 gap-4">
           <SignatureBlock title="חתימת מבצע 1" sig={perf} />
           <SignatureBlock title="חתימת מבצע 2" sig={perf2} />
           <SignatureBlock title="מאשר הבדיקה" sig={appr} />
@@ -300,7 +300,7 @@ function FaultReportCard({ task: t }: { task: CompletedTask }) {
   const treated = !!t.returned_for_fix;
   const status = faultTreatmentStatus(t);
   return (
-    <div className="rounded-lg border border-fault-200 bg-fault-50 p-3">
+    <div className="fault-card rounded-lg border border-fault-200 bg-fault-50 p-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-2">
