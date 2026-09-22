@@ -31,7 +31,6 @@ export function ApprovalSection({
   const [sigEmpty, setSigEmpty] = useState(true);
   const [busy, setBusy] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
-  const [returnGeneral, setReturnGeneral] = useState('');
   const [sectionNotes, setSectionNotes] = useState<Record<string, string>>({});
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const sigRef = useRef<SignaturePadHandle>(null);
@@ -147,10 +146,9 @@ export function ApprovalSection({
     }
     setBusy(true);
     try {
-      await returnForFix(form.id, user, sections, returnGeneral.trim());
+      await returnForFix(form.id, user, sections);
       notify('הבד״ח הוחזר לתיקון', 'info');
       setReturnOpen(false);
-      setReturnGeneral('');
       setSectionNotes({});
       setChecked(new Set());
       await onChanged();
@@ -253,16 +251,6 @@ export function ApprovalSection({
           ) : (
             <p className="text-[13px] text-ink-500">אין בבד״ח סעיפים המסומנים כלא תקינים.</p>
           )}
-
-          <div>
-            <label className="label">הערה כללית (אופציונלי)</label>
-            <textarea
-              className="input min-h-[70px]"
-              value={returnGeneral}
-              onChange={(e) => setReturnGeneral(e.target.value)}
-              placeholder="הערה כללית למבצע…"
-            />
-          </div>
 
           <p className="text-[12.5px] text-ink-500">
             החזרה לתיקון מבטלת את החתימות הקיימות — יידרשו חתימות מחדש לאחר תיעוד הטיפול.
