@@ -160,6 +160,39 @@ export function faultTreatmentStatus(t: {
 }
 
 /**
+ * A fault is "resolved" once it was returned, actually repaired, and the
+ * approver verified it. Only then does the section's CURRENT status flip.
+ */
+export function isResolvedFault(t: {
+  result: TaskResult;
+  returned_for_fix?: boolean;
+  repair_done?: boolean;
+  verified?: boolean;
+}): boolean {
+  return (
+    t.result === TaskResult.FAULT &&
+    !!t.returned_for_fix &&
+    t.repair_done === true &&
+    !!t.verified
+  );
+}
+
+/**
+ * The section's CURRENT status. A resolved fault now reads as "תקין"; the stored
+ * `result` field is never changed, so the report's treatment section, the בד״ח
+ * history and the Audit log all keep the original "לא תקין" finding for full
+ * traceability.
+ */
+export function currentResult(t: {
+  result: TaskResult;
+  returned_for_fix?: boolean;
+  repair_done?: boolean;
+  verified?: boolean;
+}): TaskResult {
+  return isResolvedFault(t) ? TaskResult.OK : t.result;
+}
+
+/**
  * The בד״ח number as shown in the report footer. Uses the number the performer
  * entered (the serial we already defined, e.g. "מערכת אלפא-03-000026"); when it
  * is empty, falls back to the frozen system/unit snapshot so the footer is never

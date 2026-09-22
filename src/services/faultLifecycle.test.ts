@@ -13,6 +13,7 @@ import {
 } from './forms';
 import { addTask, createTemplate } from './templates';
 import { finalizeApproval, returnForFix } from './approval';
+import { currentResult } from '@/exports/labels';
 import { FormStatus, RoleName, SignerType, TaskResult, type UserWithRoles } from '@/types';
 import { ensureRoles, makeUser, resetDb } from '@/test/helpers';
 
@@ -104,8 +105,10 @@ describe('fault-handling lifecycle', () => {
     expect((await getForm(formId))!.status).toBe(FormStatus.APPROVED);
     expect(task.verified).toBe(true);
     expect(task.verified_by_name).toBe('דנה כהן');
-    // The ORIGINAL result is untouched.
+    // The ORIGINAL result is untouched (frozen for history/audit)...
     expect(task.result).toBe(TaskResult.FAULT);
+    // ...but the CURRENT status now reads תקין once repaired and verified.
+    expect(currentResult(task)).toBe(TaskResult.OK);
     // The timeline has the full, ordered story.
     const types = (task.fault_events ?? []).map((e) => e.type);
     expect(types).toEqual(['discovered', 'returned', 'repair_reported', 'resubmitted', 'verified']);

@@ -1,6 +1,6 @@
 import type ExcelJSType from 'exceljs';
 import { getFormBundle } from '@/services/forms';
-import { statusLabel, equipmentItemsOf } from './labels';
+import { statusLabel, equipmentItemsOf, currentResult } from './labels';
 import { FormStatus, SignerType, TaskResult } from '@/types';
 
 /** Equipment as a bulleted, one-per-line cell value (never a comma sentence). */
@@ -106,8 +106,11 @@ export async function exportFormToExcel(formId: string): Promise<void> {
   let okCount = 0;
   let faultCount = 0;
   for (const t of tasks) {
-    const isOk = t.result === TaskResult.OK;
-    const isFault = t.result === TaskResult.FAULT;
+    // Current status: a resolved fault (repaired + verified) reads תקין; the
+    // fault-detail section below still lists the original findings.
+    const cur = currentResult(t);
+    const isOk = cur === TaskResult.OK;
+    const isFault = cur === TaskResult.FAULT;
     if (isOk) okCount++;
     if (isFault) faultCount++;
     const row = ws.getRow(r);

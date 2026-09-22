@@ -15,6 +15,7 @@ import {
   formatTimeHM,
   formatStamp,
   faultTreatmentStatus,
+  currentResult,
   formDocumentTitle,
   formFooterNumber,
   statusLabel,
@@ -47,9 +48,11 @@ export default function FormViewPage() {
   const perf = signatures.find((s) => s.signer_type === SignerType.PERFORMER);
   const perf2 = signatures.find((s) => s.signer_type === SignerType.PERFORMER2);
   const appr = signatures.find((s) => s.signer_type === SignerType.APPROVER);
+  // The treatment section keeps EVERY original fault (traceability); the results
+  // table + totals reflect the CURRENT status, where a resolved fault reads תקין.
   const faults = tasks.filter((t) => t.result === TaskResult.FAULT);
-  const okCount = tasks.filter((t) => t.result === TaskResult.OK).length;
-  const faultCount = tasks.filter((t) => t.result === TaskResult.FAULT).length;
+  const okCount = tasks.filter((t) => currentResult(t) === TaskResult.OK).length;
+  const faultCount = tasks.filter((t) => currentResult(t) === TaskResult.FAULT).length;
 
   // Report footer identity (number the performer entered + date + time).
   const footerNumber = formFooterNumber(form);
@@ -215,8 +218,9 @@ export default function FormViewPage() {
           </thead>
           <tbody>
             {tasks.map((t) => {
-              const isOk = t.result === TaskResult.OK;
-              const isFault = t.result === TaskResult.FAULT;
+              const cur = currentResult(t);
+              const isOk = cur === TaskResult.OK;
+              const isFault = cur === TaskResult.FAULT;
               return (
                 <tr key={t.id} className={isFault ? 'bg-fault-50' : ''}>
                   <td className="border border-slate-300 p-2 align-top font-medium">{t.part_name_snapshot}</td>
