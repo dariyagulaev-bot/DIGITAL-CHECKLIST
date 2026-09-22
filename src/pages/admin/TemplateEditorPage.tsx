@@ -317,8 +317,23 @@ function TaskEditor({
   };
 
   return (
-    <Modal open onClose={onClose} title={task ? 'עריכת שורה' : 'שורה חדשה'}>
-      <form onSubmit={save} className="space-y-4">
+    <Modal
+      open
+      draggable
+      onClose={onClose}
+      title={task ? 'עריכת שורה' : 'שורה חדשה'}
+      footer={
+        <div className="flex gap-3">
+          <button type="submit" form="row-editor-form" className="btn-primary flex-1" disabled={busy}>
+            שמור
+          </button>
+          <button type="button" className="btn-ghost" onClick={onClose}>
+            ביטול
+          </button>
+        </div>
+      }
+    >
+      <form id="row-editor-form" onSubmit={save} className="space-y-4">
         <div>
           <label className="label">שם האזור</label>
           <input className="input" value={partName} onChange={(e) => setPartName(e.target.value)} autoFocus />
@@ -392,14 +407,6 @@ function TaskEditor({
               </button>
             )}
           </div>
-        </div>
-        <div className="flex gap-3 pt-2">
-          <button type="submit" className="btn-primary flex-1" disabled={busy}>
-            שמור
-          </button>
-          <button type="button" className="btn-ghost" onClick={onClose}>
-            ביטול
-          </button>
         </div>
       </form>
     </Modal>
