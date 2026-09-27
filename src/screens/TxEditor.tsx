@@ -116,7 +116,9 @@ export function TxEditor({ open, tx, preset, onClose }: {
           categoryId: kind === 'saving' ? undefined : sel,
           goalId: kind === 'saving' ? sel : undefined
         });
-        ui.toast(kind === 'saving' ? `הופקדו ${shekels(agorot)} ₪ ל${catName}` : 'נשמר');
+        ui.toast(kind === 'saving' ? `הופקדו ${shekels(agorot)} ₪ ל${catName}`
+          : allowance ? (allowance.after < 0 ? `נשמר. חריגה מההקצבה ל${allowance.name} ב־${shekels(-allowance.after)} ₪` : `נשמר. נשארו ${shekels(allowance.after)} ₪ ל${allowance.name}`)
+          : 'נשמר');
       }
       onClose();
     } finally {
@@ -137,6 +139,13 @@ export function TxEditor({ open, tx, preset, onClose }: {
     ui.toast('התנועה נמחקה');
     onClose();
   }
+
+  const allowanceCat = kind === 'expense' && !isFixedTx && sel ? byId.get(sel) : undefined;
+  const allowance = allowanceCat && allowanceCat.budget > 0 && summary ? (() => {
+    let spentBefore = summary.byCategory.get(allowanceCat.id) ?? 0;
+    if (editing && tx!.categoryId === allowanceCat.id && tx!.month === ui.month) spentBefore -= tx!.amount;
+    return { name: allowanceCat.name, budget: allowanceCat.budget, before: allowanceCat.budget - spentBefore, after: allowanceCat.budget - spentBefore - agorot };
+  })() : null;
 
   const left = summary ? summary.left : 0;
   const hint = kind === 'expense'
@@ -199,6 +208,14 @@ export function TxEditor({ open, tx, preset, onClose }: {
                 <div className="inline-empty">
                   <span>עדיין אין יעדי חיסכון.</span>
                   <button className="link" onClick={() => { onClose(); ui.editGoal(); }}>יצירת יעד חדש</button>
+                </div>
+              )}
+              {allowance && (
+                <div className={'allowance-hint' + (allowance.after < 0 ? ' over' : '')}>
+                  <span>הקצבה ל{allowance.name}: נשארו <b className="num">{shekels(Math.max(0, allowance.before))}</b> מתוך <span className="num">{shekels(allowance.budget)}</span> ₪</span>
+                  <span>{allowance.after < 0
+                    ? <>ההוצאה תחרוג ב־<b className="num">{shekels(-allowance.after)}</b> ₪</>
+                    : <>אחרי ההוצאה יישארו <b className="num">{shekels(allowance.after)}</b> ₪</>}</span>
                 </div>
               )}
             </div>

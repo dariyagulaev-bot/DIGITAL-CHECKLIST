@@ -371,3 +371,14 @@ label.btn { cursor: pointer; }
   .sheet, .scrim, .dialog-wrap, .bar span, .hmeter-fill { transition: none; }
   .toast { animation: none; }
 }
+
+/* ---------- Allowances ---------- */
+.allowance-sub { font-size: 12px; color: var(--ink-3); margin-top: 5px; }
+.cat-top .v b { font-weight: 600; color: var(--ink); }
+.cat.clickable { background: none; border: 0; padding: 0; text-align: start; width: 100%; }
+.neg-text { color: var(--neg); }
+.budget-row .bar { margin-top: 6px; }
+.allowance-hint { margin-top: 10px; display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--ink-2); background: var(--primary-soft); border-radius: 12px; padding: 10px 12px; }
+.allowance-hint b { color: var(--ink); font-weight: 600; }
+.allowance-hint.over { background: var(--neg-soft); color: var(--neg); }
+.allowance-hint.over b { color: var(--neg); }
