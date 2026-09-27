@@ -146,7 +146,7 @@ export function Field({ label, children, htmlFor }: { label: string; children: R
 }
 
 /** Text input for money amounts (whole shekels or with agorot). */
-export function AmountInput({ id, value, onChange, placeholder }: { id: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+export function AmountInput({ id, value, onChange, placeholder, onBlur }: { id: string; value: string; onChange: (v: string) => void; placeholder?: string; onBlur?: () => void }) {
   return (
     <div className="amount-input">
       <input
@@ -156,6 +156,8 @@ export function AmountInput({ id, value, onChange, placeholder }: { id: string; 
         autoComplete="off"
         placeholder={placeholder ?? '0'}
         value={value}
+        onBlur={onBlur}
+        onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
         onChange={e => onChange(e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1'))}
       />
       <span className="amount-input-cur">₪</span>

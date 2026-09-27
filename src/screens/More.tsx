@@ -14,7 +14,7 @@ export function More() {
   const items: [Route, string, string, string][] = [
     ['more/recurring', 'repeat', 'הכנסות והוצאות קבועות', 'משכורות, שכר דירה, חשבונות'],
     ['more/summary', 'chart', 'סיכום חודשי', 'כמה נכנס, יצא, נחסך ונשאר'],
-    ['more/budgets', 'tag', 'תקציב לפי קטגוריות', 'סכום חודשי לכל קטגוריה'],
+    ['more/budgets', 'tag', 'הקצבות חודשיות', 'בילויים, מסעדות, קניות ועוד'],
     ['more/backup', 'download', 'גיבוי וייצוא', 'ייצוא ל־Excel, גיבוי ושחזור']
   ];
   return (
@@ -196,35 +196,86 @@ export function BudgetsScreen() {
   const { cats } = useCategories();
   const { summary } = useMonthSummary(ui.month);
   const variable = cats.filter(c => c.group === 'variable');
-  const totalBudget = variable.reduce((s, c) => s + c.budget, 0);
+  const withBudget = variable.filter(c => c.budget > 0);
+  const without = variable.filter(c => !(c.budget > 0));
+  const totalBudget = withBudget.reduce((s, c) => s + c.budget, 0);
+  const free = summary?.freeBudget ?? 0;
+  const spent = (id: string) => summary?.byCategory.get(id) ?? 0;
 
   return (
     <div className="screen-inner">
-      <AppBar title="תקציב לפי קטגוריות" back={ui.back} />
+      <AppBar title="הקצבות חודשיות" back={ui.back} />
       <p className="muted-p">
-        סכום חודשי לכל קטגוריה של הוצאות משתנות. אפשר להשאיר ריק.
-        {summary && summary.freeBudget > 0 && <> התקציב הפנוי החודש: <span className="num">{shekels(summary.freeBudget)}</span> ₪, מתוכו חולקו <span className="num">{shekels(totalBudget)}</span> ₪.</>}
+        כמה מותר להוציא בכל חודש על כל קטגוריה. ההקצבה מתחדשת אוטומטית בתחילת כל חודש, ובמסך הבית רואים כמה נשאר בכל אחת.
       </p>
-      <div className="card list">
-        {variable.map(c => <BudgetRow key={c.id} cat={c} spent={summary?.byCategory.get(c.id) ?? 0} />)}
-      </div>
+
+      {free > 0 && (
+        <div className="card">
+          <div className="muted">חולקו להקצבות</div>
+          <div className="sum-val"><Money a={totalBudget} /></div>
+          <div className="sum-row">
+            <span>מתוך <span className="num">{shekels(free)}</span> ₪ פנויים להוצאות משתנות</span>
+            {totalBudget <= free
+              ? <span>נשארו <span className="num">{shekels(free - totalBudget)}</span> ₪ לחלק</span>
+              : <span className="neg-text">יותר מהפנוי ב־<span className="num">{shekels(totalBudget - free)}</span> ₪</span>}
+          </div>
+          <Bar ratio={totalBudget / free} tone={totalBudget > free ? 'neg' : undefined} />
+        </div>
+      )}
+
+      {withBudget.length > 0 && (
+        <section className="section">
+          <div className="section-head"><h2>ההקצבות שלי</h2><span className="muted">{monthLabel(ui.month)}</span></div>
+          <div className="card list">
+            {withBudget.map(c => <BudgetRow key={c.id} cat={c} spent={spent(c.id)} />)}
+          </div>
+        </section>
+      )}
+
+      <section className="section">
+        <div className="section-head">
+          <h2>{withBudget.length ? 'קטגוריות בלי הקצבה' : 'הגדרת הקצבה'}</h2>
+        </div>
+        {!withBudget.length && <p className="muted-p">רושמים סכום ליד כל קטגוריה, למשל בילויים 600, מסעדות 800, קניות 1,000.</p>}
+        <div className="card list">
+          {without.map(c => <BudgetRow key={c.id} cat={c} spent={spent(c.id)} />)}
+        </div>
+      </section>
     </div>
   );
 }
 
 function BudgetRow({ cat, spent }: { cat: Category; spent: number }) {
+  const ui = useUI();
   const [v, setV] = useState(cat.budget ? shekelsExact(cat.budget).replace(/,/g, '') : '');
   useEffect(() => { setV(cat.budget ? shekelsExact(cat.budget).replace(/,/g, '') : ''); }, [cat.budget]);
-  const commit = () => { const a = toAgorot(v); if (a !== cat.budget) repo.setCategoryBudget(cat.id, a); };
+  const commit = () => {
+    const a = toAgorot(v);
+    if (a === cat.budget) return;
+    repo.setCategoryBudget(cat.id, a);
+    ui.toast(a > 0 ? `הקצבה ל${cat.name}: ${shekels(a)} ₪ בחודש` : `ההקצבה ל${cat.name} הוסרה`);
+  };
+  const left = cat.budget - spent;
   return (
     <div className="budget-row">
       <span className="tx-ic"><Icon name={cat.icon} size={19} /></span>
       <span className="tx-body">
         <span className="tx-name">{cat.name}</span>
-        <span className="tx-meta">הוצאו החודש <span className="num">{shekels(spent)}</span> ₪</span>
+        {cat.budget > 0 ? (
+          <>
+            <span className={'tx-meta' + (left < 0 ? ' neg-text' : '')}>
+              {left < 0
+                ? <>חריגה של <span className="num">{shekels(-left)}</span> ₪</>
+                : <>נשארו <span className="num">{shekels(left)}</span> ₪ · הוצאו <span className="num">{shekels(spent)}</span></>}
+            </span>
+            <Bar ratio={spent / cat.budget} tone={left < 0 ? 'neg' : undefined} />
+          </>
+        ) : (
+          <span className="tx-meta">{spent > 0 ? <>הוצאו החודש <span className="num">{shekels(spent)}</span> ₪</> : 'ללא הקצבה'}</span>
+        )}
       </span>
-      <div className="budget-input" onBlur={commit}>
-        <AmountInput id={`b-${cat.id}`} value={v} onChange={setV} placeholder="ללא" />
+      <div className="budget-input">
+        <AmountInput id={`b-${cat.id}`} value={v} onChange={setV} onBlur={commit} placeholder="ללא" />
       </div>
     </div>
   );
