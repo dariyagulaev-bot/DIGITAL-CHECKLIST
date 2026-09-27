@@ -11,9 +11,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/apple-touch-icon.png', 'icons/icon.svg'],
       manifest: {
-        name: 'תקציב הבית',
-        short_name: 'תקציב',
-        description: 'ניהול תקציב אישי וביתי: הכנסות, הוצאות, חסכונות ותכנון חודשי.',
+        name: 'כיסי',
+        short_name: 'כיסי',
+        description: 'כיסי: ניהול התקציב האישי והביתי. הכנסות, הוצאות, חסכונות ותכנון חודשי.',
         lang: 'he',
         dir: 'rtl',
         start_url: './',
