@@ -1,0 +1,211 @@
+<title>כיסי: כיווני עיצוב</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Assistant:wght@400;500;600;700&family=Heebo:wght@300;400;500;600&family=Noto+Serif+Hebrew:wght@400;500;600&family=Rubik:wght@400;500&display=swap">
+<style>
+  :root { --page: #ECEDEF; --ink: #1B1F24; --ink-2: #5A626B; color-scheme: light; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --page: #121417; --ink: #E8EAED; --ink-2: #9AA2AB; color-scheme: dark; } }
+  :root[data-theme="dark"] { --page: #121417; --ink: #E8EAED; --ink-2: #9AA2AB; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ink); direction: rtl; font-family: "Assistant", Arial, sans-serif; }
+  .wrap { padding-block: 28px 48px; padding-inline: 16px; max-width: 1260px; margin: 0 auto; }
+  .intro { text-align: center; margin-bottom: 28px; }
+  .intro h1 { font-family: "Frank Ruhl Libre", serif; font-weight: 500; font-size: 30px; margin: 0 0 6px; }
+  .intro p { margin: 0; color: var(--ink-2); font-size: 15px; }
+  .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; justify-items: center; }
+  @media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } }
+  .opt { display: flex; flex-direction: column; align-items: center; gap: 14px; width: 100%; max-width: 360px; }
+  .opt-head { text-align: center; }
+  .opt-head .tag { display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: .04em; border: 1px solid var(--ink-2); color: var(--ink-2); border-radius: 99px; padding: 2px 10px; margin-bottom: 6px; }
+  .opt-head h2 { margin: 0; font-size: 20px; font-weight: 600; }
+  .opt-head p { margin: 4px 0 0; font-size: 14px; color: var(--ink-2); max-width: 320px; }
+  .swatches { display: flex; gap: 6px; justify-content: center; margin-top: 8px; }
+  .swatches i { width: 22px; height: 22px; border-radius: 6px; border: 1px solid rgba(128,128,128,.3); }
+
+  /* Phone */
+  .phone { width: 100%; max-width: 340px; aspect-ratio: 340 / 700; border-radius: 42px; padding: 10px; background: #0D0F11; }
+  .screen { position: relative; height: 100%; border-radius: 33px; overflow: hidden; background: var(--bg); color: var(--tx); font-family: var(--body); }
+  .in { padding: 46px 16px 0; display: flex; flex-direction: column; gap: 12px; }
+  .top { display: flex; justify-content: space-between; align-items: center; }
+  .month { font-family: var(--display); font-size: 19px; font-weight: var(--dw); letter-spacing: var(--dls, 0); }
+  .brand { font-size: 11px; letter-spacing: .14em; color: var(--tx3); font-weight: 600; }
+  .num { font-variant-numeric: tabular-nums lining-nums; direction: ltr; unicode-bidi: isolate; display: inline-block; }
+  .hero { background: var(--hero); color: var(--hero-tx); border-radius: var(--r); padding: 18px 18px 16px; border: var(--hero-border, 0); }
+  .hero .l { font-size: 12.5px; opacity: .75; letter-spacing: .02em; }
+  .hero .v { font-family: var(--nums); font-size: 40px; font-weight: var(--nw); line-height: 1.1; margin-top: 4px; letter-spacing: -.01em; }
+  .hero .v small { font-size: 20px; opacity: .6; margin-inline-start: 4px; font-weight: 400; }
+  .hero .s { font-size: 12.5px; opacity: .8; margin-top: 3px; }
+  .meter { height: 4px; border-radius: 4px; background: var(--hero-track); margin-top: 16px; position: relative; }
+  .meter span { position: absolute; inset-block: 0; right: 0; width: 34%; border-radius: 4px; background: var(--accent-on-hero); }
+  .hero .f { display: flex; justify-content: space-between; font-size: 11.5px; opacity: .7; margin-top: 8px; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: var(--rs); padding: 10px 10px 9px; }
+  .stat .l { font-size: 11px; color: var(--tx3); }
+  .stat .v { font-family: var(--nums); font-size: 16px; font-weight: var(--nw2); margin-top: 3px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; }
+  .card h3 { margin: 0 0 12px; font-family: var(--display); font-weight: var(--dw); font-size: 15px; letter-spacing: var(--dls, 0); }
+  .row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .row:last-child { margin-bottom: 0; }
+  .rt { display: flex; justify-content: space-between; font-size: 13px; }
+  .rt b { font-weight: 600; }
+  .rt .left { color: var(--tx2); }
+  .rt .left .num { color: var(--tx); font-weight: 600; font-family: var(--nums); }
+  .rt .over { color: var(--neg); font-weight: 600; }
+  .bar { height: 4px; border-radius: 4px; background: var(--track); overflow: hidden; }
+  .bar span { display: block; height: 100%; margin-inline-start: 0; background: var(--accent); border-radius: 4px; }
+  .bar span.neg { background: var(--neg); }
+  .tabs { position: absolute; bottom: 0; inset-inline: 0; display: grid; grid-template-columns: repeat(5, 1fr); align-items: center; padding: 8px 6px 20px; background: var(--tabbg); border-top: 1px solid var(--line); font-size: 10px; color: var(--tx3); text-align: center; }
+  .tabs .on { color: var(--accent-tx); font-weight: 600; }
+  .tabs svg { display: block; margin: 0 auto 2px; width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.6; }
+  .plus { width: 46px; height: 46px; margin: -6px auto 0; border-radius: var(--plus-r); background: var(--plus); color: var(--plus-tx); display: grid; place-items: center; font-size: 26px; font-weight: 300; line-height: 1; }
+
+  /* A: Private banking */
+  .A { --bg: #F6F3EE; --card: #FFFFFF; --line: #E7E1D8; --tx: #1C2433; --tx2: #5B6270; --tx3: #8A8F98;
+       --hero: #1C2433; --hero-tx: #F6F3EE; --hero-track: rgba(246,243,238,.18); --accent-on-hero: #C9A86A;
+       --accent: #1C2433; --accent-tx: #1C2433; --track: #ECE6DC; --neg: #9E3B32; --tabbg: #FBF9F5;
+       --plus: #1C2433; --plus-tx: #F6F3EE; --plus-r: 50%;
+       --display: "Frank Ruhl Libre", serif; --body: "Assistant", sans-serif; --nums: "Frank Ruhl Libre", serif;
+       --dw: 500; --nw: 500; --nw2: 500; --r: 14px; --rs: 12px; }
+  /* B: Graphite */
+  .B { --bg: #FFFFFF; --card: #F5F6F7; --line: #EBEDEF; --tx: #111416; --tx2: #5E656C; --tx3: #8C939A;
+       --hero: #16191C; --hero-tx: #FFFFFF; --hero-track: rgba(255,255,255,.14); --accent-on-hero: #4FD1A5;
+       --accent: #0E7A5F; --accent-tx: #111416; --track: #E4E7EA; --neg: #C8423A; --tabbg: #FFFFFF;
+       --plus: #111416; --plus-tx: #FFFFFF; --plus-r: 16px;
+       --display: "Heebo", sans-serif; --body: "Heebo", sans-serif; --nums: "Heebo", sans-serif;
+       --dw: 500; --nw: 300; --nw2: 400; --r: 20px; --rs: 16px; --dls: -.01em; }
+  .B .card, .B .stat { border-color: transparent; }
+  /* C: Slate & burgundy */
+  .C { --bg: #EEF0F2; --card: #FFFFFF; --line: #DDE1E5; --tx: #1F2933; --tx2: #56606B; --tx3: #87909A;
+       --hero: #FFFFFF; --hero-tx: #1F2933; --hero-border: 1px solid #DDE1E5; --hero-track: #E6E9EC; --accent-on-hero: #6B2737;
+       --accent: #6B2737; --accent-tx: #6B2737; --track: #E6E9EC; --neg: #B23A30; --tabbg: #FFFFFF;
+       --plus: #6B2737; --plus-tx: #FFFFFF; --plus-r: 14px;
+       --display: "Noto Serif Hebrew", serif; --body: "Rubik", sans-serif; --nums: "Rubik", sans-serif;
+       --dw: 500; --nw: 500; --nw2: 500; --r: 10px; --rs: 8px; }
+  .C .hero .v { color: #1F2933; }
+</style>
+
+<div class="wrap">
+  <div class="intro">
+    <h1>שלושה כיווני עיצוב ל״כיסי״</h1>
+    <p>אותו מסך בית, עם פונט וצבעים שונים. בחרי כיוון, ואעצב לפיו את כל האפליקציה.</p>
+  </div>
+
+  <div class="grid">
+    <section class="opt">
+      <div class="opt-head">
+        <span class="tag">כיוון 1</span>
+        <h2>בנקאות פרטית</h2>
+        <p>כחול לילה, רקע שנהב וקו זהב עדין. ספרות וכותרות בפונט סריף קלאסי (פרנק רוהל). מכובד ושקט.</p>
+        <div class="swatches"><i style="background:#1C2433"></i><i style="background:#F6F3EE"></i><i style="background:#C9A86A"></i><i style="background:#9E3B32"></i></div>
+      </div>
+      <div class="phone"><div class="screen A">
+        <div class="in">
+          <div class="top"><span class="month">ספטמבר 2026</span><span class="brand">כיסי</span></div>
+          <div class="hero">
+            <div class="l">פנוי להוצאות עד סוף החודש</div>
+            <div class="v"><span class="num">6,192</span><small>₪</small></div>
+            <div class="s">כ־<span class="num">1,238</span> ₪ ליום · עוד 5 ימים</div>
+            <div class="meter"><span></span></div>
+            <div class="f"><span>נוצלו 31%</span><span>יום 26 מתוך 30</span></div>
+          </div>
+          <div class="stats">
+            <div class="stat"><div class="l">הכנסות</div><div class="v"><span class="num">18,000</span></div></div>
+            <div class="stat"><div class="l">הוצאות</div><div class="v"><span class="num">9,808</span></div></div>
+            <div class="stat"><div class="l">חיסכון</div><div class="v"><span class="num">2,000</span></div></div>
+          </div>
+          <div class="card">
+            <h3>הקצבות החודש</h3>
+            <div class="row"><div class="rt"><b>מסעדות</b><span class="over">חריגה של <span class="num">86</span> ₪</span></div><div class="bar"><span class="neg" style="width:100%"></span></div></div>
+            <div class="row"><div class="rt"><b>קניות</b><span class="left">נשארו <span class="num">460</span> ₪</span></div><div class="bar"><span style="width:54%"></span></div></div>
+            <div class="row"><div class="rt"><b>בילויים</b><span class="left">נשארו <span class="num">290</span> ₪</span></div><div class="bar"><span style="width:52%"></span></div></div>
+          </div>
+        </div>
+        <nav class="tabs">
+          <div class="on"><svg viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20h-6v-6h-4v6H4z"/></svg>בית</div>
+          <div><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg>תנועות</div>
+          <div><div class="plus">+</div></div>
+          <div><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/></svg>חסכונות</div>
+          <div><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>עוד</div>
+        </nav>
+      </div></div>
+    </section>
+
+    <section class="opt">
+      <div class="opt-head">
+        <span class="tag">כיוון 2</span>
+        <h2>גרפיט מודרני</h2>
+        <p>לבן נקי, כרטיס עליון כמעט שחור ומספרים גדולים ודקים (Heebo). ירוק אמרלד להדגשה. כמו אפליקציית פינטק עכשווית.</p>
+        <div class="swatches"><i style="background:#16191C"></i><i style="background:#FFFFFF"></i><i style="background:#0E7A5F"></i><i style="background:#C8423A"></i></div>
+      </div>
+      <div class="phone"><div class="screen B">
+        <div class="in">
+          <div class="top"><span class="month">ספטמבר 2026</span><span class="brand">כיסי</span></div>
+          <div class="hero">
+            <div class="l">פנוי להוצאות עד סוף החודש</div>
+            <div class="v"><span class="num">6,192</span><small>₪</small></div>
+            <div class="s">כ־<span class="num">1,238</span> ₪ ליום · עוד 5 ימים</div>
+            <div class="meter"><span></span></div>
+            <div class="f"><span>נוצלו 31%</span><span>יום 26 מתוך 30</span></div>
+          </div>
+          <div class="stats">
+            <div class="stat"><div class="l">הכנסות</div><div class="v"><span class="num">18,000</span></div></div>
+            <div class="stat"><div class="l">הוצאות</div><div class="v"><span class="num">9,808</span></div></div>
+            <div class="stat"><div class="l">חיסכון</div><div class="v"><span class="num">2,000</span></div></div>
+          </div>
+          <div class="card">
+            <h3>הקצבות החודש</h3>
+            <div class="row"><div class="rt"><b>מסעדות</b><span class="over">חריגה של <span class="num">86</span> ₪</span></div><div class="bar"><span class="neg" style="width:100%"></span></div></div>
+            <div class="row"><div class="rt"><b>קניות</b><span class="left">נשארו <span class="num">460</span> ₪</span></div><div class="bar"><span style="width:54%"></span></div></div>
+            <div class="row"><div class="rt"><b>בילויים</b><span class="left">נשארו <span class="num">290</span> ₪</span></div><div class="bar"><span style="width:52%"></span></div></div>
+          </div>
+        </div>
+        <nav class="tabs">
+          <div class="on"><svg viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20h-6v-6h-4v6H4z"/></svg>בית</div>
+          <div><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg>תנועות</div>
+          <div><div class="plus">+</div></div>
+          <div><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/></svg>חסכונות</div>
+          <div><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>עוד</div>
+        </nav>
+      </div></div>
+    </section>
+
+    <section class="opt">
+      <div class="opt-head">
+        <span class="tag">כיוון 3</span>
+        <h2>צפחה ובורדו</h2>
+        <p>אפור-כחול קריר עם בורדו עמוק כצבע יחיד. כותרות בסריף עדין (Noto Serif) וספרות ב־Rubik. מאופק ואלגנטי.</p>
+        <div class="swatches"><i style="background:#1F2933"></i><i style="background:#EEF0F2"></i><i style="background:#6B2737"></i><i style="background:#B23A30"></i></div>
+      </div>
+      <div class="phone"><div class="screen C">
+        <div class="in">
+          <div class="top"><span class="month">ספטמבר 2026</span><span class="brand">כיסי</span></div>
+          <div class="hero">
+            <div class="l">פנוי להוצאות עד סוף החודש</div>
+            <div class="v"><span class="num">6,192</span><small>₪</small></div>
+            <div class="s">כ־<span class="num">1,238</span> ₪ ליום · עוד 5 ימים</div>
+            <div class="meter"><span></span></div>
+            <div class="f"><span>נוצלו 31%</span><span>יום 26 מתוך 30</span></div>
+          </div>
+          <div class="stats">
+            <div class="stat"><div class="l">הכנסות</div><div class="v"><span class="num">18,000</span></div></div>
+            <div class="stat"><div class="l">הוצאות</div><div class="v"><span class="num">9,808</span></div></div>
+            <div class="stat"><div class="l">חיסכון</div><div class="v"><span class="num">2,000</span></div></div>
+          </div>
+          <div class="card">
+            <h3>הקצבות החודש</h3>
+            <div class="row"><div class="rt"><b>מסעדות</b><span class="over">חריגה של <span class="num">86</span> ₪</span></div><div class="bar"><span class="neg" style="width:100%"></span></div></div>
+            <div class="row"><div class="rt"><b>קניות</b><span class="left">נשארו <span class="num">460</span> ₪</span></div><div class="bar"><span style="width:54%"></span></div></div>
+            <div class="row"><div class="rt"><b>בילויים</b><span class="left">נשארו <span class="num">290</span> ₪</span></div><div class="bar"><span style="width:52%"></span></div></div>
+          </div>
+        </div>
+        <nav class="tabs">
+          <div class="on"><svg viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20h-6v-6h-4v6H4z"/></svg>בית</div>
+          <div><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg>תנועות</div>
+          <div><div class="plus">+</div></div>
+          <div><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/></svg>חסכונות</div>
+          <div><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>עוד</div>
+        </nav>
+      </div></div>
+    </section>
+  </div>
+</div>
