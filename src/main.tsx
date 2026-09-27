@@ -1,11 +1,11 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import '@fontsource/ibm-plex-sans-hebrew/hebrew-400.css';
-import '@fontsource/ibm-plex-sans-hebrew/hebrew-500.css';
-import '@fontsource/ibm-plex-sans-hebrew/hebrew-600.css';
-import '@fontsource/ibm-plex-sans-hebrew/latin-400.css';
-import '@fontsource/ibm-plex-sans-hebrew/latin-500.css';
-import '@fontsource/ibm-plex-sans-hebrew/latin-600.css';
+import '@fontsource/rubik/hebrew-400.css';
+import '@fontsource/rubik/hebrew-500.css';
+import '@fontsource/rubik/latin-400.css';
+import '@fontsource/rubik/latin-500.css';
+import '@fontsource/noto-serif-hebrew/hebrew-500.css';
+import '@fontsource/noto-serif-hebrew/latin-500.css';
 import './styles.css';
 import { App } from './App';
 import { repo } from './data/repo';
