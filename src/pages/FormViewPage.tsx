@@ -48,6 +48,8 @@ export default function FormViewPage() {
   const perf = signatures.find((s) => s.signer_type === SignerType.PERFORMER);
   const perf2 = signatures.find((s) => s.signer_type === SignerType.PERFORMER2);
   const appr = signatures.find((s) => s.signer_type === SignerType.APPROVER);
+  const rep1 = signatures.find((s) => s.signer_type === SignerType.REPAIR_PERFORMER);
+  const rep2 = signatures.find((s) => s.signer_type === SignerType.REPAIR_PERFORMER2);
   // The treatment section keeps EVERY original fault (traceability); the results
   // table + totals reflect the CURRENT status, where a resolved fault reads תקין.
   const faults = tasks.filter((t) => t.result === TaskResult.FAULT);
@@ -253,8 +255,52 @@ export default function FormViewPage() {
         {faults.length > 0 && (
           <div className="mt-5">
             <h3 className="mb-2 font-bold text-fault-700">
-              {faults.some((t) => t.returned_for_fix) ? 'תקלות וטיפול שבוצע' : 'פירוט אי-תקינות'}
+              {faults.some((t) => t.returned_for_fix || t.transferred_for_treatment)
+                ? 'תקלות וטיפול שבוצע'
+                : 'פירוט אי-תקינות'}
             </h3>
+            {/* Treating-rank team (shown when sections were routed to a treating
+                rank). Original inspection performers stay in the header above. */}
+            {form.treatment_rank_id && (
+              <div className="mb-2 rounded-md border border-pending-200 bg-pending-50 px-3 py-1.5 text-[12.5px] text-slate-700">
+                <span className="font-semibold text-pending-700">טיפול {form.treatment_rank_name}: </span>
+                מבצע תיקון 1: {form.treatment_performer1_name || '—'} · מבצע תיקון 2:{' '}
+                {form.treatment_performer2_name || '—'}
+                {form.transferred_by_name && (
+                  <span className="text-slate-500">
+                    {' '}· הועבר ע״י {form.transferred_by_name} · {formatStamp(form.transferred_at)}
+                  </span>
+                )}
+                {(rep1 || rep2) && (
+                  <div className="mt-1.5 flex flex-wrap gap-4">
+                    {rep1 && (
+                      <figure className="text-center">
+                        <img
+                          src={rep1.signature_data}
+                          alt="חתימת מבצע תיקון 1"
+                          className="h-12 rounded border border-slate-200 bg-white"
+                        />
+                        <figcaption className="text-[10px] text-slate-500">
+                          {rep1.signer_name}
+                        </figcaption>
+                      </figure>
+                    )}
+                    {rep2 && (
+                      <figure className="text-center">
+                        <img
+                          src={rep2.signature_data}
+                          alt="חתימת מבצע תיקון 2"
+                          className="h-12 rounded border border-slate-200 bg-white"
+                        />
+                        <figcaption className="text-[10px] text-slate-500">
+                          {rep2.signer_name}
+                        </figcaption>
+                      </figure>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="space-y-2">
               {faults.map((t) => (
                 <FaultReportCard key={t.id} task={t} />
@@ -301,7 +347,7 @@ export default function FormViewPage() {
  * bulky card per event.
  */
 function FaultReportCard({ task: t }: { task: CompletedTask }) {
-  const treated = !!t.returned_for_fix;
+  const treated = !!t.returned_for_fix || !!t.transferred_for_treatment;
   const status = faultTreatmentStatus(t);
   return (
     <div className="fault-card rounded-lg border border-fault-200 bg-fault-50 p-3">
@@ -331,10 +377,10 @@ function FaultReportCard({ task: t }: { task: CompletedTask }) {
 
           {treated && (
             <div className="mt-1.5 space-y-0.5 text-[12.5px] text-slate-700">
-              {t.return_note && (
+              {(t.return_note || t.transfer_section_note) && (
                 <div>
                   <span className="font-semibold text-pending-700">הערת המאשר: </span>
-                  {t.return_note}
+                  {t.return_note || t.transfer_section_note}
                 </div>
               )}
               {t.repair_reported && (

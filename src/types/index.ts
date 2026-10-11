@@ -17,6 +17,7 @@ export enum FormStatus {
   PENDING_APPROVAL = 'PENDING_APPROVAL', // ממתין לאישור
   APPROVED = 'APPROVED', // מאושר (נעול)
   REJECTED = 'REJECTED', // נדחה / דורש תיקון
+  IN_TREATMENT = 'IN_TREATMENT', // הועבר לטיפול דרג מטפל (למשל דרג ד׳)
 }
 
 /** Per-task result. */
@@ -31,6 +32,8 @@ export enum SignerType {
   PERFORMER = 'PERFORMER', // מבצע 1
   PERFORMER2 = 'PERFORMER2', // מבצע 2
   APPROVER = 'APPROVER',
+  REPAIR_PERFORMER = 'REPAIR_PERFORMER', // מבצע תיקון 1 (דרג מטפל)
+  REPAIR_PERFORMER2 = 'REPAIR_PERFORMER2', // מבצע תיקון 2 (דרג מטפל)
 }
 
 export interface User {
@@ -196,12 +199,31 @@ export interface CompletedForm {
   rejection_note?: string; // the approver's note to the performer
   rejected_by_name?: string;
   rejected_at?: string;
+
+  // ---- Transfer to a treatment rank (העברה לדרג מטפל) ----
+  // When the approver routes faulty sections to a higher treating rank (the UI
+  // exposes only "דרג ד׳", but the mechanism is generic), the treating rank and
+  // the dedicated repair performers are kept at form level. The ORIGINAL
+  // inspection rank (rank_id / rank_name_snapshot) and the original performers
+  // are NEVER overwritten — the treatment is additive history.
+  treatment_rank_id?: string | null; // the treating rank (e.g. rank ד)
+  treatment_rank_name?: string; // snapshot of the treating rank name
+  transferred_by_id?: string; // approver who transferred
+  transferred_by_name?: string;
+  transferred_at?: string; // ISO with seconds
+  transfer_note?: string; // approver's general note on the transfer
+  // Repair performers (מבצע תיקון 1/2) — distinct from performers 1/2.
+  treatment_performer1_id?: string | null;
+  treatment_performer1_name?: string;
+  treatment_performer2_id?: string | null;
+  treatment_performer2_name?: string;
 }
 
 /** A single, immutable event in a task's fault-handling lifecycle. */
 export type FaultEventType =
   | 'discovered' // תקלה התגלתה (marked "לא תקין")
   | 'returned' // הוחזר לתיקון (approver returned this section)
+  | 'transferred' // הועבר לדרג מטפל (approver transferred this section, e.g. דרג ד׳)
   | 'repair_reported' // דווח על ביצוע תיקון (performer documented the treatment)
   | 'resubmitted' // נשלח מחדש לאישור
   | 'verified'; // אומת ואושר (approver's final approval)
@@ -249,6 +271,12 @@ export interface CompletedTask {
   verified?: boolean;
   verified_by_name?: string;
   verified_at?: string;
+  // Transfer-to-treatment-rank path (parallel to return-for-fix). When set, the
+  // section was routed to a higher treating rank; its treatment is documented by
+  // the repair performers (reusing the repair_* fields above) and verified by the
+  // approver at final approval, exactly like the return-for-fix path.
+  transferred_for_treatment?: boolean;
+  transfer_section_note?: string; // approver's note for THIS section
   // Ordered event log powering the compact treatment timeline.
   fault_events?: FaultEvent[];
 }

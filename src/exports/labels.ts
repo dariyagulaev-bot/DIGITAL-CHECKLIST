@@ -47,6 +47,8 @@ export function statusLabel(status: FormStatus): string {
       return 'מאושר';
     case FormStatus.REJECTED:
       return 'הוחזר לתיקון';
+    case FormStatus.IN_TREATMENT:
+      return 'בטיפול דרג מטפל';
     default:
       return status;
   }
@@ -149,14 +151,16 @@ export function faultEventLabel(type: string, repairDone?: boolean): string {
 /** Status of a handled fault, for the report chip. */
 export function faultTreatmentStatus(t: {
   returned_for_fix?: boolean;
+  transferred_for_treatment?: boolean;
   repair_reported?: boolean;
   repair_done?: boolean;
   verified?: boolean;
 }): string {
-  if (!t.returned_for_fix) return 'לא תקין';
+  const inTreatment = !!t.transferred_for_treatment;
+  if (!t.returned_for_fix && !inTreatment) return 'לא תקין';
   if (t.verified) return t.repair_done === false ? 'לא תוקן — אומת' : 'תוקן ואומת';
   if (t.repair_reported) return t.repair_done === false ? 'לא תוקן' : 'תוקן — ממתין לאימות';
-  return 'הוחזר לתיקון';
+  return inTreatment ? 'ממתין לטיפול דרג מטפל' : 'הוחזר לתיקון';
 }
 
 /**
@@ -166,12 +170,13 @@ export function faultTreatmentStatus(t: {
 export function isResolvedFault(t: {
   result: TaskResult;
   returned_for_fix?: boolean;
+  transferred_for_treatment?: boolean;
   repair_done?: boolean;
   verified?: boolean;
 }): boolean {
   return (
     t.result === TaskResult.FAULT &&
-    !!t.returned_for_fix &&
+    (!!t.returned_for_fix || !!t.transferred_for_treatment) &&
     t.repair_done === true &&
     !!t.verified
   );
@@ -186,6 +191,7 @@ export function isResolvedFault(t: {
 export function currentResult(t: {
   result: TaskResult;
   returned_for_fix?: boolean;
+  transferred_for_treatment?: boolean;
   repair_done?: boolean;
   verified?: boolean;
 }): TaskResult {

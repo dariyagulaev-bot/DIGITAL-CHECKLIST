@@ -36,6 +36,7 @@ import { RepairModal } from '@/components/RepairModal';
 import { FaultTimeline } from '@/components/FaultTimeline';
 import { Icon } from '@/components/Icon';
 import { ApprovalSection } from './ApprovalSection';
+import { TreatmentSection } from './TreatmentSection';
 
 interface PerfSigHandle {
   isDirty: () => boolean;
@@ -218,6 +219,7 @@ export default function FormRunnerPage() {
   };
 
   const returned = form.status === FormStatus.REJECTED;
+  const inTreatment = form.status === FormStatus.IN_TREATMENT;
 
   return (
     <div className="space-y-4 pb-24">
@@ -308,6 +310,31 @@ export default function FormRunnerPage() {
               </div>
               <div className="mt-2 text-[13px] font-medium text-ink-600">
                 בצע את התיקונים הנדרשים, חתום מחדש (שני המבצעים) ושלח שוב לאישור.
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Transferred-to-treating-rank banner */}
+      {inTreatment && (
+        <section className="card border-r-2 border-r-pending-500 bg-pending-50/50 p-4 sm:p-5">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-pending-100 text-pending-600">
+              <Icon name="shield-check" size={20} />
+            </span>
+            <div className="min-w-0">
+              <div className="text-[15px] font-extrabold text-pending-700">
+                הבד״ח הועבר לטיפול {form.treatment_rank_name || 'דרג מטפל'}
+              </div>
+              {form.transfer_note && (
+                <div className="mt-1 rounded-md border border-pending-200 bg-white px-3 py-2 text-[14px] text-ink-800">
+                  {form.transfer_note}
+                </div>
+              )}
+              <div className="mt-1.5 text-[12.5px] text-ink-500">
+                {form.transferred_by_name ? `מאת: ${form.transferred_by_name}` : ''}
+                {form.transferred_at ? ` · ${formatDateTime(form.transferred_at)}` : ''}
               </div>
             </div>
           </div>
@@ -468,6 +495,9 @@ export default function FormRunnerPage() {
           }
         />
       </div>
+
+      {/* Treatment area (דרג מטפל) */}
+      {inTreatment && <TreatmentSection bundle={bundle} onChanged={load} />}
 
       {/* Approval area */}
       {(form.status === FormStatus.PENDING_APPROVAL || form.status === FormStatus.APPROVED) && (
@@ -671,6 +701,8 @@ function TaskRow({
   const hasDetail = !!(task.comment.trim() || task.fault_image);
   const canToggle = editable && !resultsLocked;
   const returned = !!task.returned_for_fix;
+  const transferred = !!task.transferred_for_treatment;
+  const inFlow = returned || transferred;
 
   return (
     <>
@@ -723,7 +755,7 @@ function TaskRow({
           </div>
         </td>
       </tr>
-      {isFault && !returned && (
+      {isFault && !inFlow && (
         <tr className="bg-fault-50/40">
           <td colSpan={5} className="border-r-2 border-r-fault-500 !py-2.5">
             <div className="flex flex-wrap items-center gap-2">
@@ -744,13 +776,13 @@ function TaskRow({
         </tr>
       )}
 
-      {isFault && returned && (
+      {isFault && inFlow && (
         <tr className="bg-pending-50/50">
           <td colSpan={5} className="border-r-2 border-r-pending-500 !py-3">
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="badge border-pending-200 bg-pending-100 text-pending-700">
-                  <Icon name="alert" size={12} /> נדרש תיקון
+                  <Icon name="alert" size={12} /> {transferred ? 'טיפול דרג מטפל' : 'נדרש תיקון'}
                 </span>
                 <span className="text-[12.5px] font-semibold text-ink-500">
                   {faultTreatmentStatus(task)}
@@ -764,10 +796,10 @@ function TaskRow({
                   {task.comment}
                 </div>
               )}
-              {task.return_note && (
+              {(task.return_note || task.transfer_section_note) && (
                 <div className="rounded-md border border-pending-200 bg-white px-3 py-1.5 text-[13px] text-ink-800">
                   <span className="font-semibold text-pending-700">הערת המאשר: </span>
-                  {task.return_note}
+                  {task.return_note || task.transfer_section_note}
                 </div>
               )}
 

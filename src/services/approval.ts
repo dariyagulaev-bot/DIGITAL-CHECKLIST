@@ -98,7 +98,7 @@ export async function finalizeApproval(
   const tasks = await getFormTasks(formId);
   await Promise.all(
     tasks
-      .filter((t) => t.returned_for_fix && t.repair_reported)
+      .filter((t) => (t.returned_for_fix || t.transferred_for_treatment) && t.repair_reported)
       .map((t) =>
         db.completed_tasks.update(t.id, {
           verified: true,

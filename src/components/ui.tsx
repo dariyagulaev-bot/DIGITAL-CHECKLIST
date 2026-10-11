@@ -12,6 +12,10 @@ const STATUS_STYLE: Record<FormStatus, { cls: string; icon: IconName }> = {
   },
   [FormStatus.APPROVED]: { cls: 'bg-ok-50 text-ok-700 border-ok-200', icon: 'shield-check' },
   [FormStatus.REJECTED]: { cls: 'bg-fault-50 text-fault-700 border-fault-200', icon: 'alert' },
+  [FormStatus.IN_TREATMENT]: {
+    cls: 'bg-pending-50 text-pending-700 border-pending-200',
+    icon: 'shield-check',
+  },
 };
 
 export function StatusBadge({ status }: { status: FormStatus }) {

@@ -5,12 +5,16 @@ import {
   getUserSummary,
   isEditableByPerformer,
   listFormsByPerformer,
+  listInTreatment,
   type UserFormSummary,
 } from '@/services/forms';
+import { isUserCertified } from '@/services/certifications';
+import { isAdmin } from '@/services/rbac';
 import { PageHeader } from '@/components/Layout';
 import { EmptyState, Spinner, StatusBadge } from '@/components/ui';
 import { FormTitle } from '@/components/FormTitle';
-import { formatTimeHM } from '@/exports/labels';
+import { formatTimeHM, formatStamp } from '@/exports/labels';
+import { Icon } from '@/components/Icon';
 import type { CompletedForm } from '@/types';
 
 function StatCard({ label, value, accent }: { label: string; value: number; accent: string }) {
@@ -26,17 +30,56 @@ export default function MyFormsPage() {
   const { user } = useAuth();
   const [forms, setForms] = useState<CompletedForm[] | null>(null);
   const [summary, setSummary] = useState<UserFormSummary | null>(null);
+  const [treatment, setTreatment] = useState<CompletedForm[]>([]);
 
   useEffect(() => {
     if (!user) return;
     listFormsByPerformer(user.id).then(setForms).catch(() => setForms([]));
     getUserSummary(user.id).then(setSummary).catch(() => {});
+    // Treatment inbox — IN_TREATMENT forms this user is certified to treat.
+    listInTreatment()
+      .then(async (list) => {
+        if (isAdmin(user)) return setTreatment(list);
+        const mine: CompletedForm[] = [];
+        for (const f of list) {
+          if (await isUserCertified(user.id, f.system_id, f.treatment_rank_id ?? null)) mine.push(f);
+        }
+        setTreatment(mine);
+      })
+      .catch(() => setTreatment([]));
   }, [user]);
 
   if (!user) return null;
 
   return (
     <div>
+      {treatment.length > 0 && (
+        <div className="mb-6">
+          <PageHeader title="בטיפול דרג מטפל" subtitle="בד״חים שהועברו לטיפולך" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            {treatment.map((f) => (
+              <Link
+                key={f.id}
+                to={`/form/${f.id}`}
+                className="card border-r-2 border-r-pending-500 p-4 hover:bg-slate-50"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <FormTitle form={f} className="font-semibold text-slate-800" />
+                    <div className="mt-0.5 text-sm text-slate-500">
+                      הועבר ע״י {f.transferred_by_name || '—'} · {formatStamp(f.transferred_at)}
+                    </div>
+                  </div>
+                  <span className="badge bg-pending-100 text-pending-700">
+                    <Icon name="shield-check" size={12} /> {f.treatment_rank_name || 'דרג מטפל'}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       <PageHeader title="הבד״חים שלי" subtitle="כל הבד״חים שביצעת" />
 
       {summary && (

@@ -461,6 +461,15 @@ export async function listAllForms(): Promise<CompletedForm[]> {
   return sortByCreatedDesc(forms);
 }
 
+/** Forms currently routed to a treating rank (for the treatment inbox). */
+export async function listInTreatment(): Promise<CompletedForm[]> {
+  const forms = await db.completed_forms
+    .where('status')
+    .equals(FormStatus.IN_TREATMENT)
+    .toArray();
+  return sortByCreatedDesc(forms);
+}
+
 /** Draft / in-progress forms belonging to a user (for "continue unfinished"). */
 export async function listDrafts(userId: string): Promise<CompletedForm[]> {
   const forms = await listFormsByPerformer(userId);
