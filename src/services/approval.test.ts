@@ -16,15 +16,20 @@ import {
 import { adminSetTaskResult } from './adminForms';
 import { listAudit } from './audit';
 import { FormStatus, RoleName, SignerType, TaskResult, type UserWithRoles } from '@/types';
-import { ensureRoles, makeUser, resetDb } from '@/test/helpers';
+import { ensureRoles, makeUser, resetDb, certifyAllSystems } from '@/test/helpers';
 
 const SIG = 'data:image/png;base64,AAAA';
+
+// A real, active second-performer (required by the certification gating).
+let perf2User: UserWithRoles;
 
 /** Build a fully completed form submitted for approval by `performer`. */
 async function buildSubmittedForm(performer: UserWithRoles): Promise<string> {
   const t = await createTemplate({ name: 'בדיקה יומית' });
   await addTask(t.id, { part_name: 'מנוע', action: 'שמן', equipment: 'כפפות' });
   await addTask(t.id, { part_name: 'חשמל', action: 'חיבורים', equipment: 'פנס' });
+  await certifyAllSystems(performer.id);
+  await certifyAllSystems(perf2User.id);
   const formId = await createDraftForm({ templateId: t.id, performer });
   const tasks = await getFormTasks(formId);
   await setTaskResult(formId, performer.id, tasks[0].id, TaskResult.OK);
@@ -38,12 +43,12 @@ async function buildSubmittedForm(performer: UserWithRoles): Promise<string> {
     signatureData: SIG,
   });
   await updateFormMeta(formId, performer.id, {
-    performer2_id: 'perf2-id',
-    performer2_name: 'דוד כהן',
+    performer2_id: perf2User.id,
+    performer2_name: perf2User.full_name,
   });
   await addSignature({
     formId,
-    signer: { id: 'perf2-id', full_name: 'דוד כהן' },
+    signer: { id: perf2User.id, full_name: perf2User.full_name },
     type: SignerType.PERFORMER2,
     signatureData: SIG,
   });
@@ -60,6 +65,7 @@ describe('approval & self-approval prevention', () => {
     await resetDb();
     await ensureRoles();
     performer = await makeUser('perf', 'ישראל ישראלי', [RoleName.PERFORMER], 'perfpw');
+    perf2User = await makeUser('perf2', 'דוד כהן', [RoleName.PERFORMER], 'perf2pw');
     approver = await makeUser('appr', 'דנה כהן', [RoleName.APPROVER], 'apprpw');
     performerAlsoApprover = await makeUser(
       'both',

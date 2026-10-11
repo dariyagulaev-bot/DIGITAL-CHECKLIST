@@ -4,7 +4,7 @@ import { createTemplate } from './templates';
 import { createSystem } from './systems';
 import { createUnit } from './units';
 import { RoleName, type UserWithRoles } from '@/types';
-import { ensureRoles, makeUser, resetDb } from '@/test/helpers';
+import { ensureRoles, makeUser, resetDb, certifyAllSystems } from '@/test/helpers';
 
 describe('automatic running בד״ח number', () => {
   let performer: UserWithRoles;
@@ -26,6 +26,7 @@ describe('automatic running בד״ח number', () => {
     const u02 = await createUnit(sys.id, '02');
     const u03 = await createUnit(sys.id, '03');
     const t = await createTemplate({ name: 'בדיקה', system_id: sys.id });
+    await certifyAllSystems(performer.id);
 
     const f1 = await createDraftForm({ templateId: t.id, performer, unitId: u02.id });
     const f2 = await createDraftForm({ templateId: t.id, performer, unitId: u02.id });
@@ -41,6 +42,7 @@ describe('automatic running בד״ח number', () => {
     const sys = await createSystem('מערכת ב׳');
     const u02 = await createUnit(sys.id, '02');
     const t = await createTemplate({ name: 'בדיקה', system_id: sys.id });
+    await certifyAllSystems(performer.id);
 
     const f1 = await createDraftForm({ templateId: t.id, performer, unitId: u02.id });
     const f2 = await createDraftForm({ templateId: t.id, performer, unitId: u02.id });
@@ -57,6 +59,7 @@ describe('automatic running בד״ח number', () => {
     const sys = await createSystem('מערכת ב׳');
     const u02 = await createUnit(sys.id, '02');
     const t = await createTemplate({ name: 'בדיקה', system_id: sys.id });
+    await certifyAllSystems(performer.id);
     const id = await createDraftForm({ templateId: t.id, performer, unitId: u02.id });
     const num = (await getForm(id))!.number;
     // Re-reading the record yields the same number (never regenerated).

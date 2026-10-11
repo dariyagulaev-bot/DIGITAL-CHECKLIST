@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { canPerform } from '@/services/rbac';
+import { canPerform, isAdmin } from '@/services/rbac';
 import { listTemplates } from '@/services/templates';
 import { listSystems } from '@/services/systems';
 import { listUnits } from '@/services/units';
 import { listRanks } from '@/services/ranks';
+import { listCertifications, allowedRankIds } from '@/services/certifications';
 import { createDraftForm } from '@/services/forms';
 import { PageHeader } from '@/components/Layout';
 import { EmptyState, Spinner } from '@/components/ui';
@@ -34,6 +35,10 @@ export default function NewFormPage() {
   const { notify } = useToast();
   const [data, setData] = useState<Loaded | null>(null);
   const [busy, setBusy] = useState(false);
+  // Certification context: the user's max rank per system (empty = ללא הסמכה).
+  // Admins are superusers and see everything.
+  const [certMax, setCertMax] = useState<Map<string, string>>(new Map());
+  const [adminMode, setAdminMode] = useState(false);
 
   // Wizard selections. `undefined` = not yet chosen on that step.
   const [systemId, setSystemId] = useState<string | undefined>(undefined);
@@ -41,15 +46,37 @@ export default function NewFormPage() {
   const [rankId, setRankId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    Promise.all([listSystems(false), listUnits(false), listRanks(false), listTemplates(false)])
-      .then(([systems, units, ranks, templates]) => {
-        // Only systems that actually have at least one published בד״ח are offerable.
-        const usableSystems = systems.filter((s) => templates.some((t) => t.system_id === s.id));
+    if (!user) return;
+    const admin = isAdmin(user);
+    Promise.all([
+      listSystems(false),
+      listUnits(false),
+      listRanks(false),
+      listTemplates(false),
+      admin ? Promise.resolve([]) : listCertifications(user.id),
+    ])
+      .then(([systems, units, ranks, templates, certs]) => {
+        const max = new Map(certs.map((c) => [c.system_id, c.max_rank_id]));
+        // A system is offerable only if it has a published בד״ח AND the user can
+        // reach at least one of its ranks (a null-rank בד״ח applies to all).
+        const usableSystems = systems.filter((s) => {
+          const hasTemplate = templates.some((t) => t.system_id === s.id);
+          if (!hasTemplate) return false;
+          if (admin) return true;
+          const m = max.get(s.id);
+          if (!m) return false;
+          const allowed = allowedRankIds(m, ranks);
+          return templates.some(
+            (t) => t.system_id === s.id && (t.rank_id === null || allowed.has(t.rank_id))
+          );
+        });
+        setCertMax(max);
+        setAdminMode(admin);
         setData({ systems: usableSystems, units, ranks, templates });
         if (usableSystems.length === 1) setSystemId(usableSystems[0].id);
       })
       .catch(() => setData({ systems: [], units: [], ranks: [], templates: [] }));
-  }, []);
+  }, [user]);
 
   const systemName = useMemo(
     () => new Map((data?.systems ?? []).map((s) => [s.id, s.name])),
@@ -68,11 +95,17 @@ export default function NewFormPage() {
     [data, systemId]
   );
 
-  // Ranks that are meaningful here: those with at least one rank-specific בד״ח.
+  // Ranks that are meaningful here: those with at least one rank-specific בד״ח,
+  // further limited to the ranks the user is certified for (hierarchical).
   const rankOptions = useMemo(() => {
     const ids = new Set(systemTemplates.map((t) => t.rank_id).filter((r): r is string => !!r));
-    return (data?.ranks ?? []).filter((r) => ids.has(r.id));
-  }, [data, systemTemplates]);
+    let ranks = (data?.ranks ?? []).filter((r) => ids.has(r.id));
+    if (!adminMode && systemId) {
+      const allowed = allowedRankIds(certMax.get(systemId) ?? null, data?.ranks ?? []);
+      ranks = ranks.filter((r) => allowed.has(r.id));
+    }
+    return ranks;
+  }, [data, systemTemplates, adminMode, certMax, systemId]);
 
   // Effective rank once the rank step is settled (auto-picked when 0 or 1 option).
   const effectiveRankId = useMemo<string | null>(() => {

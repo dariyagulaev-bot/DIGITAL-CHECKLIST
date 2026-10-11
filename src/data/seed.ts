@@ -148,6 +148,24 @@ async function ensureTemplate(
   }
 }
 
+/** Seed a certification only if one does not already exist for (user, system). */
+async function ensureCert(userId: string | undefined, systemId: string, maxRankId: string): Promise<void> {
+  if (!userId) return;
+  const existing = await db.user_system_ranks
+    .where('[user_id+system_id]')
+    .equals([userId, systemId])
+    .first();
+  if (existing) return;
+  await db.user_system_ranks.add({
+    id: newId(),
+    user_id: userId,
+    system_id: systemId,
+    max_rank_id: maxRankId,
+    created_at: nowIso(),
+    updated_at: nowIso(),
+  });
+}
+
 async function ensureSettings(): Promise<void> {
   const mode = await db.settings.get(SettingKeys.APPROVAL_MODE);
   if (!mode) await db.settings.put({ key: SettingKeys.APPROVAL_MODE, value: 'personal_accounts' });
@@ -190,6 +208,18 @@ export async function runSeed(): Promise<void> {
     { part_name: 'לוח בקרה', action: 'בדיקת נוריות', equipment: 'ללא', image_data: null, sort_order: 0 },
     { part_name: 'חיבורי תקשורת', action: 'בדיקת ממשקים', equipment: 'כבל בדיקה', image_data: null, sort_order: 1 },
   ]);
+
+  // Demo certifications (הסמכות) — show the hierarchy in action:
+  //  • ישראל ישראלי + דני כהן: full access (מערכת א׳ עד דרג ב׳, מערכת ב׳ עד דרג א׳)
+  //  • יוסי לוי: מערכת א׳ עד דרג א׳ בלבד, ללא הסמכה למערכת ב׳
+  const perf1 = (await db.users.where('username').equals('performer').first())?.id;
+  const perf2 = (await db.users.where('username').equals('performer2').first())?.id;
+  const perf3 = (await db.users.where('username').equals('performer3').first())?.id;
+  await ensureCert(perf1, sysA, rankB);
+  await ensureCert(perf1, sysB, rankA);
+  await ensureCert(perf2, sysA, rankB);
+  await ensureCert(perf2, sysB, rankA);
+  await ensureCert(perf3, sysA, rankA);
 
   await ensureSettings();
 }

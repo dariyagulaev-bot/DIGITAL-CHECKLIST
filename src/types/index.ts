@@ -293,6 +293,23 @@ export interface Counter {
   value: number; // last serial issued
 }
 
+/**
+ * A user's certification for a SYSTEM TYPE, expressed as the HIGHEST rank they
+ * may inspect there (ranks are hierarchical: a max rank covers every rank below
+ * it). No row for a (user, system) pair means "ללא הסמכה" — not certified at all
+ * for that system. Admin-managed, stored locally, audited on every change.
+ * Changing a certification affects only NEW work — historical forms keep the
+ * snapshot taken at execution time.
+ */
+export interface UserSystemRank {
+  id: string;
+  user_id: string;
+  system_id: string; // system TYPE (סוג מערכת)
+  max_rank_id: string; // highest certified rank for this system
+  created_at: string;
+  updated_at: string;
+}
+
 /** Convenience view model: a user with resolved role names. */
 export interface UserWithRoles extends User {
   roles: RoleName[];

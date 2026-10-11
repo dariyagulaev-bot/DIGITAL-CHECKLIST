@@ -9,7 +9,7 @@ import {
 } from './backup';
 import { db } from '@/data/db';
 import { RoleName, type UserWithRoles } from '@/types';
-import { ensureRoles, makeUser, resetDb } from '@/test/helpers';
+import { ensureRoles, makeUser, resetDb, certifyAllSystems } from '@/test/helpers';
 
 describe('backup & file-based sync', () => {
   let performer: UserWithRoles;
@@ -25,6 +25,7 @@ describe('backup & file-based sync', () => {
   async function makeForm(name: string): Promise<string> {
     const t = await createTemplate({ name });
     await addTask(t.id, { part_name: 'חלק', action: 'פעולה', equipment: '' });
+    await certifyAllSystems(performer.id);
     return createDraftForm({ templateId: t.id, performer });
   }
 

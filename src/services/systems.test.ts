@@ -3,7 +3,7 @@ import { createSystem, updateSystem, listSystems } from './systems';
 import { createTemplate, addTask } from './templates';
 import { createDraftForm, getForm } from './forms';
 import { RoleName, type UserWithRoles } from '@/types';
-import { ensureRoles, makeUser, resetDb } from '@/test/helpers';
+import { ensureRoles, makeUser, resetDb, certifyAllSystems } from '@/test/helpers';
 
 describe('systems (מערכות)', () => {
   let performer: UserWithRoles;
@@ -19,6 +19,7 @@ describe('systems (מערכות)', () => {
     const t = await createTemplate({ name: 'בד״ח יומי', system_id: sys.id });
     await addTask(t.id, { part_name: 'אזור', action: 'בדיקה', equipment: '' });
 
+    await certifyAllSystems(performer.id);
     const formId = await createDraftForm({ templateId: t.id, performer });
     const form = await getForm(formId);
     expect(form!.system_id).toBe(sys.id);
@@ -29,6 +30,7 @@ describe('systems (מערכות)', () => {
     const sys = await createSystem('מערכת א׳');
     const t = await createTemplate({ name: 'בד״ח יומי', system_id: sys.id });
     await addTask(t.id, { part_name: 'אזור', action: 'בדיקה', equipment: '' });
+    await certifyAllSystems(performer.id);
     const formId = await createDraftForm({ templateId: t.id, performer });
 
     await updateSystem(sys.id, { name: 'מערכת מעודכנת' });

@@ -13,28 +13,34 @@ import {
 } from './forms';
 import { addTask, createTemplate, updateTask } from './templates';
 import { RoleName, SignerType, TaskResult, FormStatus, type UserWithRoles } from '@/types';
-import { ensureRoles, makeUser, resetDb } from '@/test/helpers';
+import { ensureRoles, makeUser, resetDb, certifyAllSystems } from '@/test/helpers';
 
 const SIG = 'data:image/png;base64,AAAA';
 
-async function setupTemplate() {
+async function setupTemplate(perf: UserWithRoles, perf2?: UserWithRoles) {
   const t = await createTemplate({ name: 'בדיקה יומית' });
   const a = await addTask(t.id, { part_name: 'מנוע', action: 'בדיקת שמן', equipment: 'כפפות' });
   const b = await addTask(t.id, { part_name: 'חשמל', action: 'בדיקת חיבורים', equipment: 'פנס' });
+  // createTemplate auto-creates a default system/rank; certify the performers
+  // for it so the certification gating lets them work (mirrors production).
+  await certifyAllSystems(perf.id);
+  if (perf2) await certifyAllSystems(perf2.id);
   return { template: t, taskIds: [a.id, b.id] };
 }
 
 describe('forms service', () => {
   let performer: UserWithRoles;
+  let performer2: UserWithRoles;
 
   beforeEach(async () => {
     await resetDb();
     await ensureRoles();
     performer = await makeUser('perf', 'ישראל ישראלי', [RoleName.PERFORMER]);
+    performer2 = await makeUser('perf2', 'דוד כהן', [RoleName.PERFORMER]);
   });
 
   it('creates a draft with a frozen template snapshot and one task per template task', async () => {
-    const { template } = await setupTemplate();
+    const { template } = await setupTemplate(performer, performer2);
     const formId = await createDraftForm({ templateId: template.id, performer });
     const bundle = await getFormBundle(formId);
     expect(bundle).not.toBeNull();
@@ -45,7 +51,7 @@ describe('forms service', () => {
   });
 
   it('snapshot is immutable — later template edits do not change existing forms', async () => {
-    const { template, taskIds } = await setupTemplate();
+    const { template, taskIds } = await setupTemplate(performer, performer2);
     const formId = await createDraftForm({ templateId: template.id, performer });
     await updateTask(taskIds[0], { part_name: 'מנוע ששונה', action: 'שונה' });
     const bundle = await getFormBundle(formId);
@@ -55,7 +61,7 @@ describe('forms service', () => {
   });
 
   it('OK and FAULT are mutually exclusive; marking OK clears fault detail', async () => {
-    const { template } = await setupTemplate();
+    const { template } = await setupTemplate(performer, performer2);
     const formId = await createDraftForm({ templateId: template.id, performer });
     const tasks = await getFormTasks(formId);
     await setTaskResult(formId, performer.id, tasks[0].id, TaskResult.FAULT);
@@ -73,7 +79,7 @@ describe('forms service', () => {
   });
 
   it('validation blocks submit until all tasks marked and performer signed', async () => {
-    const { template } = await setupTemplate();
+    const { template } = await setupTemplate(performer, performer2);
     const formId = await createDraftForm({ templateId: template.id, performer });
     const tasks = await getFormTasks(formId);
 
@@ -96,7 +102,7 @@ describe('forms service', () => {
     expect(v.errors.join(' ')).toContain('שני מבצעים');
 
     await updateFormMeta(formId, performer.id, {
-      performer2_id: 'perf2-id',
+      performer2_id: performer2.id,
       performer2_name: 'דוד כהן',
     });
     v = await validateForSubmit(formId);
@@ -104,7 +110,7 @@ describe('forms service', () => {
 
     await addSignature({
       formId,
-      signer: { id: 'perf2-id', full_name: 'דוד כהן' },
+      signer: { id: performer2.id, full_name: 'דוד כהן' },
       type: SignerType.PERFORMER2,
       signatureData: SIG,
     });
@@ -113,7 +119,7 @@ describe('forms service', () => {
   });
 
   it('a fault without detail fails validation', async () => {
-    const { template } = await setupTemplate();
+    const { template } = await setupTemplate(performer, performer2);
     const formId = await createDraftForm({ templateId: template.id, performer });
     const tasks = await getFormTasks(formId);
     await setTaskResult(formId, performer.id, tasks[0].id, TaskResult.FAULT); // no comment
@@ -130,7 +136,7 @@ describe('forms service', () => {
   });
 
   it('locks editing after submit for approval', async () => {
-    const { template } = await setupTemplate();
+    const { template } = await setupTemplate(performer, performer2);
     const formId = await createDraftForm({ templateId: template.id, performer });
     const tasks = await getFormTasks(formId);
     await setTaskResult(formId, performer.id, tasks[0].id, TaskResult.OK);
@@ -142,12 +148,12 @@ describe('forms service', () => {
       signatureData: SIG,
     });
     await updateFormMeta(formId, performer.id, {
-      performer2_id: 'perf2-id',
+      performer2_id: performer2.id,
       performer2_name: 'דוד כהן',
     });
     await addSignature({
       formId,
-      signer: { id: 'perf2-id', full_name: 'דוד כהן' },
+      signer: { id: performer2.id, full_name: 'דוד כהן' },
       type: SignerType.PERFORMER2,
       signatureData: SIG,
     });
@@ -163,7 +169,7 @@ describe('forms service', () => {
 
   it('a non-performer cannot edit the form', async () => {
     const other = await makeUser('other', 'אחר', [RoleName.PERFORMER]);
-    const { template } = await setupTemplate();
+    const { template } = await setupTemplate(performer, performer2);
     const formId = await createDraftForm({ templateId: template.id, performer });
     await expect(updateFormMeta(formId, other.id, { performer2_name: 'x' })).rejects.toThrow();
   });

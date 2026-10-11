@@ -9,8 +9,9 @@ import {
 } from './performers';
 import { createDraftForm, getForm, updateFormMeta } from './forms';
 import { addTask, createTemplate } from './templates';
+import { setUserActive, updateUserProfile } from './auth';
 import { RoleName, type UserWithRoles } from '@/types';
-import { ensureRoles, makeUser, resetDb } from '@/test/helpers';
+import { ensureRoles, makeUser, resetDb, certifyAllSystems } from '@/test/helpers';
 
 describe('performers directory (מבצע 2)', () => {
   let performer: UserWithRoles;
@@ -40,9 +41,13 @@ describe('performers directory (מבצע 2)', () => {
   });
 
   it('preserves history: disabling a performer never changes past forms', async () => {
-    const p = await createPerformer('משה כהן');
+    // Performer 2 is now a real, certified PERFORMER user (per the certification
+    // model). The form still freezes a name snapshot at inspection time.
+    const p = await makeUser('moshe', 'משה כהן', [RoleName.PERFORMER]);
     const t = await createTemplate({ name: 'בדיקה יומית' });
     await addTask(t.id, { part_name: 'מנוע', action: 'שמן', equipment: 'כפפות' });
+    await certifyAllSystems(performer.id);
+    await certifyAllSystems(p.id);
     const formId = await createDraftForm({ templateId: t.id, performer });
 
     // Select performer 2 — both id and a name snapshot are stored.
@@ -52,7 +57,8 @@ describe('performers directory (מבצע 2)', () => {
     });
 
     // Admin later disables (and even renames) that person.
-    await updatePerformer(p.id, { full_name: 'שם חדש', active: false });
+    await updateUserProfile(p.id, { full_name: 'שם חדש' });
+    await setUserActive(p.id, false);
 
     const form = await getForm(formId);
     expect(form!.performer2_id).toBe(p.id); // link preserved

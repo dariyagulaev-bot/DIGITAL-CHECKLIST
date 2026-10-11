@@ -5,7 +5,7 @@ import { createRank } from './ranks';
 import { createTemplate, listTemplatesBy } from './templates';
 import { createDraftForm, getDashboardBreakdowns, getForm } from './forms';
 import { RoleName, type UserWithRoles } from '@/types';
-import { ensureRoles, makeUser, resetDb } from '@/test/helpers';
+import { ensureRoles, makeUser, resetDb, certifyAllSystems } from '@/test/helpers';
 
 describe('dynamic hierarchy: system → unit → rank → template', () => {
   let performer: UserWithRoles;
@@ -40,6 +40,7 @@ describe('dynamic hierarchy: system → unit → rank → template', () => {
     const rank = await createRank('דרג ג׳');
     const tpl = await createTemplate({ name: 'בדיקה שבועית', system_id: sys.id, rank_id: rank.id });
 
+    await certifyAllSystems(performer.id);
     const formId = await createDraftForm({ templateId: tpl.id, performer, unitId: unit.id });
     const form = await getForm(formId);
     expect(form!.system_name_snapshot).toBe('מערכת רדאר');
@@ -63,6 +64,7 @@ describe('dynamic hierarchy: system → unit → rank → template', () => {
     const sys = await createSystem('מערכת סטטיסטיקה');
     const rank = await createRank('דרג א׳');
     const tpl = await createTemplate({ name: 'בד״ח', system_id: sys.id, rank_id: rank.id });
+    await certifyAllSystems(performer.id);
     await createDraftForm({ templateId: tpl.id, performer });
     await createDraftForm({ templateId: tpl.id, performer });
 

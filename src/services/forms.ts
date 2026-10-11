@@ -8,6 +8,7 @@ import {
   FormStatus,
   SignerType,
   TaskResult,
+  RoleName,
   DEFAULT_CLASSIFICATION,
   type CompletedForm,
   type CompletedTask,
@@ -17,6 +18,8 @@ import {
   type UserWithRoles,
 } from '@/types';
 import { equipmentItemsOf } from '@/exports/labels';
+import { isUserCertified } from './certifications';
+import { getUserById, getUserRoles } from './auth';
 
 /** Full aggregate for a form. */
 export interface FormBundle {
@@ -75,6 +78,18 @@ export async function createDraftForm(params: {
 }): Promise<string> {
   const template = await getTemplate(params.templateId);
   if (!template) throw new Error('התבנית לא נמצאה');
+  // Enforce certification (business layer, not only the wizard UI): the
+  // performer must be certified for this system up to at least this rank.
+  // Admins are superusers and exempt. A later certification change never
+  // touches this form — its context is snapshotted below.
+  if (!params.performer.roles.includes(RoleName.ADMIN)) {
+    const ok = await isUserCertified(
+      params.performer.id,
+      template.system_id ?? null,
+      template.rank_id ?? null
+    );
+    if (!ok) throw new Error('אינך מוסמך למערכת ולדרג של בד״ח זה.');
+  }
   const templateTasks = await getTemplateTasks(params.templateId);
   const system = template.system_id ? await getSystem(template.system_id) : undefined;
   const unit = params.unitId ? await getUnit(params.unitId) : undefined;
@@ -200,6 +215,18 @@ export async function updateFormMeta(
   patch: Partial<Pick<CompletedForm, 'performer2_id' | 'performer2_name'>>
 ): Promise<void> {
   const form = await assertEditable(formId, userId);
+  // Performer-2 gate (enforced here, not only by the filtered picker): an active
+  // PERFORMER, not performer 1, and certified for this form's system + rank.
+  if (patch.performer2_id) {
+    if (patch.performer2_id === form.performer_user_id)
+      throw new Error('מבצע 2 אינו יכול להיות זהה למבצע 1.');
+    const u = await getUserById(patch.performer2_id);
+    const roles = await getUserRoles(patch.performer2_id);
+    if (!u || !u.active || !roles.includes(RoleName.PERFORMER))
+      throw new Error('מבצע 2 חייב להיות משתמש פעיל בעל הרשאת מבצע.');
+    const certified = await isUserCertified(patch.performer2_id, form.system_id, form.rank_id);
+    if (!certified) throw new Error('מבצע 2 אינו מוסמך למערכת ולדרג של בד״ח זה.');
+  }
   await db.completed_forms.update(formId, patch);
   await touchInProgress(form);
 }

@@ -15,6 +15,7 @@ import type {
   AuditEntry,
   Setting,
   Counter,
+  UserSystemRank,
 } from '@/types';
 
 /**
@@ -38,6 +39,7 @@ export class ChecklistDB extends Dexie {
   audit_log!: Table<AuditEntry, string>;
   settings!: Table<Setting, string>;
   counters!: Table<Counter, string>;
+  user_system_ranks!: Table<UserSystemRank, string>;
 
   constructor(name = 'digital_checklist') {
     super(name);
@@ -227,6 +229,50 @@ export class ChecklistDB extends Dexie {
               tx.table('completed_forms').update(f.id, { updated_at: f.created_at })
             )
         );
+      });
+
+    // v9: per-system/rank user certifications (הסמכות). A row means the user is
+    // certified for that system up to `max_rank_id` (ranks are hierarchical).
+    // Backfill is NON-DESTRUCTIVE and preserves existing access: every current
+    // PERFORMER gets a certification at the TOP rank for every system, so no one
+    // loses the ability to work until an admin narrows it down.
+    this.version(9)
+      .stores({
+        user_system_ranks: 'id, user_id, system_id, [user_id+system_id]',
+      })
+      .upgrade(async (tx) => {
+        const now = new Date().toISOString();
+        const ranks = (await tx.table('ranks').toArray()).sort(
+          (a: Rank, b: Rank) => a.sort_order - b.sort_order
+        );
+        const systems = await tx.table('systems').toArray();
+        if (!ranks.length || !systems.length) return;
+        const topRankId = ranks[ranks.length - 1].id;
+        const roles = await tx.table('roles').toArray();
+        const performerRoleId = roles.find((r: Role) => r.name === 'PERFORMER')?.id;
+        if (!performerRoleId) return;
+        const userRoles = await tx.table('user_roles').toArray();
+        const performerIds = [
+          ...new Set(
+            userRoles
+              .filter((ur: UserRole) => ur.role_id === performerRoleId)
+              .map((ur: UserRole) => ur.user_id)
+          ),
+        ];
+        const rows = [];
+        for (const uid of performerIds) {
+          for (const s of systems) {
+            rows.push({
+              id: crypto.randomUUID(),
+              user_id: uid,
+              system_id: s.id,
+              max_rank_id: topRankId,
+              created_at: now,
+              updated_at: now,
+            });
+          }
+        }
+        if (rows.length) await tx.table('user_system_ranks').bulkAdd(rows);
       });
   }
 }

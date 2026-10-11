@@ -25,7 +25,7 @@ import {
   type FormBundle,
 } from '@/services/forms';
 import { fileToManagedDataUrl } from '@/services/images';
-import { listPerformerUsers } from '@/services/auth';
+import { listCertifiedPerformerUsers } from '@/services/certifications';
 import { FormStatus, SignerType, TaskResult, type CompletedTask, type Signature } from '@/types';
 import { equipmentItemsOf, formatDateDots, formatDateTime, formatStamp, faultTreatmentStatus } from '@/exports/labels';
 import { PerformerSelect } from '@/components/PerformerSelect';
@@ -72,10 +72,15 @@ export default function FormRunnerPage() {
     load();
   }, [load]);
 
-  // מבצע 2 options: real active users who hold the PERFORMER role (offline, local DB).
+  // מבצע 2 options: active PERFORMER users CERTIFIED for this form's system +
+  // rank (hierarchical), excluding performer 1. Enforced again on save.
   useEffect(() => {
-    listPerformerUsers().then(setPerformers).catch(() => setPerformers([]));
-  }, []);
+    const f = bundle?.form;
+    if (!f) return;
+    listCertifiedPerformerUsers(f.system_id, f.rank_id, f.performer_user_id)
+      .then(setPerformers)
+      .catch(() => setPerformers([]));
+  }, [bundle?.form]);
 
   // Guard back-navigation while either performer has drawn but not saved a signature.
   useUnsavedGuard(

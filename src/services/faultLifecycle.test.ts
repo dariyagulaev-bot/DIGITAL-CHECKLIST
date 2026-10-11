@@ -15,15 +15,19 @@ import { addTask, createTemplate } from './templates';
 import { finalizeApproval, returnForFix } from './approval';
 import { currentResult } from '@/exports/labels';
 import { FormStatus, RoleName, SignerType, TaskResult, type UserWithRoles } from '@/types';
-import { ensureRoles, makeUser, resetDb } from '@/test/helpers';
+import { ensureRoles, makeUser, resetDb, certifyAllSystems } from '@/test/helpers';
 
 const SIG = 'data:image/png;base64,AAAA';
+
+// A real second-performer user (certification gating requires a real, active
+// PERFORMER for מבצע 2). Assigned in beforeEach, used by signBoth below.
+let perf2User: UserWithRoles;
 
 async function signBoth(formId: string, performer: UserWithRoles) {
   await addSignature({ formId, signer: performer, type: SignerType.PERFORMER, signatureData: SIG });
   await addSignature({
     formId,
-    signer: { id: 'perf2', full_name: 'דוד כהן' },
+    signer: { id: perf2User.id, full_name: perf2User.full_name },
     type: SignerType.PERFORMER2,
     signatureData: SIG,
   });
@@ -39,18 +43,21 @@ describe('fault-handling lifecycle', () => {
     await resetDb();
     await ensureRoles();
     performer = await makeUser('perf', 'ישראל ישראלי', [RoleName.PERFORMER], 'pw');
+    perf2User = await makeUser('perf2', 'דוד כהן', [RoleName.PERFORMER], 'pw');
     approver = await makeUser('appr', 'דנה כהן', [RoleName.APPROVER], 'pw');
 
     const t = await createTemplate({ name: 'בדיקה' });
     await addTask(t.id, { part_name: 'מנוע', action: 'שמן', equipment: 'כפפות' });
     await addTask(t.id, { part_name: 'חשמל', action: 'חיבורים', equipment: 'פנס' });
+    await certifyAllSystems(performer.id);
+    await certifyAllSystems(perf2User.id);
     formId = await createDraftForm({ templateId: t.id, performer });
     const tasks = await getFormTasks(formId);
     faultTaskId = tasks[1].id;
     await setTaskResult(formId, performer.id, tasks[0].id, TaskResult.OK);
     await setTaskResult(formId, performer.id, tasks[1].id, TaskResult.FAULT);
     await setTaskComment(formId, performer.id, tasks[1].id, 'מחבר רופף');
-    await updateFormMeta(formId, performer.id, { performer2_id: 'perf2', performer2_name: 'דוד כהן' });
+    await updateFormMeta(formId, performer.id, { performer2_id: perf2User.id, performer2_name: perf2User.full_name });
     await signBoth(formId, performer);
     await submitForApproval(formId, performer.id);
   });
@@ -133,11 +140,13 @@ describe('fault-handling lifecycle', () => {
     const t = await createTemplate({ name: 'הכל תקין' });
     await addTask(t.id, { part_name: 'א', action: 'בדיקה', equipment: '' });
     await addTask(t.id, { part_name: 'ב', action: 'בדיקה', equipment: '' });
+    await certifyAllSystems(performer.id);
+    await certifyAllSystems(perf2User.id);
     const okFormId = await createDraftForm({ templateId: t.id, performer });
     const okTasks = await getFormTasks(okFormId);
     await setTaskResult(okFormId, performer.id, okTasks[0].id, TaskResult.OK);
     await setTaskResult(okFormId, performer.id, okTasks[1].id, TaskResult.OK);
-    await updateFormMeta(okFormId, performer.id, { performer2_id: 'perf2', performer2_name: 'דוד כהן' });
+    await updateFormMeta(okFormId, performer.id, { performer2_id: perf2User.id, performer2_name: perf2User.full_name });
     await signBoth(okFormId, performer);
     await submitForApproval(okFormId, performer.id);
 

@@ -8,12 +8,15 @@ import {
   updateUserProfile,
 } from '@/services/auth';
 import { logAudit } from '@/services/audit';
+import { listSystems } from '@/services/systems';
+import { listRanks } from '@/services/ranks';
+import { listCertifications, setCertification } from '@/services/certifications';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { Modal, Spinner } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { roleLabel } from '@/exports/labels';
-import { RoleName, type UserWithRoles } from '@/types';
+import { RoleName, type Rank, type System, type UserWithRoles } from '@/types';
 
 const ALL_ROLES = [RoleName.PERFORMER, RoleName.APPROVER, RoleName.ADMIN];
 
@@ -211,6 +214,14 @@ function UserEditor({
             ))}
           </div>
         </div>
+
+        {user && admin && (
+          <UserCertifications
+            userId={user.id}
+            actor={{ id: admin.id, full_name: admin.full_name }}
+          />
+        )}
+
         <div className="flex gap-3 pt-2">
           <button type="submit" className="btn-primary flex-1" disabled={busy}>
             שמור
@@ -221,5 +232,104 @@ function UserEditor({
         </div>
       </form>
     </Modal>
+  );
+}
+
+/**
+ * Per-system certification editor (הסמכות / שיוך למערכות ודרגים). For each
+ * system the admin picks ONE "דרג הסמכה מרבי" — the highest rank the user may
+ * inspect in that system. Because ranks are hierarchical, that single choice
+ * covers every rank below it, so an illegal combination (e.g. ד׳ without ב׳)
+ * cannot be expressed. "ללא הסמכה" removes the certification for the system.
+ * Each change is persisted immediately and audited (user + date + exact time).
+ */
+function UserCertifications({
+  userId,
+  actor,
+}: {
+  userId: string;
+  actor: { id: string; full_name: string };
+}) {
+  const { notify } = useToast();
+  const [systems, setSystems] = useState<System[] | null>(null);
+  const [ranks, setRanks] = useState<Rank[]>([]);
+  const [maxBySystem, setMaxBySystem] = useState<Map<string, string>>(new Map());
+  const [savingId, setSavingId] = useState<string | null>(null);
+
+  const load = async () => {
+    const [sys, rnk, certs] = await Promise.all([
+      listSystems(false),
+      listRanks(false),
+      listCertifications(userId),
+    ]);
+    setSystems(sys);
+    setRanks([...rnk].sort((a, b) => a.sort_order - b.sort_order));
+    setMaxBySystem(new Map(certs.map((c) => [c.system_id, c.max_rank_id])));
+  };
+
+  useEffect(() => {
+    load().catch(() => setSystems([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  const change = async (systemId: string, maxRankId: string | null) => {
+    setSavingId(systemId);
+    try {
+      await setCertification(userId, systemId, maxRankId, actor);
+      setMaxBySystem((prev) => {
+        const next = new Map(prev);
+        if (maxRankId) next.set(systemId, maxRankId);
+        else next.delete(systemId);
+        return next;
+      });
+      notify('ההסמכה נשמרה', 'ok');
+    } catch (err) {
+      notify((err as Error).message, 'error');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+      <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+        <Icon name="shield-check" size={16} />
+        הסמכות — שיוך למערכות ודרגים
+      </div>
+      {systems === null ? (
+        <Spinner />
+      ) : systems.length === 0 ? (
+        <p className="text-sm text-slate-500">לא הוגדרו מערכות במערכת.</p>
+      ) : ranks.length === 0 ? (
+        <p className="text-sm text-slate-500">לא הוגדרו דרגים במערכת.</p>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-xs text-slate-500">
+            לכל מערכת נבחר דרג הסמכה מרבי. דרג גבוה כולל אוטומטית את כל הדרגים שתחתיו.
+          </p>
+          {systems.map((s) => {
+            const current = maxBySystem.get(s.id) ?? '';
+            return (
+              <div key={s.id} className="flex items-center gap-3">
+                <span className="min-w-[8rem] flex-1 text-sm text-slate-700">{s.name}</span>
+                <select
+                  className="input w-48"
+                  value={current}
+                  disabled={savingId === s.id}
+                  onChange={(e) => change(s.id, e.target.value || null)}
+                >
+                  <option value="">ללא הסמכה</option>
+                  {ranks.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
