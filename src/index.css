@@ -345,9 +345,15 @@
   /* Keep whole blocks together so a page never breaks mid-card or leaves a
      near-empty trailing page. */
   .sig-grid,
-  .fault-card {
+  .fault-card,
+  .avoid-break {
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+  /* A measurement table may be long; allow it to break across pages but keep
+     each row intact and repeat the column header (thead rule above). */
+  .measure-table table {
+    page-break-inside: auto;
   }
 
   /* A fixed-position element repeats on every page in Chromium print output. */

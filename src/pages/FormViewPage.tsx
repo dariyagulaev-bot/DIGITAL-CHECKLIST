@@ -5,6 +5,7 @@ import { exportFormToExcel } from '@/exports/excel';
 import { elementToPdf } from '@/exports/pdf';
 import { Spinner } from '@/components/ui';
 import { BackButton } from '@/components/Layout';
+import { BlockContent } from '@/components/BlockContent';
 import { Icon } from '@/components/Icon';
 import { VeroLogo } from '@/components/VeroLogo';
 import { useToast } from '@/context/ToastContext';
@@ -43,7 +44,7 @@ export default function FormViewPage() {
   if (loading) return <Spinner label="טוען…" />;
   if (!bundle) return <div className="p-6">הבד״ח לא נמצא.</div>;
 
-  const { form, tasks, signatures } = bundle;
+  const { form, tasks, blocks, signatures } = bundle;
   const approved = form.status === FormStatus.APPROVED;
   const perf = signatures.find((s) => s.signer_type === SignerType.PERFORMER);
   const perf2 = signatures.find((s) => s.signer_type === SignerType.PERFORMER2);
@@ -206,42 +207,71 @@ export default function FormViewPage() {
           </div>
         </div>
 
-        {/* Tasks table — scrolls horizontally on a narrow screen; prints full. */}
-        <div className="-mx-1 overflow-x-auto">
-        <table className="w-full min-w-[520px] border-collapse text-right text-sm">
-          <thead>
-            <tr className="bg-slate-800 text-white">
-              <th className="border border-slate-300 p-2">שם האזור</th>
-              <th className="border border-slate-300 p-2">פעולה</th>
-              <th className="border border-slate-300 p-2">ציוד נדרש</th>
-              <th className="border border-slate-300 p-2 text-center">תקין</th>
-              <th className="border border-slate-300 p-2 text-center">לא תקין</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tasks.map((t) => {
-              const cur = currentResult(t);
-              const isOk = cur === TaskResult.OK;
-              const isFault = cur === TaskResult.FAULT;
-              return (
-                <tr key={t.id} className={isFault ? 'bg-fault-50' : ''}>
-                  <td className="border border-slate-300 p-2 align-top font-medium">{t.part_name_snapshot}</td>
-                  <td className="border border-slate-300 p-2 align-top">{t.action_snapshot}</td>
-                  <td className="border border-slate-300 p-2 align-top">
-                    <ReportEquipment items={t.equipment_items_snapshot} fallback={t.equipment_snapshot} />
-                  </td>
-                  <td className="border border-slate-300 p-2 text-center text-lg font-bold text-ok-600">
-                    {isOk ? '✓' : ''}
-                  </td>
-                  <td className="border border-slate-300 p-2 text-center text-lg font-bold text-fault-600">
-                    {isFault ? '✕' : ''}
-                  </td>
-                </tr>
+        {/* Unified content — check rows grouped into tables, with sections,
+            instructions, images, equipment and measurement tables interleaved
+            in the admin-designed order. Read-only; prints full. */}
+        {(() => {
+          type Item =
+            | { sort: number; kind: 'check'; task: (typeof tasks)[number] }
+            | { sort: number; kind: 'block'; block: (typeof blocks)[number] };
+          const items: Item[] = [
+            ...tasks.map((t) => ({ sort: t.sort_order, kind: 'check' as const, task: t })),
+            ...blocks.map((b) => ({ sort: b.sort_order, kind: 'block' as const, block: b })),
+          ].sort((a, b) => a.sort - b.sort);
+          const nodes: React.ReactNode[] = [];
+          let buf: typeof tasks = [];
+          const flush = (keyId: string) => {
+            if (!buf.length) return;
+            const group = buf;
+            buf = [];
+            nodes.push(
+              <div key={`checks-${keyId}`} className="-mx-1 overflow-x-auto">
+                <table className="w-full min-w-[520px] border-collapse text-right text-sm">
+                  <thead>
+                    <tr className="bg-slate-800 text-white">
+                      <th className="border border-slate-300 p-2">שם האזור</th>
+                      <th className="border border-slate-300 p-2">פעולה</th>
+                      <th className="border border-slate-300 p-2">ציוד נדרש</th>
+                      <th className="border border-slate-300 p-2 text-center">תקין</th>
+                      <th className="border border-slate-300 p-2 text-center">לא תקין</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {group.map((t) => {
+                      const cur = currentResult(t);
+                      const isOk = cur === TaskResult.OK;
+                      const isFault = cur === TaskResult.FAULT;
+                      return (
+                        <tr key={t.id} className={isFault ? 'bg-fault-50' : ''}>
+                          <td className="border border-slate-300 p-2 align-top font-medium">{t.part_name_snapshot}</td>
+                          <td className="border border-slate-300 p-2 align-top">{t.action_snapshot}</td>
+                          <td className="border border-slate-300 p-2 align-top">
+                            <ReportEquipment items={t.equipment_items_snapshot} fallback={t.equipment_snapshot} />
+                          </td>
+                          <td className="border border-slate-300 p-2 text-center text-lg font-bold text-ok-600">{isOk ? '✓' : ''}</td>
+                          <td className="border border-slate-300 p-2 text-center text-lg font-bold text-fault-600">{isFault ? '✕' : ''}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            );
+          };
+          items.forEach((it, i) => {
+            if (it.kind === 'check') buf.push(it.task);
+            else {
+              flush(`b${i}`);
+              nodes.push(
+                <div key={it.block.id} className="avoid-break">
+                  <BlockContent block={it.block} context="report" />
+                </div>
               );
-            })}
-          </tbody>
-        </table>
-        </div>
+            }
+          });
+          flush('end');
+          return <div className="space-y-3">{nodes}</div>;
+        })()}
 
         {/* Totals */}
         <div className="mt-3 flex flex-wrap gap-4 text-sm font-semibold text-slate-700">

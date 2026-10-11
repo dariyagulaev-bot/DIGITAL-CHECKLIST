@@ -16,6 +16,7 @@ import {
   getFormBundle,
   isEditableByPerformer,
   reportRepair,
+  setBlockData,
   setTaskComment,
   setTaskFaultImage,
   setTaskResult,
@@ -34,9 +35,11 @@ import { Modal, Spinner, StatusBadge } from '@/components/ui';
 import { FaultModal } from '@/components/FaultModal';
 import { RepairModal } from '@/components/RepairModal';
 import { FaultTimeline } from '@/components/FaultTimeline';
+import { BlockContent } from '@/components/BlockContent';
 import { Icon } from '@/components/Icon';
 import { ApprovalSection } from './ApprovalSection';
 import { TreatmentSection } from './TreatmentSection';
+import type { CompletedBlock } from '@/types';
 
 interface PerfSigHandle {
   isDirty: () => boolean;
@@ -58,6 +61,10 @@ export default function FormRunnerPage() {
   const [faultTaskId, setFaultTaskId] = useState<string | null>(null);
   const [repairTaskId, setRepairTaskId] = useState<string | null>(null);
   const [checkedTools, setCheckedTools] = useState<Set<string>>(new Set());
+  // Local, responsive overlay of measurement-table cells (keeps typing smooth);
+  // persisted to the DB (autosave) via a short debounce per block.
+  const [tableCells, setTableCells] = useState<Record<string, Record<string, string>>>({});
+  const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const sig1 = useRef<PerfSigHandle>(null);
   const sig2 = useRef<PerfSigHandle>(null);
@@ -66,6 +73,12 @@ export default function FormRunnerPage() {
     if (!id) return;
     const b = await getFormBundle(id);
     setBundle(b);
+    // Seed the local cell overlay from the persisted block data.
+    const seed: Record<string, Record<string, string>> = {};
+    for (const blk of b?.blocks ?? []) {
+      if (blk.type === 'table') seed[blk.id] = { ...(blk.data?.cells ?? {}) };
+    }
+    setTableCells(seed);
     setLoading(false);
   }, [id]);
 
@@ -95,7 +108,7 @@ export default function FormRunnerPage() {
   if (loading) return <Spinner label="טוען בד״ח…" />;
   if (!bundle || !user) return <div className="card p-6">הבד״ח לא נמצא.</div>;
 
-  const { form, tasks, signatures } = bundle;
+  const { form, tasks, blocks, signatures } = bundle;
   const editable = isEditableByPerformer(form) && form.performer_user_id === user.id;
   const perf1Sig = signatures.find((s) => s.signer_type === SignerType.PERFORMER);
   const perf2Sig = signatures.find((s) => s.signer_type === SignerType.PERFORMER2);
@@ -109,12 +122,18 @@ export default function FormRunnerPage() {
   // a pre-work aid for the performer only (never shown in view / PDF / print).
   const toolList: string[] = [];
   const seenTool = new Set<string>();
+  const addTool = (it: string) => {
+    if (it && !seenTool.has(it)) {
+      seenTool.add(it);
+      toolList.push(it);
+    }
+  };
   for (const t of tasks) {
-    for (const it of equipmentItemsOf(t.equipment_items_snapshot, t.equipment_snapshot)) {
-      if (!seenTool.has(it)) {
-        seenTool.add(it);
-        toolList.push(it);
-      }
+    for (const it of equipmentItemsOf(t.equipment_items_snapshot, t.equipment_snapshot)) addTool(it);
+  }
+  for (const b of blocks) {
+    if (b.type === 'equipment') {
+      for (const it of (b.config_snapshot as { items?: string[] }).items ?? []) addTool(it);
     }
   }
 
@@ -171,6 +190,16 @@ export default function FormRunnerPage() {
     await reportRepair({ formId: form.id, userId: user.id, taskId: repairTaskId, ...r });
     notify('הדיווח על הטיפול נשמר', 'ok');
     await load();
+  };
+
+  // Measurement-table edit: update the local overlay immediately (smooth typing)
+  // and debounce-persist to the DB (autosave, survives restart).
+  const onTableChange = (blockId: string, cells: Record<string, string>) => {
+    setTableCells((prev) => ({ ...prev, [blockId]: cells }));
+    if (saveTimers.current[blockId]) clearTimeout(saveTimers.current[blockId]);
+    saveTimers.current[blockId] = setTimeout(() => {
+      setBlockData(form.id, user.id, blockId, cells).catch((e) => notify((e as Error).message, 'error'));
+    }, 250);
   };
 
   const saveSig = async (type: SignerType, signer: { id: string; full_name: string }, dataUrl: string) => {
@@ -422,48 +451,89 @@ export default function FormRunnerPage() {
         </div>
       </section>
 
-      {/* Tasks table */}
-      <section className="card overflow-hidden">
-        <div className="panel-head">
-          <span className="panel-title">רשימת הבדיקות</span>
-          <span className="nums text-[13px] font-medium text-ink-400">{total} סעיפים</span>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>שם האזור</th>
-                <th>פעולה</th>
-                <th>ציוד נדרש</th>
-                <th className="text-center">תמונה</th>
-                <th className="whitespace-nowrap text-center">תוצאה</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tasks.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  editable={editable}
-                  resultsLocked={returned}
-                  canReport={editable && returned}
-                  onResult={(r) => onResult(task, r)}
-                  onOpenFault={() => openFault(task)}
-                  onReportRepair={() => setRepairTaskId(task.id)}
-                  onViewImage={(src) => setLightbox(src)}
-                />
-              ))}
-              {tasks.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="py-10 text-center text-ink-400">
-                    אין בדיקות בבד״ח זה
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      {/* Unified בד״ח content — checks, sections, instructions, images,
+          equipment and measurement tables, in the exact order the admin
+          designed. Consecutive check rows are grouped into one table. */}
+      {(() => {
+        type Item =
+          | { sort: number; kind: 'check'; task: CompletedTask }
+          | { sort: number; kind: 'block'; block: CompletedBlock };
+        const items: Item[] = [
+          ...tasks.map((t) => ({ sort: t.sort_order, kind: 'check' as const, task: t })),
+          ...blocks.map((b) => ({ sort: b.sort_order, kind: 'block' as const, block: b })),
+        ].sort((a, b) => a.sort - b.sort);
+
+        const nodes: React.ReactNode[] = [];
+        let buf: CompletedTask[] = [];
+        const flush = (keyId: string) => {
+          if (!buf.length) return;
+          const group = buf;
+          buf = [];
+          nodes.push(
+            <section key={`checks-${keyId}`} className="card overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="tbl">
+                  <thead>
+                    <tr>
+                      <th>שם האזור</th>
+                      <th>פעולה</th>
+                      <th>ציוד נדרש</th>
+                      <th className="text-center">תמונה</th>
+                      <th className="whitespace-nowrap text-center">תוצאה</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {group.map((task) => (
+                      <TaskRow
+                        key={task.id}
+                        task={task}
+                        editable={editable}
+                        resultsLocked={returned}
+                        canReport={editable && returned}
+                        onResult={(r) => onResult(task, r)}
+                        onOpenFault={() => openFault(task)}
+                        onReportRepair={() => setRepairTaskId(task.id)}
+                        onViewImage={(src) => setLightbox(src)}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          );
+        };
+
+        items.forEach((it, i) => {
+          if (it.kind === 'check') {
+            buf.push(it.task);
+          } else {
+            flush(`b${i}`);
+            const blk =
+              it.block.type === 'table'
+                ? { ...it.block, data: { ...it.block.data, cells: tableCells[it.block.id] ?? it.block.data?.cells ?? {} } }
+                : it.block;
+            nodes.push(
+              <BlockContent
+                key={it.block.id}
+                block={blk as CompletedBlock}
+                context="execution"
+                editable={editable}
+                onTableChange={onTableChange}
+                onViewImage={(src) => setLightbox(src)}
+              />
+            );
+          }
+        });
+        flush('end');
+        if (nodes.length === 0) {
+          nodes.push(
+            <section key="empty" className="card p-10 text-center text-ink-400">
+              אין תוכן בבד״ח זה
+            </section>
+          );
+        }
+        return <div className="space-y-4">{nodes}</div>;
+      })()}
 
       {/* Two performer signatures (drawn on the touch screen; no manual fields) */}
       <div className="grid gap-4 sm:grid-cols-2">

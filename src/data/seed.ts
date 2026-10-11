@@ -210,6 +210,50 @@ export async function runSeed(): Promise<void> {
     { part_name: 'חיבורי תקשורת', action: 'בדיקת ממשקים', equipment: 'כבל בדיקה', image_data: null, sort_order: 1 },
   ]);
 
+  // Demo Dynamic-Builder content on "בדיקה תקופתית": a section, an instruction
+  // and a measurement table with a ±25 gap rule (the spec's 4-hour example), so
+  // the new block types + ±X calc are visible/testable out of the box.
+  const tproc = await db.templates.where('name').equals('בדיקה תקופתית').first();
+  if (tproc) {
+    const { ensureBlocks, getTemplateBlocks, addBlock } = await import('@/services/blocks');
+    await ensureBlocks(tproc.id);
+    const existing = await getTemplateBlocks(tproc.id);
+    if (!existing.some((b) => b.type === 'table')) {
+      await addBlock(tproc.id, 'section', { title: 'בדיקות נתוני עבודה' });
+      await addBlock(tproc.id, 'text', { text: 'יש לבצע את המדידה לאחר 4 שעות עבודה רצופות.' });
+      const cNum = newId();
+      const cTime = newId();
+      const rInit = newId();
+      const rFin = newId();
+      await addBlock(tproc.id, 'table', {
+        title: 'בדיקת נתוני עבודה – 4 שעות',
+        description: '',
+        duration_label: '4 שעות',
+        required: false,
+        columns: [
+          { id: cNum, label: 'מספר', field_type: 'number', required: false, unit: '' },
+          { id: cTime, label: 'שעה', field_type: 'time', required: false },
+        ],
+        rows: [
+          { id: rInit, label: 'תחילת בדיקה' },
+          { id: rFin, label: 'סיום בדיקה' },
+        ],
+        rules: [
+          {
+            id: newId(),
+            type: 'delta',
+            initial: { row_id: rInit, col_id: cNum },
+            final: { row_id: rFin, col_id: cNum },
+            allowed_difference: 25,
+            fail_on_exceed: true,
+          },
+        ],
+        show_in_execution: true,
+        show_in_pdf: true,
+      });
+    }
+  }
+
   // Demo certifications (הסמכות) — show the hierarchy in action:
   //  • ישראל ישראלי + דני כהן: full access (מערכת א׳ עד דרג ב׳, מערכת ב׳ עד דרג א׳)
   //  • יוסי לוי: מערכת א׳ עד דרג א׳ בלבד, ללא הסמכה למערכת ב׳

@@ -27,6 +27,7 @@ import type { BlockSnapshot, CheckRefConfig, CompletedBlock, TaskSnapshot } from
 export interface FormBundle {
   form: CompletedForm;
   tasks: CompletedTask[];
+  blocks: CompletedBlock[];
   signatures: Signature[];
 }
 
@@ -228,11 +229,12 @@ export async function getFormSignatures(formId: string): Promise<Signature[]> {
 export async function getFormBundle(formId: string): Promise<FormBundle | null> {
   const form = await getForm(formId);
   if (!form) return null;
-  const [tasks, signatures] = await Promise.all([
+  const [tasks, blocks, signatures] = await Promise.all([
     getFormTasks(formId),
+    getFormBlocks(formId),
     getFormSignatures(formId),
   ]);
-  return { form, tasks, signatures };
+  return { form, tasks, blocks, signatures };
 }
 
 /**
@@ -361,6 +363,28 @@ export async function reportRepair(params: {
   await db.completed_forms.update(form.id, { updated_at: now });
 }
 
+/**
+ * Save the user-entered values of a table block and recompute its ±X results.
+ * Autosaved to the local DB on every change (survives app restart). Numbers are
+ * evaluated numerically; nothing here can force a result that contradicts the
+ * data (the result is always derived from the cells).
+ */
+export async function setBlockData(
+  formId: string,
+  userId: string,
+  blockId: string,
+  cells: Record<string, string>
+): Promise<void> {
+  const form = await assertEditable(formId, userId);
+  const block = await db.completed_blocks.get(blockId);
+  if (!block || block.completed_form_id !== formId) throw new Error('הרכיב לא נמצא');
+  const { evaluateTable } = await import('./measurements');
+  const config = block.config_snapshot as import('@/types').TableConfig;
+  const results = block.type === 'table' ? evaluateTable(config, cells) : [];
+  await db.completed_blocks.update(blockId, { data: { cells, results } });
+  await touchInProgress(form);
+}
+
 export async function setTaskComment(
   formId: string,
   userId: string,
@@ -425,13 +449,25 @@ export async function validateForSubmit(formId: string): Promise<SubmitValidatio
   const bundle = await getFormBundle(formId);
   const errors: string[] = [];
   if (!bundle) return { ok: false, errors: ['הבד״ח לא נמצא'] };
-  const { form, tasks, signatures } = bundle;
+  const { form, tasks, blocks, signatures } = bundle;
   if (!form.name.trim()) errors.push('חסר שם בד״ח');
   if (!form.date) errors.push('חסר תאריך');
   if (!form.performer2_name?.trim())
     errors.push('יש לבחור מבצע שני. הבדיקה מחייבת שני מבצעים.');
   const unset = tasks.filter((t) => t.result === TaskResult.UNSET);
   if (unset.length) errors.push(`ישנם ${unset.length} סעיפים שלא סומנו (תקין/לא תקין)`);
+  // Required measurement tables / columns must be filled before submit.
+  for (const b of blocks) {
+    if (b.type !== 'table') continue;
+    const cfg = b.config_snapshot as import('@/types').TableConfig;
+    const cells = b.data?.cells ?? {};
+    const reqCols = cfg.columns.filter((c) => cfg.required || c.required);
+    if (reqCols.length === 0) continue;
+    const missing = cfg.rows.some((r) =>
+      reqCols.some((c) => !(cells[`${r.id}|${c.id}`] ?? '').trim())
+    );
+    if (missing) errors.push(`יש למלא את כל השדות הנדרשים בטבלה "${cfg.title}"`);
+  }
   const faultsMissingDetail = tasks.filter(
     (t) => t.result === TaskResult.FAULT && !t.comment.trim()
   );
@@ -482,6 +518,30 @@ export async function submitForApproval(formId: string, userId: string): Promise
     completed_at: now,
     updated_at: now,
   });
+
+  // Audit meaningful measurement outcomes (a ±X exceedance), so a gap breach is
+  // traceable — without flooding the log with a per-keystroke event.
+  const blocks = await getFormBlocks(formId);
+  const tableBlocks = blocks.filter((b) => b.type === 'table');
+  if (tableBlocks.length) {
+    const { tableFailStatus } = await import('./measurements');
+    const { logAudit } = await import('./audit');
+    for (const b of tableBlocks) {
+      const cfg = b.config_snapshot as import('@/types').TableConfig;
+      const status = tableFailStatus(cfg, b.data?.results ?? []);
+      if (status === false) {
+        await logAudit({
+          user_id: form.performer_user_id,
+          user_name: form.performer_name,
+          action: 'MEASUREMENT_EXCEEDED',
+          entity_type: 'completed_form',
+          entity_id: formId,
+          field: cfg.title,
+          new_value: 'חריגה מהפער המותר',
+        });
+      }
+    }
+  }
 }
 
 // -------------------------------------------------------------------------

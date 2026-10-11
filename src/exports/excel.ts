@@ -1,7 +1,8 @@
 import type ExcelJSType from 'exceljs';
 import { getFormBundle } from '@/services/forms';
 import { statusLabel, equipmentItemsOf, currentResult } from './labels';
-import { FormStatus, SignerType, TaskResult } from '@/types';
+import { evaluateTable } from '@/services/measurements';
+import { FormStatus, SignerType, TaskResult, type TableConfig } from '@/types';
 
 /** Equipment as a bulleted, one-per-line cell value (never a comma sentence). */
 function equipmentCellValue(items: string[] | undefined, fallback: string): string {
@@ -29,7 +30,7 @@ function b64FromDataUrl(dataUrl: string): { base64: string; ext: 'png' | 'jpeg' 
 export async function exportFormToExcel(formId: string): Promise<void> {
   const bundle = await getFormBundle(formId);
   if (!bundle) throw new Error('הבד״ח לא נמצא');
-  const { form, tasks, signatures } = bundle;
+  const { form, tasks, blocks, signatures } = bundle;
 
   // Load the heavy Excel library on demand.
   const ExcelJS = (await import('exceljs')).default;
@@ -152,6 +153,71 @@ export async function exportFormToExcel(formId: string): Promise<void> {
       ws.getCell(`B${r}`).value = t.comment.trim() || '— לא הוזן פירוט —';
       ws.getCell(`B${r}`).alignment = { horizontal: 'right', wrapText: true };
       ws.getCell(`B${r}`).fill = solid(RED);
+      r++;
+    }
+  }
+
+  // Measurement tables — written as REAL structured data (never one blob), plus
+  // the ±X computation (Initial / Final / Difference / Allowed / Result).
+  const tableBlocks = blocks.filter((b) => b.type === 'table');
+  for (const b of tableBlocks) {
+    const cfg = b.config_snapshot as TableConfig;
+    const cells = b.data?.cells ?? {};
+    r++; // blank
+    const th = ws.getCell(`A${r}`);
+    th.value = `טבלת מדידה: ${cfg.title}${cfg.duration_label ? ` (משך: ${cfg.duration_label})` : ''}`;
+    th.font = { bold: true, color: { argb: 'FF0F2B52' } };
+    ws.mergeCells(`A${r}:F${r}`);
+    r++;
+    // Header row: first cell blank, then column labels (+ unit).
+    const hdr = ws.getRow(r);
+    hdr.getCell(1).value = '';
+    cfg.columns.forEach((c, i) => {
+      const cell = hdr.getCell(2 + i);
+      cell.value = c.unit ? `${c.label} (${c.unit})` : c.label;
+      cell.font = { bold: true, color: { argb: HEADER_TEXT } };
+      cell.fill = solid(HEADER_BG);
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      cell.border = allBorders();
+    });
+    hdr.getCell(1).border = allBorders();
+    r++;
+    // Data rows.
+    for (const row of cfg.rows) {
+      const xr = ws.getRow(r);
+      xr.getCell(1).value = row.label;
+      xr.getCell(1).font = { bold: true };
+      xr.getCell(1).border = allBorders();
+      xr.getCell(1).alignment = { horizontal: 'right', vertical: 'middle' };
+      cfg.columns.forEach((c, i) => {
+        const cell = xr.getCell(2 + i);
+        cell.value = cells[`${row.id}|${c.id}`] ?? '';
+        cell.border = allBorders();
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      });
+      r++;
+    }
+    // ±X results.
+    const results = evaluateTable(cfg, cells);
+    for (const rule of cfg.rules ?? []) {
+      const res = results.find((x) => x.rule_id === rule.id);
+      const label = (ref: { row_id: string; col_id: string }) =>
+        `${cfg.rows.find((x) => x.id === ref.row_id)?.label ?? ''}·${cfg.columns.find((x) => x.id === ref.col_id)?.label ?? ''}`;
+      ws.getCell(`A${r}`).value = `פער (${label(rule.initial)} → ${label(rule.final)})`;
+      ws.getCell(`A${r}`).font = { bold: true };
+      ws.mergeCells(`A${r}:B${r}`);
+      const decided = res && res.passed !== null;
+      const text = `התחלתי: ${res?.initial ?? '—'} | סופי: ${res?.final ?? '—'} | פער בפועל: ${res?.difference ?? '—'} | פער מותר: ±${rule.allowed_difference} | תוצאה: ${
+        !decided ? 'ממתין' : res!.passed ? '✓ עבר' : '✕ לא עבר'
+      }`;
+      ws.mergeCells(`C${r}:F${r}`);
+      const rc = ws.getCell(`C${r}`);
+      rc.value = text;
+      rc.alignment = { horizontal: 'right', wrapText: true };
+      if (decided) {
+        rc.fill = solid(res!.passed ? GREEN : RED);
+        rc.font = { color: { argb: res!.passed ? GREEN_TEXT : RED_TEXT } };
+      }
       r++;
     }
   }
