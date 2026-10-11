@@ -186,7 +186,7 @@ export async function deleteBlock(blockId: string): Promise<void> {
   await Promise.all(rest.map((b, i) => db.template_blocks.update(b.id, { sort_order: i })));
 }
 
-export async function reorderBlocks(templateId: string, orderedIds: string[]): Promise<void> {
+export async function reorderBlocks(_templateId: string, orderedIds: string[]): Promise<void> {
   await Promise.all(orderedIds.map((id, i) => db.template_blocks.update(id, { sort_order: i })));
 }
 
