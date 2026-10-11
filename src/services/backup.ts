@@ -18,6 +18,9 @@ import type {
   Setting,
   Counter,
   UserWithRoles,
+  UserSystemRank,
+  TemplateBlock,
+  CompletedBlock,
 } from '@/types';
 
 /**
@@ -49,12 +52,15 @@ export interface FullBackup {
     performers: Performer[];
     templates: Template[];
     template_tasks: TemplateTask[];
+    template_blocks: TemplateBlock[];
     completed_forms: CompletedForm[];
     completed_tasks: CompletedTask[];
+    completed_blocks: CompletedBlock[];
     signatures: Signature[];
     audit_log: AuditEntry[];
     settings: Setting[];
     counters: Counter[];
+    user_system_ranks: UserSystemRank[];
   };
 }
 
@@ -65,6 +71,7 @@ export interface FormsBundle {
   device_id: string;
   forms: CompletedForm[];
   tasks: CompletedTask[];
+  blocks?: CompletedBlock[];
   signatures: Signature[];
 }
 
@@ -82,6 +89,7 @@ export interface ConfigBundle {
   performers: Performer[];
   templates: Template[];
   template_tasks: TemplateTask[];
+  template_blocks: TemplateBlock[];
   settings: Setting[];
 }
 
@@ -96,12 +104,15 @@ async function collectAll() {
     performers,
     templates,
     template_tasks,
+    template_blocks,
     completed_forms,
     completed_tasks,
+    completed_blocks,
     signatures,
     audit_log,
     settings,
     counters,
+    user_system_ranks,
   ] = await Promise.all([
     db.users.toArray(),
     db.roles.toArray(),
@@ -112,12 +123,15 @@ async function collectAll() {
     db.performers.toArray(),
     db.templates.toArray(),
     db.template_tasks.toArray(),
+    db.template_blocks.toArray(),
     db.completed_forms.toArray(),
     db.completed_tasks.toArray(),
+    db.completed_blocks.toArray(),
     db.signatures.toArray(),
     db.audit_log.toArray(),
     db.settings.toArray(),
     db.counters.toArray(),
+    db.user_system_ranks.toArray(),
   ]);
   return {
     users,
@@ -129,12 +143,15 @@ async function collectAll() {
     performers,
     templates,
     template_tasks,
+    template_blocks,
     completed_forms,
     completed_tasks,
+    completed_blocks,
     signatures,
     audit_log,
     settings,
     counters,
+    user_system_ranks,
   };
 }
 
@@ -174,12 +191,15 @@ export async function restoreFullBackup(
       db.performers,
       db.templates,
       db.template_tasks,
+      db.template_blocks,
       db.completed_forms,
       db.completed_tasks,
+      db.completed_blocks,
       db.signatures,
       db.audit_log,
       db.settings,
       db.counters,
+      db.user_system_ranks,
     ],
     async () => {
       await Promise.all([
@@ -192,12 +212,15 @@ export async function restoreFullBackup(
         db.performers.clear(),
         db.templates.clear(),
         db.template_tasks.clear(),
+        db.template_blocks.clear(),
         db.completed_forms.clear(),
         db.completed_tasks.clear(),
+        db.completed_blocks.clear(),
         db.signatures.clear(),
         db.audit_log.clear(),
         db.settings.clear(),
         db.counters.clear(),
+        db.user_system_ranks.clear(),
       ]);
       await Promise.all([
         db.users.bulkAdd(d.users),
@@ -209,12 +232,15 @@ export async function restoreFullBackup(
         db.performers.bulkAdd(d.performers ?? []),
         db.templates.bulkAdd(d.templates),
         db.template_tasks.bulkAdd(d.template_tasks),
+        db.template_blocks.bulkAdd(d.template_blocks ?? []),
         db.completed_forms.bulkAdd(d.completed_forms),
         db.completed_tasks.bulkAdd(d.completed_tasks),
+        db.completed_blocks.bulkAdd(d.completed_blocks ?? []),
         db.signatures.bulkAdd(d.signatures),
         db.audit_log.bulkAdd(d.audit_log),
         db.settings.bulkAdd(d.settings),
         db.counters.bulkAdd(d.counters ?? []),
+        db.user_system_ranks.bulkAdd(d.user_system_ranks ?? []),
       ]);
     }
   );
@@ -234,8 +260,9 @@ export async function exportFormsBundle(formIds?: string[]): Promise<FormsBundle
   const allForms = await db.completed_forms.toArray();
   const forms = formIds ? allForms.filter((f) => formIds.includes(f.id)) : allForms;
   const ids = new Set(forms.map((f) => f.id));
-  const [allTasks, allSigs] = await Promise.all([
+  const [allTasks, allBlocks, allSigs] = await Promise.all([
     db.completed_tasks.toArray(),
+    db.completed_blocks.toArray(),
     db.signatures.toArray(),
   ]);
   return {
@@ -245,6 +272,7 @@ export async function exportFormsBundle(formIds?: string[]): Promise<FormsBundle
     device_id: getDeviceId(),
     forms,
     tasks: allTasks.filter((t) => ids.has(t.completed_form_id)),
+    blocks: allBlocks.filter((b) => ids.has(b.completed_form_id)),
     signatures: allSigs.filter((s) => ids.has(s.completed_form_id)),
   };
 }
@@ -264,14 +292,16 @@ export async function mergeFormsBundle(payload: FormsBundle): Promise<MergeResul
   const newForms = payload.forms.filter((f) => !existingIds.has(f.id));
   const newIds = new Set(newForms.map((f) => f.id));
   const newTasks = payload.tasks.filter((t) => newIds.has(t.completed_form_id));
+  const newBlocks = (payload.blocks ?? []).filter((b) => newIds.has(b.completed_form_id));
   const newSigs = payload.signatures.filter((s) => newIds.has(s.completed_form_id));
 
   await db.transaction(
     'rw',
-    [db.completed_forms, db.completed_tasks, db.signatures],
+    [db.completed_forms, db.completed_tasks, db.completed_blocks, db.signatures],
     async () => {
       if (newForms.length) await db.completed_forms.bulkAdd(newForms);
       if (newTasks.length) await db.completed_tasks.bulkAdd(newTasks);
+      if (newBlocks.length) await db.completed_blocks.bulkAdd(newBlocks);
       if (newSigs.length) await db.signatures.bulkAdd(newSigs);
     }
   );
@@ -295,6 +325,7 @@ export async function exportConfigBundle(): Promise<ConfigBundle> {
     performers: all.performers,
     templates: all.templates,
     template_tasks: all.template_tasks,
+    template_blocks: all.template_blocks,
     settings: all.settings,
   };
 }
@@ -306,7 +337,7 @@ export async function importConfigBundle(payload: ConfigBundle): Promise<void> {
   }
   await db.transaction(
     'rw',
-    [db.users, db.roles, db.user_roles, db.systems, db.units, db.ranks, db.performers, db.templates, db.template_tasks, db.settings],
+    [db.users, db.roles, db.user_roles, db.systems, db.units, db.ranks, db.performers, db.templates, db.template_tasks, db.template_blocks, db.settings],
     async () => {
       await db.roles.bulkPut(payload.roles);
       await db.users.bulkPut(payload.users);
@@ -317,6 +348,7 @@ export async function importConfigBundle(payload: ConfigBundle): Promise<void> {
       await db.performers.bulkPut(payload.performers ?? []);
       await db.templates.bulkPut(payload.templates);
       await db.template_tasks.bulkPut(payload.template_tasks);
+      await db.template_blocks.bulkPut(payload.template_blocks ?? []);
       await db.settings.bulkPut(payload.settings);
     }
   );

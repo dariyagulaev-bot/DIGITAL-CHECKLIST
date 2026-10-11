@@ -20,6 +20,8 @@ import {
 import { equipmentItemsOf } from '@/exports/labels';
 import { isUserCertified } from './certifications';
 import { getUserById, getUserRoles } from './auth';
+import { getEffectiveBlocks } from './blocks';
+import type { BlockSnapshot, CheckRefConfig, CompletedBlock, TaskSnapshot } from '@/types';
 
 /** Full aggregate for a form. */
 export interface FormBundle {
@@ -90,7 +92,6 @@ export async function createDraftForm(params: {
     );
     if (!ok) throw new Error('אינך מוסמך למערכת ולדרג של בד״ח זה.');
   }
-  const templateTasks = await getTemplateTasks(params.templateId);
   const system = template.system_id ? await getSystem(template.system_id) : undefined;
   const unit = params.unitId ? await getUnit(params.unitId) : undefined;
   const rank = template.rank_id ? await getRank(template.rank_id) : undefined;
@@ -101,22 +102,73 @@ export async function createDraftForm(params: {
   const serial = await nextSequence(counterKey);
   const badachNumber = buildBadachNumber(system?.name ?? '', unit?.name ?? '', serial);
 
+  // Build the form from the template's ordered BLOCKS. 'check' blocks snapshot
+  // the classic task content (→ completed_tasks, unchanged pipeline); the other
+  // block types snapshot their config (→ completed_blocks). A single global
+  // sort_order sequence interleaves both so the בד״ח renders in the exact order
+  // the admin designed. Everything is frozen here — later template edits never
+  // change this historical document.
+  const effBlocks = await getEffectiveBlocks(params.templateId);
+  const taskRows = await getTemplateTasks(params.templateId);
+  const taskMap = new Map(taskRows.map((t) => [t.id, t]));
+
+  const taskSnaps: TaskSnapshot[] = [];
+  const blockSnaps: BlockSnapshot[] = [];
+  const draftTasks: CompletedTask[] = [];
+  const draftBlocks: CompletedBlock[] = [];
+  const formId = newId();
+
+  effBlocks.forEach((b, i) => {
+    if (b.type === 'check') {
+      const t = taskMap.get((b.config as CheckRefConfig).task_id);
+      if (!t) return;
+      const items = equipmentItemsOf(t.equipment_items, t.equipment);
+      taskSnaps.push({
+        part_name: t.part_name,
+        action: t.action,
+        equipment: t.equipment,
+        equipment_items: items,
+        image_data: t.image_data,
+        sort_order: i,
+      });
+      blockSnaps.push({ template_block_id: b.id, type: 'check', sort_order: i, config: { task_id: t.id } });
+      draftTasks.push({
+        id: newId(),
+        completed_form_id: formId,
+        part_name_snapshot: t.part_name,
+        action_snapshot: t.action,
+        equipment_snapshot: t.equipment,
+        equipment_items_snapshot: items,
+        image_snapshot: t.image_data,
+        result: TaskResult.UNSET,
+        comment: '',
+        fault_image: null,
+        sort_order: i,
+      });
+    } else {
+      const cfg = JSON.parse(JSON.stringify(b.config));
+      blockSnaps.push({ template_block_id: b.id, type: b.type, sort_order: i, config: cfg });
+      draftBlocks.push({
+        id: newId(),
+        completed_form_id: formId,
+        template_block_id: b.id,
+        type: b.type,
+        sort_order: i,
+        config_snapshot: cfg,
+        data: b.type === 'table' ? { cells: {}, results: [] } : undefined,
+      });
+    }
+  });
+
   const snapshot: TemplateSnapshot = {
     template_id: template.id,
     template_name: template.name,
     description: template.description,
     snapshot_at: nowIso(),
-    tasks: templateTasks.map((t) => ({
-      part_name: t.part_name,
-      action: t.action,
-      equipment: t.equipment,
-      equipment_items: equipmentItemsOf(t.equipment_items, t.equipment),
-      image_data: t.image_data,
-      sort_order: t.sort_order,
-    })),
+    tasks: taskSnaps,
+    blocks: blockSnaps,
   };
 
-  const formId = newId();
   const form: CompletedForm = {
     id: formId,
     device_id: getDeviceId(),
@@ -149,22 +201,15 @@ export async function createDraftForm(params: {
     approved_at: null,
   };
   await db.completed_forms.add(form);
-
-  const tasks: CompletedTask[] = snapshot.tasks.map((t) => ({
-    id: newId(),
-    completed_form_id: formId,
-    part_name_snapshot: t.part_name,
-    action_snapshot: t.action,
-    equipment_snapshot: t.equipment,
-    equipment_items_snapshot: equipmentItemsOf(t.equipment_items, t.equipment),
-    image_snapshot: t.image_data,
-    result: TaskResult.UNSET,
-    comment: '',
-    fault_image: null,
-    sort_order: t.sort_order,
-  }));
-  if (tasks.length) await db.completed_tasks.bulkAdd(tasks);
+  if (draftTasks.length) await db.completed_tasks.bulkAdd(draftTasks);
+  if (draftBlocks.length) await db.completed_blocks.bulkAdd(draftBlocks);
   return formId;
+}
+
+/** Non-check execution blocks for a form, in order. */
+export async function getFormBlocks(formId: string): Promise<CompletedBlock[]> {
+  const blocks = await db.completed_blocks.where('completed_form_id').equals(formId).toArray();
+  return blocks.sort((a, b) => a.sort_order - b.sort_order);
 }
 
 export async function getForm(formId: string): Promise<CompletedForm | undefined> {
@@ -647,6 +692,8 @@ export async function deleteDraft(formId: string, userId: string): Promise<void>
   if (!isEditableByPerformer(form)) throw new Error('לא ניתן למחוק בד״ח שהועבר לאישור/אושר');
   const tasks = await getFormTasks(formId);
   await db.completed_tasks.bulkDelete(tasks.map((t) => t.id));
+  const blocks = await getFormBlocks(formId);
+  await db.completed_blocks.bulkDelete(blocks.map((b) => b.id));
   const sigs = await getFormSignatures(formId);
   await db.signatures.bulkDelete(sigs.map((s) => s.id));
   await db.completed_forms.delete(formId);

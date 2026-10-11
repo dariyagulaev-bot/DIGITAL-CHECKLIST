@@ -154,12 +154,171 @@ export interface TaskSnapshot {
   sort_order: number;
 }
 
+/**
+ * ----------------------------------------------------------------------------
+ * Dynamic Checklist Builder — a בד״ח template is an ordered list of BLOCKS.
+ * ----------------------------------------------------------------------------
+ * The block layer is ADDITIVE and fully backward-compatible: a 'check' block
+ * points to a classic `template_tasks` row (so the whole inspection / fault /
+ * treatment pipeline is untouched), while the new block types carry their own
+ * config. New block types can be added without rewriting the template engine.
+ */
+export type BlockType =
+  | 'check' // סעיף בדיקה רגיל (תקין/לא תקין) — points to a template_tasks row
+  | 'section' // כותרת / Section
+  | 'text' // טקסט / הוראה
+  | 'table' // טבלת נתונים / מדידה
+  | 'image' // תמונה
+  | 'equipment' // ציוד נדרש (standalone)
+  | 'divider'; // מפריד
+
+/** Input field types available for table cells. */
+export type FieldType =
+  | 'short_text'
+  | 'long_text'
+  | 'number'
+  | 'decimal'
+  | 'time'
+  | 'date'
+  | 'bool'
+  | 'select'
+  | 'multiselect'
+  | 'percent';
+
+export interface TableColumn {
+  id: string;
+  label: string;
+  field_type: FieldType;
+  required?: boolean;
+  unit?: string; // display unit for numeric/decimal/percent (free text)
+  options?: string[]; // for select / multiselect
+}
+
+export interface TableRow {
+  id: string;
+  label: string;
+}
+
+/** A reference to a single table cell (row × column). */
+export interface CellRef {
+  row_id: string;
+  col_id: string;
+}
+
+/**
+ * A measurement rule. Only '±X' (delta) is implemented now, but the shape is
+ * generic so future rule types (min/max/range/percent-change/formula) can be
+ * added without rebuilding the mechanism.
+ */
+export interface MeasurementRule {
+  id: string;
+  type: 'delta'; // ±X — |final − initial| ≤ allowed_difference
+  label?: string;
+  initial: CellRef; // "שדה התחלתי"
+  final: CellRef; // "שדה סופי"
+  allowed_difference: number; // the ±X value (absolute, ≥ 0)
+  fail_on_exceed?: boolean; // exceeding the gap marks the table "לא תקין"
+}
+
+export interface TableConfig {
+  title: string;
+  description?: string;
+  required?: boolean;
+  duration_label?: string; // e.g. "4 שעות" — display only, not auto-enforced
+  columns: TableColumn[];
+  rows: TableRow[];
+  rules?: MeasurementRule[];
+  show_in_execution?: boolean; // default true
+  show_in_pdf?: boolean; // default true
+}
+
+export interface CheckRefConfig {
+  task_id: string; // points to a template_tasks row (classic check content)
+}
+export interface SectionConfig {
+  title: string;
+  collapsible?: boolean;
+}
+export interface TextConfig {
+  text: string;
+}
+export interface ImageConfig {
+  image_data: string | null;
+  title?: string;
+  description?: string;
+  show_in_execution?: boolean;
+  show_in_pdf?: boolean;
+}
+export interface EquipmentConfig {
+  title?: string;
+  items: string[];
+}
+export type DividerConfig = Record<string, never>;
+
+export type BlockConfig =
+  | CheckRefConfig
+  | SectionConfig
+  | TextConfig
+  | TableConfig
+  | ImageConfig
+  | EquipmentConfig
+  | DividerConfig;
+
+export interface TemplateBlock {
+  id: string;
+  template_id: string;
+  type: BlockType;
+  sort_order: number;
+  config: BlockConfig;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Frozen copy of a block stored on a form (non-check blocks). */
+export interface BlockSnapshot {
+  template_block_id: string;
+  type: BlockType;
+  sort_order: number;
+  config: BlockConfig;
+}
+
+/** Computed outcome of a measurement rule at execution time. */
+export interface MeasurementResult {
+  rule_id: string;
+  initial: number | null;
+  final: number | null;
+  difference: number | null; // SIGNED: final − initial (keeps direction)
+  allowed: number;
+  passed: boolean | null; // null = not enough data to decide yet
+}
+
+/** User-entered data for a table block during execution. */
+export interface TableData {
+  cells: Record<string, string>; // key `${row_id}|${col_id}` → raw value
+  results?: MeasurementResult[];
+}
+
+/**
+ * Execution-time storage for a NON-check block on a form (section/text/table/
+ * image/equipment/divider). Check blocks continue to use `completed_tasks`.
+ */
+export interface CompletedBlock {
+  id: string;
+  completed_form_id: string;
+  template_block_id: string;
+  type: BlockType;
+  sort_order: number;
+  config_snapshot: BlockConfig; // frozen config at creation
+  data?: TableData; // user input (tables); other types are display-only
+}
+
 /** Immutable snapshot of the whole template at the moment the form started. */
 export interface TemplateSnapshot {
   template_id: string;
   template_name: string;
   description: string;
   tasks: TaskSnapshot[];
+  blocks?: BlockSnapshot[]; // full ordered block snapshot (incl. non-check)
   snapshot_at: string;
 }
 

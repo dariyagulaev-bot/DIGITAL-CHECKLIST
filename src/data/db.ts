@@ -16,6 +16,8 @@ import type {
   Setting,
   Counter,
   UserSystemRank,
+  TemplateBlock,
+  CompletedBlock,
 } from '@/types';
 
 /**
@@ -40,6 +42,8 @@ export class ChecklistDB extends Dexie {
   settings!: Table<Setting, string>;
   counters!: Table<Counter, string>;
   user_system_ranks!: Table<UserSystemRank, string>;
+  template_blocks!: Table<TemplateBlock, string>;
+  completed_blocks!: Table<CompletedBlock, string>;
 
   constructor(name = 'digital_checklist') {
     super(name);
@@ -273,6 +277,45 @@ export class ChecklistDB extends Dexie {
           }
         }
         if (rows.length) await tx.table('user_system_ranks').bulkAdd(rows);
+      });
+
+    // v10: Dynamic Checklist Builder. Templates become an ordered list of
+    // BLOCKS. This is ADDITIVE — a 'check' block points to an existing
+    // template_tasks row, so the entire inspection / fault / treatment pipeline
+    // is untouched. The migration builds one check block per existing template
+    // task (preserving order); template_tasks rows are kept as-is. Completed
+    // blocks hold execution data for the NEW block types only.
+    this.version(10)
+      .stores({
+        template_blocks: 'id, template_id, sort_order',
+        completed_blocks: 'id, completed_form_id, sort_order',
+      })
+      .upgrade(async (tx) => {
+        const now = new Date().toISOString();
+        const tasks = await tx.table('template_tasks').toArray();
+        const byTemplate = new Map<string, TemplateTask[]>();
+        for (const t of tasks as TemplateTask[]) {
+          const arr = byTemplate.get(t.template_id) ?? [];
+          arr.push(t);
+          byTemplate.set(t.template_id, arr);
+        }
+        const blocks: TemplateBlock[] = [];
+        for (const [templateId, list] of byTemplate) {
+          list
+            .sort((a, b) => a.sort_order - b.sort_order)
+            .forEach((t, i) => {
+              blocks.push({
+                id: crypto.randomUUID(),
+                template_id: templateId,
+                type: 'check',
+                sort_order: i,
+                config: { task_id: t.id },
+                created_at: now,
+                updated_at: now,
+              });
+            });
+        }
+        if (blocks.length) await tx.table('template_blocks').bulkAdd(blocks);
       });
   }
 }

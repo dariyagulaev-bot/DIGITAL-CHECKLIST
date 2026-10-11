@@ -3,7 +3,13 @@ import { newId, nowIso } from './ids';
 import { ensureDefaultSystem } from './systems';
 import { ensureDefaultRank } from './ranks';
 import { equipmentItemsOf } from '@/exports/labels';
-import type { Template, TemplateTask } from '@/types';
+import type {
+  CheckRefConfig,
+  TableConfig,
+  Template,
+  TemplateBlock,
+  TemplateTask,
+} from '@/types';
 
 /** Normalize equipment input into a clean list + a joined legacy string. */
 function normalizeEquipment(items?: string[], text?: string): { items: string[]; text: string } {
@@ -100,6 +106,8 @@ export async function setTemplateActive(id: string, active: boolean): Promise<vo
 export async function deleteTemplate(id: string): Promise<void> {
   const tasks = await db.template_tasks.where('template_id').equals(id).toArray();
   await db.template_tasks.bulkDelete(tasks.map((t) => t.id));
+  const blocks = await db.template_blocks.where('template_id').equals(id).toArray();
+  await db.template_blocks.bulkDelete(blocks.map((b) => b.id));
   await db.templates.delete(id);
 }
 
@@ -117,13 +125,72 @@ export async function duplicateTemplate(id: string): Promise<Template> {
     updated_at: nowIso(),
   };
   await db.templates.add(copy);
-  const taskCopies: TemplateTask[] = tasks.map((t) => ({
-    ...t,
-    id: newId(),
-    template_id: copy.id,
-  }));
+  // Copy tasks with fresh ids, keeping a map old→new so check blocks can be
+  // repointed to the duplicated tasks.
+  const taskIdMap = new Map<string, string>();
+  const taskCopies: TemplateTask[] = tasks.map((t) => {
+    const id = newId();
+    taskIdMap.set(t.id, id);
+    return { ...t, id, template_id: copy.id };
+  });
   if (taskCopies.length) await db.template_tasks.bulkAdd(taskCopies);
+
+  // Copy the block list (ordered). Check blocks repoint to the copied tasks;
+  // table blocks get fresh row/column/rule ids so their cell refs stay valid.
+  const blocks = (await db.template_blocks.where('template_id').equals(id).toArray()).sort(
+    (a, b) => a.sort_order - b.sort_order
+  );
+  if (blocks.length) {
+    const blockCopies: TemplateBlock[] = blocks.map((b, i) => {
+      let config = JSON.parse(JSON.stringify(b.config));
+      if (b.type === 'check') {
+        const old = (b.config as CheckRefConfig).task_id;
+        config = { task_id: taskIdMap.get(old) ?? old };
+      } else if (b.type === 'table') {
+        config = cloneTableIds(config as TableConfig);
+      }
+      return {
+        id: newId(),
+        template_id: copy.id,
+        type: b.type,
+        sort_order: i,
+        config,
+        created_at: nowIso(),
+        updated_at: nowIso(),
+      };
+    });
+    await db.template_blocks.bulkAdd(blockCopies);
+  }
   return copy;
+}
+
+/** Give a table config fresh row/column/rule ids (keeps rule cell refs valid). */
+function cloneTableIds(cfg: TableConfig): TableConfig {
+  const colMap = new Map<string, string>();
+  const rowMap = new Map<string, string>();
+  const columns = cfg.columns.map((c) => {
+    const nid = newId();
+    colMap.set(c.id, nid);
+    return { ...c, id: nid };
+  });
+  const rows = cfg.rows.map((r) => {
+    const nid = newId();
+    rowMap.set(r.id, nid);
+    return { ...r, id: nid };
+  });
+  const rules = (cfg.rules ?? []).map((rule) => ({
+    ...rule,
+    id: newId(),
+    initial: {
+      row_id: rowMap.get(rule.initial.row_id) ?? rule.initial.row_id,
+      col_id: colMap.get(rule.initial.col_id) ?? rule.initial.col_id,
+    },
+    final: {
+      row_id: rowMap.get(rule.final.row_id) ?? rule.final.row_id,
+      col_id: colMap.get(rule.final.col_id) ?? rule.final.col_id,
+    },
+  }));
+  return { ...cfg, columns, rows, rules };
 }
 
 export async function addTask(
