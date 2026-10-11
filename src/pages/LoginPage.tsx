@@ -44,15 +44,17 @@ export default function LoginPage() {
         </span>
 
         <div className="w-full max-w-[420px] animate-rise-in">
-          <div className="mb-8 flex justify-center">
-            <VeroLogo variant="full" tone="light" />
+          <div className="mb-2.5 flex justify-center">
+            <VeroLogo variant="compact" tone="light" scale={1.25} />
           </div>
+          <p className="mb-8 text-center text-[14px] font-semibold tracking-wide text-ink-500">
+            מערכת בקרה דיגיטלית
+          </p>
 
           <div className="mb-7 text-center">
-            <h1 className="text-[26px] font-extrabold tracking-tight text-ink-900">
-              ברוכים הבאים ל-VERO
+            <h1 className="text-[24px] font-extrabold tracking-tight text-ink-900">
+              התחברות למערכת
             </h1>
-            <p className="mt-1.5 text-[15px] text-ink-500">התחברו כדי להמשיך</p>
           </div>
 
           <form onSubmit={submit} className="space-y-4">
@@ -97,7 +99,7 @@ export default function LoginPage() {
               disabled={busy}
               className="login-cta group flex min-h-[58px] w-full items-center justify-center gap-3 rounded-xl text-[17px] font-bold text-white disabled:opacity-70"
             >
-              {busy ? 'מתחבר…' : 'כניסה למערכת'}
+              {busy ? 'מתחבר…' : 'כניסה'}
               {!busy && (
                 <Icon
                   name="back"
@@ -108,10 +110,9 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-9 flex items-center justify-center gap-3 border-t border-slate-200 pt-4 text-[12.5px] text-ink-400">
-            <span>בדיקות היום</span>
-            <span className="h-3 w-px bg-slate-300" />
-            <span>תפעול טוב יותר מחר</span>
+          <div className="mt-10 border-t border-slate-200 pt-4 text-center text-[11.5px] leading-relaxed text-ink-400">
+            © 2026 VERO <span className="mx-1 text-slate-300">|</span> פיתוח המערכת: דריה ג.
+            <span className="mx-1 text-slate-300">|</span> כל הזכויות שמורות
           </div>
         </div>
       </section>
@@ -191,37 +192,26 @@ function BrandingPanel() {
 
       <div className="relative z-10 flex w-full flex-col justify-between px-12 py-14 xl:px-16">
         <div className="animate-rise-in" style={{ animationDelay: '0.05s' }}>
-          <h2 className="text-[42px] font-extrabold leading-[1.12] text-white xl:text-[48px]">
-            בקרה מדויקת
+          <h2 className="text-[44px] font-extrabold leading-[1.12] text-white xl:text-[52px]">
+            בקרה מדויקת.
             <br />
-            לעולם בטוח יותר
+            תיעוד מלא.
           </h2>
-          <p className="mt-4 max-w-md text-[17px] leading-relaxed text-navy-100">
-            מערכת בדיקות דיגיטלית
-            <br />
-            לניהול, בקרה ותקינות.
+          <p className="mt-5 max-w-md text-[18px] leading-relaxed text-navy-100">
+            מהבדיקה ועד האישור – כל שלב מתועד.
           </p>
 
-          <ul className="mt-10 space-y-4">
-            <Feature icon={<IconShield />} title="בדיקות מסודרות" />
-            <Feature icon={<IconBars />} title="נתונים מדויקים" />
-            <Feature icon={<IconGear />} title="תפעול יעיל" />
+          <ul className="mt-10 flex flex-wrap items-center gap-3">
+            <Chip icon={<IconShield />} title="בדיקה" />
+            <Chip icon={<IconBars />} title="בקרה" />
+            <Chip icon={<IconGear />} title="עקיבות" />
           </ul>
         </div>
 
         <div
-          className="mt-10 flex items-end justify-between gap-6 animate-rise-in"
+          className="mt-10 flex items-end justify-end animate-rise-in"
           style={{ animationDelay: '0.12s' }}
         >
-          <div className="text-[12px] font-semibold uppercase leading-relaxed tracking-[0.22em] text-navy-300">
-            control
-            <br />
-            today
-            <br />
-            <span className="text-navy-200">a safer</span>
-            <br />
-            <span className="text-navy-200">tomorrow</span>
-          </div>
           <ChecklistIllustration />
         </div>
       </div>
@@ -229,13 +219,12 @@ function BrandingPanel() {
   );
 }
 
-function Feature({ icon, title }: { icon: React.ReactNode; title: string }) {
+/* Outline-icon chip: בדיקה • בקרה • עקיבות. */
+function Chip({ icon, title }: { icon: React.ReactNode; title: string }) {
   return (
-    <li className="flex items-center gap-3.5">
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/10 text-white">
-        {icon}
-      </span>
-      <span className="text-[16px] font-semibold text-white">{title}</span>
+    <li className="flex items-center gap-2.5 rounded-full border border-white/15 bg-white/[0.07] px-4 py-2 text-white">
+      <span className="flex h-5 w-5 shrink-0 items-center justify-center">{icon}</span>
+      <span className="text-[15px] font-semibold">{title}</span>
     </li>
   );
 }
