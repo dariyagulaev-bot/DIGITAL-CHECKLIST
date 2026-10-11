@@ -493,9 +493,19 @@ export interface UserSystemRank {
   user_id: string;
   system_id: string; // system TYPE (סוג מערכת)
   max_rank_id: string; // highest certified rank for this system
+  // ---- Validity (תוקף הסמכה) — all optional for backward compatibility ----
+  // A legacy cert with no `expires_at` is treated as valid indefinitely until
+  // an admin sets a validity period. Expiry is DATE-based (issued + months),
+  // never a fixed day count, so different month lengths are handled correctly.
+  issued_at?: string; // תאריך הסמכה / רענון אחרון (ISO date, YYYY-MM-DD)
+  validity_months?: number; // משך תוקף בחודשים (admin-set; no hard-coded year)
+  expires_at?: string; // computed = issued_at + validity_months (ISO date)
   created_at: string;
   updated_at: string;
 }
+
+/** Validity status of a certification, derived from dates at runtime. */
+export type CertStatus = 'valid' | 'needs_renewal' | 'expired' | 'none';
 
 /** Convenience view model: a user with resolved role names. */
 export interface UserWithRoles extends User {

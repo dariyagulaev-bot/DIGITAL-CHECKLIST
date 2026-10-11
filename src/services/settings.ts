@@ -9,6 +9,7 @@ export const SettingKeys = {
   APPROVER_SHARED_HASH: 'approver_shared_password_hash', // only if shared mode is chosen
   ADMIN_AUTOLOGOUT_MIN: 'admin_autologout_minutes',
   ORG_NAME: 'org_name',
+  CERT_VALIDITY_MONTHS: 'cert_validity_months', // default certification validity
 } as const;
 
 export async function getSetting(key: string): Promise<string | null> {
@@ -29,4 +30,15 @@ export async function getAdminAutoLogoutMinutes(): Promise<number> {
   const v = await getSetting(SettingKeys.ADMIN_AUTOLOGOUT_MIN);
   const n = v ? parseInt(v, 10) : NaN;
   return Number.isFinite(n) && n > 0 ? n : 10; // default 10 minutes
+}
+
+/** Admin-configured default certification validity, in months (default 12). */
+export async function getCertValidityMonths(): Promise<number> {
+  const v = await getSetting(SettingKeys.CERT_VALIDITY_MONTHS);
+  const n = v ? parseInt(v, 10) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : 12;
+}
+
+export async function setCertValidityMonths(months: number): Promise<void> {
+  await setSetting(SettingKeys.CERT_VALIDITY_MONTHS, String(Math.max(1, Math.round(months))));
 }
