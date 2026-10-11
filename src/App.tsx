@@ -19,6 +19,7 @@ import FormViewPage from './pages/FormViewPage';
 import AdminLayout from './pages/admin/AdminLayout';
 import DashboardPage from './pages/admin/DashboardPage';
 import UsersPage from './pages/admin/UsersPage';
+import CertificationsPage from './pages/admin/CertificationsPage';
 import SystemsPage from './pages/admin/SystemsPage';
 import UnitsPage from './pages/admin/UnitsPage';
 import RanksPage from './pages/admin/RanksPage';
@@ -130,6 +131,7 @@ function AppRoutes() {
         <Route path="units" element={<UnitsPage />} />
         <Route path="ranks" element={<RanksPage />} />
         <Route path="users" element={<UsersPage />} />
+        <Route path="certifications" element={<CertificationsPage />} />
         <Route path="templates" element={<TemplatesPage />} />
         <Route path="templates/:id" element={<TemplateEditorPage />} />
         <Route path="audit" element={<AuditPage />} />

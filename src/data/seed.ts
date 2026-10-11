@@ -12,6 +12,7 @@ import {
   type User,
 } from '@/types';
 import { SettingKeys } from '@/services/settings';
+import { addMonths, todayStr } from '@/services/dates';
 
 /**
  * Idempotent seed. Runs once on first launch to guarantee the roles exist,
@@ -220,6 +221,22 @@ export async function runSeed(): Promise<void> {
   await ensureCert(perf2, sysA, rankB);
   await ensureCert(perf2, sysB, rankA);
   await ensureCert(perf3, sysA, rankA);
+
+  // Demo validity: make ישראל ישראלי's מערכת ב׳ certification expire ~2 months
+  // out so the renewal popup + home warning are demonstrable out of the box.
+  // (Only applied once, and never overrides an admin-set date.)
+  if (perf1) {
+    const row = await db.user_system_ranks.where('[user_id+system_id]').equals([perf1, sysB]).first();
+    if (row && row.expires_at === undefined) {
+      const issued = addMonths(todayStr(), -10); // issued 10 months ago
+      await db.user_system_ranks.update(row.id, {
+        issued_at: issued,
+        validity_months: 12,
+        expires_at: addMonths(issued, 12), // → ~2 months from today
+        updated_at: nowIso(),
+      });
+    }
+  }
 
   await ensureSettings();
 }

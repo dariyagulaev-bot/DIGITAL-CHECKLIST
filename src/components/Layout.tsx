@@ -6,6 +6,7 @@ import { roleLabel } from '@/exports/labels';
 import { Icon } from './Icon';
 import { VeroLogo } from './VeroLogo';
 import { buildCrumbs } from './breadcrumbs';
+import { CertRenewalAlert } from './CertRenewalAlert';
 
 /** Official emblem — a crisp white tile with the inspection glyph in navy. */
 export function BrandMark({ size = 34 }: { size?: number }) {
@@ -114,6 +115,9 @@ export function Layout({ children }: { children: ReactNode }) {
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         {children}
       </main>
+
+      {/* Consolidated certification-renewal popup (once per session after login) */}
+      {user && <CertRenewalAlert />}
     </div>
   );
 }

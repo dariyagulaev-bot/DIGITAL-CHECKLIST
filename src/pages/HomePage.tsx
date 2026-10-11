@@ -9,6 +9,7 @@ import {
   listPendingApproval,
   type UserFormSummary,
 } from '@/services/forms';
+import { listAlertsForUser, certificationSummary, type CertDetail } from '@/services/certifications';
 import { Icon, type IconName } from '@/components/Icon';
 import type { CompletedForm } from '@/types';
 import { formatDate } from '@/exports/labels';
@@ -86,17 +87,23 @@ export default function HomePage() {
   const [pendingCount, setPendingCount] = useState(0);
   const [summary, setSummary] = useState<UserFormSummary | null>(null);
   const [todayCount, setTodayCount] = useState(0);
+  const [certAlerts, setCertAlerts] = useState<CertDetail[]>([]);
+  const [adminNeedsRenewal, setAdminNeedsRenewal] = useState(0);
 
   useEffect(() => {
     if (!user) return;
     listDrafts(user.id).then(setDrafts).catch(() => {});
     getUserSummary(user.id).then(setSummary).catch(() => {});
+    listAlertsForUser(user.id).then(setCertAlerts).catch(() => {});
     const today = new Date().toISOString().slice(0, 10);
     listFormsByPerformer(user.id)
       .then((forms) => setTodayCount(forms.filter((f) => f.created_at.slice(0, 10) === today).length))
       .catch(() => {});
     if (canApprove(user)) {
       listPendingApproval().then((p) => setPendingCount(p.length)).catch(() => {});
+    }
+    if (isAdmin(user)) {
+      certificationSummary().then((s) => setAdminNeedsRenewal(s.needsRenewal + s.expired)).catch(() => {});
     }
   }, [user]);
 
@@ -109,6 +116,27 @@ export default function HomePage() {
         <div className="text-[15px] font-medium text-ink-500">שלום, {user.full_name}</div>
         <h1 className="mt-0.5 text-[24px] font-extrabold text-navy-900">מערכת בד״ח דיגיטלית</h1>
       </div>
+
+      {/* Persistent certification-renewal indicator (stays until an admin renews) */}
+      {certAlerts.length > 0 && (
+        <div className="flex items-center gap-2 rounded-xl border border-pending-300 bg-pending-50 px-4 py-2.5 text-[14px] font-semibold text-pending-800">
+          <Icon name="alert" size={18} className="shrink-0 text-pending-600" />
+          נדרש רענון הסמכה
+          <span className="font-normal text-pending-700">
+            ({certAlerts.map((a) => a.system_name).join(', ')}) — יש לפנות למנהל המערכת.
+          </span>
+        </div>
+      )}
+      {isAdmin(user) && adminNeedsRenewal > 0 && (
+        <Link
+          to="/admin/certifications"
+          className="flex items-center gap-2 rounded-xl border border-pending-200 bg-pending-50/70 px-4 py-2.5 text-[14px] font-semibold text-pending-800 transition-colors hover:border-pending-300"
+        >
+          <Icon name="alert" size={18} className="shrink-0 text-pending-600" />
+          {adminNeedsRenewal} הסמכות דורשות טיפול (רענון / פג תוקף)
+          <Icon name="chevron-start" size={16} className="mr-auto" />
+        </Link>
+      )}
 
       {/* Compact stats */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
