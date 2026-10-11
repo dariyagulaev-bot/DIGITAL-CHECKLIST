@@ -110,9 +110,9 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-10 border-t border-slate-200 pt-4 text-center text-[11.5px] leading-relaxed text-ink-400">
-            © 2026 VERO <span className="mx-1 text-slate-300">|</span> פיתוח המערכת: דריה ג.
-            <span className="mx-1 text-slate-300">|</span> כל הזכויות שמורות
+          <div className="mt-12 border-t border-slate-200/70 pt-3 text-center text-[9.5px] leading-relaxed tracking-wide text-ink-300">
+            © 2026 VERO <span className="mx-0.5 text-slate-200">|</span> פיתוח המערכת: דריה ג.
+            <span className="mx-0.5 text-slate-200">|</span> כל הזכויות שמורות
           </div>
         </div>
       </section>
