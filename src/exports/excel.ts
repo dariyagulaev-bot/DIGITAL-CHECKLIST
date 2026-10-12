@@ -1,7 +1,7 @@
 import type ExcelJSType from 'exceljs';
 import { getFormBundle } from '@/services/forms';
 import { statusLabel, equipmentItemsOf, currentResult } from './labels';
-import { evaluateTable } from '@/services/measurements';
+import { evaluateTableFull, formatDuration } from '@/services/measurements';
 import { FormStatus, SignerType, TaskResult, type TableConfig } from '@/types';
 
 /** Equipment as a bulleted, one-per-line cell value (never a comma sentence). */
@@ -164,8 +164,9 @@ export async function exportFormToExcel(formId: string): Promise<void> {
     const cfg = b.config_snapshot as TableConfig;
     const cells = b.data?.cells ?? {};
     r++; // blank
+    const full = evaluateTableFull(cfg, cells);
     const th = ws.getCell(`A${r}`);
-    th.value = `טבלת מדידה: ${cfg.title}${cfg.duration_label ? ` (משך: ${cfg.duration_label})` : ''}`;
+    th.value = `טבלת מדידה: ${cfg.title}`;
     th.font = { bold: true, color: { argb: 'FF0F2B52' } };
     ws.mergeCells(`A${r}:F${r}`);
     r++;
@@ -197,8 +198,26 @@ export async function exportFormToExcel(formId: string): Promise<void> {
       });
       r++;
     }
+    // Duration result.
+    if (cfg.duration && full.duration_result) {
+      const dr = full.duration_result;
+      ws.getCell(`A${r}`).value = 'משך מדידה';
+      ws.getCell(`A${r}`).font = { bold: true };
+      ws.mergeCells(`A${r}:B${r}`);
+      ws.mergeCells(`C${r}:F${r}`);
+      const dc = ws.getCell(`C${r}`);
+      dc.value = `נדרש מינימום: ${formatDuration(dr.min_minutes)} | בפועל: ${formatDuration(dr.actual_minutes)} | תוצאה: ${
+        dr.invalid ? 'זמן סיום מוקדם מהתחלה' : dr.passed === null ? 'ממתין' : dr.passed ? '✓ עבר' : '✕ לא עבר'
+      }`;
+      dc.alignment = { horizontal: 'right', wrapText: true };
+      if (dr.passed !== null) {
+        dc.fill = solid(dr.passed && !dr.invalid ? GREEN : RED);
+        dc.font = { color: { argb: dr.passed && !dr.invalid ? GREEN_TEXT : RED_TEXT } };
+      }
+      r++;
+    }
     // ±X results.
-    const results = evaluateTable(cfg, cells);
+    const results = full.results;
     for (const rule of cfg.rules ?? []) {
       const res = results.find((x) => x.rule_id === rule.id);
       const label = (ref: { row_id: string; col_id: string }) =>
@@ -218,6 +237,24 @@ export async function exportFormToExcel(formId: string): Promise<void> {
         rc.fill = solid(res!.passed ? GREEN : RED);
         rc.font = { color: { argb: res!.passed ? GREEN_TEXT : RED_TEXT } };
       }
+      r++;
+    }
+    // Overall result (duration + gap combined).
+    if (full.status) {
+      ws.getCell(`A${r}`).value = 'תוצאה סופית';
+      ws.getCell(`A${r}`).font = { bold: true };
+      ws.mergeCells(`A${r}:B${r}`);
+      ws.mergeCells(`C${r}:F${r}`);
+      const oc = ws.getCell(`C${r}`);
+      oc.value =
+        full.status === 'pass'
+          ? '✓ הבדיקה עברה'
+          : full.status === 'fail'
+            ? `✕ הבדיקה נכשלה — ${full.fail_reasons.join(' | ')}`
+            : 'טרם הושלמה';
+      oc.alignment = { horizontal: 'right', wrapText: true };
+      oc.font = { bold: true, color: { argb: full.status === 'fail' ? RED_TEXT : full.status === 'pass' ? GREEN_TEXT : 'FF64748B' } };
+      if (full.status !== 'incomplete') oc.fill = solid(full.status === 'pass' ? GREEN : RED);
       r++;
     }
   }

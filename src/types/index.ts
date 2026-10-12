@@ -223,6 +223,7 @@ export type FieldType =
   | 'decimal'
   | 'time'
   | 'date'
+  | 'datetime' // full date+time (stored ISO) — used for duration start/end
   | 'bool'
   | 'select'
   | 'multiselect'
@@ -263,11 +264,26 @@ export interface MeasurementRule {
   fail_on_exceed?: boolean; // exceeding the gap marks the table "לא תקין"
 }
 
+/**
+ * Minimum-duration rule. The measurement itself must last at least `min_minutes`
+ * (a MINIMUM, never a maximum). Actual duration = end − start, computed from the
+ * full datetime cells (so midnight-crossing and multi-day measurements work).
+ * The start/end cell refs are stable even if the admin renames the rows/columns.
+ */
+export interface DurationRule {
+  start: CellRef; // cell holding the start datetime
+  end: CellRef; // cell holding the end datetime
+  use_default?: boolean; // take min_minutes from the system+rank default
+  min_minutes?: number; // explicit minimum (when not using the default)
+}
+
 export interface TableConfig {
   title: string;
   description?: string;
   required?: boolean;
-  duration_label?: string; // e.g. "4 שעות" — display only, not auto-enforced
+  /** @deprecated free-text label; replaced by the enforced `duration` rule. */
+  duration_label?: string;
+  duration?: DurationRule; // enforced minimum-duration rule
   columns: TableColumn[];
   rows: TableRow[];
   rules?: MeasurementRule[];
@@ -335,10 +351,26 @@ export interface MeasurementResult {
   passed: boolean | null; // null = not enough data to decide yet
 }
 
+/** Computed outcome of the minimum-duration rule. */
+export interface DurationResult {
+  start: string | null; // ISO datetime
+  end: string | null; // ISO datetime
+  actual_minutes: number | null;
+  min_minutes: number | null;
+  invalid: boolean; // end ≤ start (chronological error)
+  passed: boolean | null; // null when incomplete
+}
+
+/** Overall measurement-table outcome (duration + ±X gap combined). */
+export type TableStatus = 'pass' | 'fail' | 'incomplete';
+
 /** User-entered data for a table block during execution. */
 export interface TableData {
   cells: Record<string, string>; // key `${row_id}|${col_id}` → raw value
-  results?: MeasurementResult[];
+  results?: MeasurementResult[]; // ±X gap results
+  duration_result?: DurationResult;
+  status?: TableStatus; // combined pass/fail/incomplete
+  fail_reasons?: string[]; // precise reasons when the table fails
 }
 
 /**

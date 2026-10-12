@@ -112,6 +112,11 @@ export async function createDraftForm(params: {
   const effBlocks = await getEffectiveBlocks(params.templateId);
   const taskRows = await getTemplateTasks(params.templateId);
   const taskMap = new Map(taskRows.map((t) => [t.id, t]));
+  // Resolve the system+rank default minimum measurement duration ONCE and bake
+  // it into each table snapshot that uses the default — so a later change to the
+  // default never alters this historical בד״ח.
+  const { getMeasureDurationDefault } = await import('./settings');
+  const durationDefault = await getMeasureDurationDefault(template.system_id ?? null, template.rank_id ?? null);
 
   const taskSnaps: TaskSnapshot[] = [];
   const blockSnaps: BlockSnapshot[] = [];
@@ -148,6 +153,13 @@ export async function createDraftForm(params: {
       });
     } else {
       const cfg = JSON.parse(JSON.stringify(b.config));
+      // Freeze the effective minimum duration into the table snapshot.
+      if (b.type === 'table' && cfg.duration) {
+        if (cfg.duration.use_default) {
+          cfg.duration.min_minutes = durationDefault ?? undefined;
+        }
+        cfg.duration.use_default = false; // snapshot carries the resolved value
+      }
       blockSnaps.push({ template_block_id: b.id, type: b.type, sort_order: i, config: cfg });
       draftBlocks.push({
         id: newId(),
@@ -378,10 +390,23 @@ export async function setBlockData(
   const form = await assertEditable(formId, userId);
   const block = await db.completed_blocks.get(blockId);
   if (!block || block.completed_form_id !== formId) throw new Error('הרכיב לא נמצא');
-  const { evaluateTable } = await import('./measurements');
+  if (block.type !== 'table') {
+    await db.completed_blocks.update(blockId, { data: { cells } });
+    await touchInProgress(form);
+    return;
+  }
+  const { evaluateTableFull } = await import('./measurements');
   const config = block.config_snapshot as import('@/types').TableConfig;
-  const results = block.type === 'table' ? evaluateTable(config, cells) : [];
-  await db.completed_blocks.update(blockId, { data: { cells, results } });
+  const full = evaluateTableFull(config, cells);
+  await db.completed_blocks.update(blockId, {
+    data: {
+      cells,
+      results: full.results,
+      duration_result: full.duration_result,
+      status: full.status,
+      fail_reasons: full.fail_reasons,
+    },
+  });
   await touchInProgress(form);
 }
 
@@ -524,20 +549,18 @@ export async function submitForApproval(formId: string, userId: string): Promise
   const blocks = await getFormBlocks(formId);
   const tableBlocks = blocks.filter((b) => b.type === 'table');
   if (tableBlocks.length) {
-    const { tableFailStatus } = await import('./measurements');
     const { logAudit } = await import('./audit');
     for (const b of tableBlocks) {
       const cfg = b.config_snapshot as import('@/types').TableConfig;
-      const status = tableFailStatus(cfg, b.data?.results ?? []);
-      if (status === false) {
+      if (b.data?.status === 'fail') {
         await logAudit({
           user_id: form.performer_user_id,
           user_name: form.performer_name,
-          action: 'MEASUREMENT_EXCEEDED',
+          action: 'MEASUREMENT_FAILED',
           entity_type: 'completed_form',
           entity_id: formId,
           field: cfg.title,
-          new_value: 'חריגה מהפער המותר',
+          new_value: (b.data.fail_reasons ?? []).join(' | ') || 'הבדיקה נכשלה',
         });
       }
     }

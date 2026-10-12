@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { newId } from '@/services/ids';
 import { updateBlockConfig } from '@/services/blocks';
+import { getMeasureDurationDefault, setMeasureDurationDefault } from '@/services/settings';
+import { formatDuration } from '@/services/measurements';
 import { Modal } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import type {
+  DurationRule,
   FieldType,
   MeasurementRule,
   TableColumn,
@@ -19,12 +22,14 @@ const FIELD_LABELS: Record<FieldType, string> = {
   decimal: 'מספר עשרוני',
   time: 'שעה',
   date: 'תאריך',
+  datetime: 'תאריך ושעה',
   bool: 'כן / לא',
   select: 'בחירה מרשימה',
   multiselect: 'בחירה מרובה',
   percent: 'אחוז',
 };
 const NUMERIC: FieldType[] = ['number', 'decimal', 'percent'];
+const DATETIME: FieldType[] = ['datetime'];
 const HAS_UNIT: FieldType[] = ['number', 'decimal', 'percent'];
 const HAS_OPTIONS: FieldType[] = ['select', 'multiselect'];
 
@@ -46,11 +51,15 @@ function move<T>(arr: T[], i: number, dir: -1 | 1): T[] {
  */
 export function TableBlockEditor({
   block,
+  systemId,
+  rankId,
   onClose,
   onSaved,
   notify,
 }: {
   block: TemplateBlock;
+  systemId: string | null;
+  rankId: string | null;
   onClose: () => void;
   onSaved: () => void;
   notify: (m: string, k?: 'ok' | 'error' | 'info') => void;
@@ -58,15 +67,24 @@ export function TableBlockEditor({
   const initial = block.config as TableConfig;
   const [title, setTitle] = useState(initial.title ?? 'טבלת מדידה');
   const [description, setDescription] = useState(initial.description ?? '');
-  const [duration, setDuration] = useState(initial.duration_label ?? '');
   const [required, setRequired] = useState(!!initial.required);
   const [columns, setColumns] = useState<TableColumn[]>(initial.columns ?? []);
   const [rows, setRows] = useState<TableRow[]>(initial.rows ?? []);
   const [rules, setRules] = useState<MeasurementRule[]>(initial.rules ?? []);
+  // Duration rule
+  const [durOn, setDurOn] = useState(!!initial.duration);
+  const [durStart, setDurStart] = useState<string>(initial.duration ? `${initial.duration.start.row_id}|${initial.duration.start.col_id}` : '');
+  const [durEnd, setDurEnd] = useState<string>(initial.duration ? `${initial.duration.end.row_id}|${initial.duration.end.col_id}` : '');
+  const [durUseDefault, setDurUseDefault] = useState(initial.duration?.use_default ?? true);
+  const [durMinutes, setDurMinutes] = useState<number>(initial.duration?.min_minutes ?? 360);
+  const [sysDefault, setSysDefault] = useState<number | null>(null);
   const [showExec, setShowExec] = useState(initial.show_in_execution !== false);
   const [showPdf, setShowPdf] = useState(initial.show_in_pdf !== false);
-  const [advanced, setAdvanced] = useState((initial.rules?.length ?? 0) > 0);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    getMeasureDurationDefault(systemId, rankId).then(setSysDefault).catch(() => setSysDefault(null));
+  }, [systemId, rankId]);
 
   // ---- columns ----
   const addColumn = () => setColumns((c) => [...c, { id: newId(), label: `עמודה ${c.length + 1}`, field_type: 'short_text', required: false }]);
@@ -125,6 +143,15 @@ export function TableBlockEditor({
     updateRule(id, { [side]: { row_id, col_id } } as Partial<MeasurementRule>);
   };
 
+  // ---- duration: datetime cells available as start/end ----
+  const datetimeCells = rows.flatMap((row) =>
+    columns.filter((c) => DATETIME.includes(c.field_type)).map((col) => ({
+      key: `${row.id}|${col.id}`,
+      label: `${row.label} · ${col.label}`,
+    }))
+  );
+  const effectiveMin = durUseDefault ? sysDefault ?? 0 : durMinutes;
+
   const save = async () => {
     if (!title.trim()) { notify('יש להזין שם טבלה', 'error'); return; }
     if (columns.length === 0 || rows.length === 0) { notify('הטבלה חייבת לפחות עמודה ושורה אחת', 'error'); return; }
@@ -139,10 +166,24 @@ export function TableBlockEditor({
         notify('פער מותר חייב להיות מספר אי-שלילי', 'error'); return;
       }
     }
+    let duration: DurationRule | undefined;
+    if (durOn) {
+      if (!durStart || !durEnd) { notify('יש לבחור שדה התחלה ושדה סיום (סוג "תאריך ושעה")', 'error'); return; }
+      if (durStart === durEnd) { notify('שדה ההתחלה והסיום חייבים להיות שונים', 'error'); return; }
+      if (!durUseDefault && !(durMinutes > 0)) { notify('משך מינימלי חייב להיות גדול מאפס', 'error'); return; }
+      const [sr, sc] = durStart.split('|');
+      const [er, ec] = durEnd.split('|');
+      duration = {
+        start: { row_id: sr, col_id: sc },
+        end: { row_id: er, col_id: ec },
+        use_default: durUseDefault,
+        min_minutes: durUseDefault ? undefined : durMinutes,
+      };
+    }
     const config: TableConfig = {
       title: title.trim(),
       description: description.trim(),
-      duration_label: duration.trim(),
+      duration,
       required,
       columns: columns.map((c) => ({
         ...c,
@@ -157,6 +198,10 @@ export function TableBlockEditor({
     };
     setBusy(true);
     try {
+      // When using the system+rank default, persist the admin-edited default too.
+      if (durOn && durUseDefault && sysDefault !== null) {
+        await setMeasureDurationDefault(systemId, rankId, sysDefault);
+      }
       await updateBlockConfig(block.id, config);
       onSaved();
     } finally {
@@ -179,22 +224,72 @@ export function TableBlockEditor({
       }
     >
       <div className="space-y-5">
-        <div className="grid gap-3 sm:grid-cols-2">
+        {/* פרטי הטבלה */}
+        <SectionBox title="פרטי הטבלה">
           <div>
             <label className="label">שם הטבלה</label>
             <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
           </div>
           <div>
-            <label className="label">משך בדיקה נדרש (אופציונלי)</label>
-            <input className="input" value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="למשל: 4 שעות" />
+            <label className="label">שורת הוראה / הסבר (טקסט חופשי)</label>
+            <textarea className="input min-h-[60px]" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="למשל: יש לבצע מדידה רצופה במשך 6 שעות לפחות." />
+            <p className="mt-1 text-xs text-ink-400">שינוי הניסוח אינו משנה את משך המדידה המינימלי או את חוקי החישוב — אלה מוגדרים בנפרד למטה.</p>
           </div>
-        </div>
-        <div>
-          <label className="label">תיאור / הנחיה (אופציונלי)</label>
-          <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} />
-        </div>
+        </SectionBox>
 
-        {/* Columns */}
+        {/* הגדרות זמן */}
+        <SectionBox title="הגדרות זמן — משך מדידה מינימלי">
+          <label className="flex cursor-pointer items-center gap-2">
+            <input type="checkbox" className="h-5 w-5" checked={durOn} onChange={(e) => setDurOn(e.target.checked)} />
+            <span className="text-sm font-medium text-ink-700">אכוף משך מדידה מינימלי</span>
+          </label>
+          {durOn && (
+            <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50/50 p-3">
+              {datetimeCells.length < 2 && (
+                <div className="rounded-md border border-pending-200 bg-pending-50 px-3 py-2 text-[12.5px] text-pending-700">
+                  יש להגדיר לפחות שני תאים מסוג "תאריך ושעה" (למשל שורות התחלה/סיום) כדי לחשב משך.
+                </div>
+              )}
+              <div className="grid gap-2 sm:grid-cols-2">
+                <label className="text-xs text-ink-600">שדה התחלה (תאריך ושעה)
+                  <select className="input !min-h-0 !py-1.5" value={durStart} onChange={(e) => setDurStart(e.target.value)}>
+                    <option value="">בחר שדה…</option>
+                    {datetimeCells.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+                  </select>
+                </label>
+                <label className="text-xs text-ink-600">שדה סיום (תאריך ושעה)
+                  <select className="input !min-h-0 !py-1.5" value={durEnd} onChange={(e) => setDurEnd(e.target.value)}>
+                    <option value="">בחר שדה…</option>
+                    {datetimeCells.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+                  </select>
+                </label>
+              </div>
+              <label className="flex cursor-pointer items-center gap-2">
+                <input type="checkbox" className="h-5 w-5" checked={durUseDefault} onChange={(e) => setDurUseDefault(e.target.checked)} />
+                <span className="text-sm text-ink-700">השתמש בברירת המחדל של המערכת והדרג</span>
+              </label>
+              {durUseDefault ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-ink-600">ברירת מחדל למערכת+דרג (דקות):</span>
+                  <input
+                    type="number"
+                    min={0}
+                    className="input !min-h-0 w-28 !py-1.5"
+                    value={sysDefault ?? ''}
+                    placeholder="לא הוגדר"
+                    onChange={(e) => setSysDefault(e.target.value === '' ? null : Number(e.target.value))}
+                  />
+                  <span className="text-xs text-ink-400">({formatDuration(sysDefault)})</span>
+                </div>
+              ) : (
+                <DurationInput minutes={durMinutes} onChange={setDurMinutes} />
+              )}
+              <div className="text-xs text-ink-500">משך מינימלי מיושם: <b>{formatDuration(effectiveMin || null)}</b></div>
+            </div>
+          )}
+        </SectionBox>
+
+        {/* מבנה הטבלה */}
         <div>
           <div className="mb-2 flex items-center justify-between">
             <span className="text-sm font-bold text-ink-700">עמודות</span>
@@ -244,14 +339,9 @@ export function TableBlockEditor({
           </div>
         </div>
 
-        {/* Advanced: measurement rules + visibility */}
-        <div className="rounded-xl border border-slate-200">
-          <button type="button" className="flex w-full items-center justify-between px-3 py-2.5 text-sm font-semibold text-ink-700" onClick={() => setAdvanced((a) => !a)}>
-            <span>הגדרות מתקדמות — חוקי מדידה (±X) ותצוגה</span>
-            <Icon name={advanced ? 'up' : 'down'} size={16} />
-          </button>
-          {advanced && (
-            <div className="space-y-4 border-t border-slate-200 p-3">
+        {/* הגדרות פער ותצוגה */}
+        <SectionBox title="הגדרות פער (±X) ותצוגה">
+            <div className="space-y-4">
               <div>
                 <div className="mb-2 flex items-center justify-between">
                   <span className="text-sm font-bold text-ink-700">בדיקת פער בין ערכים (±X)</span>
@@ -293,10 +383,34 @@ export function TableBlockEditor({
                 <label className="flex cursor-pointer items-center gap-2"><input type="checkbox" className="h-5 w-5" checked={showPdf} onChange={(e) => setShowPdf(e.target.checked)} /><span className="text-sm text-ink-600">הצג ב-PDF</span></label>
               </div>
             </div>
-          )}
-        </div>
+        </SectionBox>
       </div>
     </Modal>
+  );
+}
+
+/** A labeled section wrapper for the table editor. */
+function SectionBox({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-slate-200 p-3">
+      <div className="mb-2.5 text-sm font-bold text-brand-800">{title}</div>
+      <div className="space-y-3">{children}</div>
+    </div>
+  );
+}
+
+/** Minimum-duration input as hours + minutes (stored as total minutes). */
+function DurationInput({ minutes, onChange }: { minutes: number; onChange: (m: number) => void }) {
+  const h = Math.floor((minutes || 0) / 60);
+  const m = (minutes || 0) % 60;
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-sm text-ink-600">
+      <span>משך מדידה מינימלי נדרש:</span>
+      <input type="number" min={0} className="input !min-h-0 w-20 !py-1.5 nums" value={h} onChange={(e) => onChange(Math.max(0, Number(e.target.value)) * 60 + m)} />
+      <span>שעות</span>
+      <input type="number" min={0} max={59} className="input !min-h-0 w-20 !py-1.5 nums" value={m} onChange={(e) => onChange(h * 60 + Math.min(59, Math.max(0, Number(e.target.value))))} />
+      <span>דקות</span>
+    </div>
   );
 }
 

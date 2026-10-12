@@ -281,7 +281,14 @@ export default function TemplateEditorPage() {
         <ImageEditor block={editing.block} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} notify={notify} />
       )}
       {editing?.kind === 'block' && editing.block.type === 'table' && (
-        <TableBlockEditor block={editing.block} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} notify={notify} />
+        <TableBlockEditor
+          block={editing.block}
+          systemId={template.system_id}
+          rankId={template.rank_id}
+          onClose={() => setEditing(null)}
+          onSaved={() => { setEditing(null); load(); }}
+          notify={notify}
+        />
       )}
 
       <Modal open={!!lightbox} onClose={() => setLightbox(null)} title="תמונה" maxWidth="max-w-3xl">

@@ -220,23 +220,30 @@ export async function runSeed(): Promise<void> {
     const existing = await getTemplateBlocks(tproc.id);
     if (!existing.some((b) => b.type === 'table')) {
       await addBlock(tproc.id, 'section', { title: 'בדיקות נתוני עבודה' });
-      await addBlock(tproc.id, 'text', { text: 'יש לבצע את המדידה לאחר 4 שעות עבודה רצופות.' });
+      await addBlock(tproc.id, 'text', {
+        text: 'יש לבצע מדידה רצופה במשך 6 שעות לפחות ולתעד מספר התחלתי וסופי.',
+      });
       const cNum = newId();
-      const cTime = newId();
+      const cDt = newId();
       const rInit = newId();
       const rFin = newId();
       await addBlock(tproc.id, 'table', {
-        title: 'בדיקת נתוני עבודה – 4 שעות',
+        title: 'בדיקת נתוני עבודה',
         description: '',
-        duration_label: '4 שעות',
         required: false,
+        duration: {
+          start: { row_id: rInit, col_id: cDt },
+          end: { row_id: rFin, col_id: cDt },
+          use_default: false,
+          min_minutes: 360, // 6 hours minimum
+        },
         columns: [
           { id: cNum, label: 'מספר', field_type: 'number', required: false, unit: '' },
-          { id: cTime, label: 'שעה', field_type: 'time', required: false },
+          { id: cDt, label: 'תאריך ושעה', field_type: 'datetime', required: false },
         ],
         rows: [
-          { id: rInit, label: 'תחילת בדיקה' },
-          { id: rFin, label: 'סיום בדיקה' },
+          { id: rInit, label: 'תחילת מדידה' },
+          { id: rFin, label: 'סיום מדידה' },
         ],
         rules: [
           {

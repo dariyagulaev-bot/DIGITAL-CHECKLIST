@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Icon } from './Icon';
-import { cellKey, evaluateTable, allowedRange, tableFailStatus } from '@/services/measurements';
+import { cellKey, evaluateTableFull, allowedRange, formatDuration } from '@/services/measurements';
 import type { FieldType, MeasurementResult, TableColumn, TableConfig } from '@/types';
 
 const key = (rowId: string, colId: string) => `${rowId}|${colId}`;
@@ -22,10 +22,13 @@ export function MeasurementTable({
   editable: boolean;
   onChange?: (next: Record<string, string>) => void;
 }) {
-  const results = useMemo(() => evaluateTable(config, cells), [config, cells]);
-  const derived = tableFailStatus(config, results);
+  const full = useMemo(() => evaluateTableFull(config, cells), [config, cells]);
+  const results = full.results;
+  const dur = full.duration_result;
   const rowLabel = (id: string) => config.rows.find((r) => r.id === id)?.label ?? '';
   const colLabel = (id: string) => config.columns.find((c) => c.id === id)?.label ?? '';
+  const dtCell = (ref?: { row_id: string; col_id: string }) =>
+    ref ? `${rowLabel(ref.row_id)} · ${colLabel(ref.col_id)}` : '';
 
   const setCell = (rowId: string, colId: string, value: string) => {
     if (!editable || !onChange) return;
@@ -77,7 +80,38 @@ export function MeasurementTable({
         </table>
       </div>
 
-      {/* ±X rule results */}
+      {/* Minimum-duration summary */}
+      {config.duration && (
+        <div
+          className={`mt-2 rounded-lg border px-3 py-2 text-[12.5px] ${
+            dur?.invalid || dur?.passed === false
+              ? 'border-fault-200 bg-fault-50 text-ink-800'
+              : dur?.passed
+                ? 'border-ok-200 bg-ok-50 text-ink-700'
+                : 'border-slate-200 bg-slate-50 text-ink-500'
+          }`}
+        >
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5">
+            <span>התחלה (<bdi>{dtCell(config.duration.start)}</bdi>): <b className="nums">{dur?.start ? fmtDT(dur.start) : '—'}</b></span>
+            <span>סיום (<bdi>{dtCell(config.duration.end)}</bdi>): <b className="nums">{dur?.end ? fmtDT(dur.end) : '—'}</b></span>
+            <span>משך מינימלי נדרש: <b>{formatDuration(dur?.min_minutes ?? config.duration.min_minutes ?? null)}</b></span>
+            <span>משך בפועל: <b>{dur?.actual_minutes === null || dur?.actual_minutes === undefined ? '—' : formatDuration(dur.actual_minutes)}</b></span>
+            <span className="font-bold">
+              {dur?.invalid ? (
+                <span className="text-fault-700">✕ זמן סיום מוקדם מהתחלה</span>
+              ) : dur?.passed === null || dur?.passed === undefined ? (
+                <span className="text-ink-400">ממתין לנתונים</span>
+              ) : dur.passed ? (
+                <span className="text-ok-700">✓ עבר תנאי הזמן</span>
+              ) : (
+                <span className="text-fault-700">✕ משך קצר מהנדרש</span>
+              )}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* ±X gap results */}
       {(config.rules ?? []).length > 0 && (
         <div className="mt-2 space-y-1.5">
           {(config.rules ?? []).map((rule) => {
@@ -96,13 +130,12 @@ export function MeasurementTable({
                 }`}
               >
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5">
-                  <span>שדה התחלתי (<bdi>{rowLabel(rule.initial.row_id)} · {colLabel(rule.initial.col_id)}</bdi>): <b className="nums">{res?.initial ?? '—'}</b></span>
-                  <span>שדה סופי (<bdi>{rowLabel(rule.final.row_id)} · {colLabel(rule.final.col_id)}</bdi>): <b className="nums">{res?.final ?? '—'}</b></span>
+                  <span>שדה התחלתי (<bdi>{dtCell(rule.initial)}</bdi>): <b className="nums">{res?.initial ?? '—'}</b></span>
+                  <span>שדה סופי (<bdi>{dtCell(rule.final)}</bdi>): <b className="nums">{res?.final ?? '—'}</b></span>
                   <span>פער בפועל: <b className="nums">{res?.difference ?? '—'}</b></span>
                   <span>פער מותר: <b className="nums">±{rule.allowed_difference}</b></span>
                   {range && <span>טווח תקין: <b className="nums">{range.min}–{range.max}</b></span>}
                   <span className="font-bold">
-                    תוצאה:{' '}
                     {!decided ? (
                       <span className="text-ink-400">ממתין לנתונים</span>
                     ) : res!.passed ? (
@@ -115,20 +148,50 @@ export function MeasurementTable({
               </div>
             );
           })}
-          {derived === false && (
-            <div className="flex items-center gap-1.5 rounded-lg border border-fault-300 bg-fault-50 px-3 py-1.5 text-[13px] font-bold text-fault-700">
-              <Icon name="alert" size={15} /> הבדיקה לא תקינה — חריגה מהפער המותר
-            </div>
-          )}
-          {derived === true && (
-            <div className="flex items-center gap-1.5 rounded-lg border border-ok-200 bg-ok-50 px-3 py-1.5 text-[13px] font-bold text-ok-700">
-              <Icon name="check" size={15} /> הבדיקה תקינה — בתוך הפער המותר
-            </div>
+        </div>
+      )}
+
+      {/* Overall measurement result (duration + gap combined) */}
+      {full.status && (
+        <div
+          className={`mt-2 rounded-lg border px-3 py-2 text-[13px] font-bold ${
+            full.status === 'fail'
+              ? 'border-fault-300 bg-fault-50 text-fault-700'
+              : full.status === 'pass'
+                ? 'border-ok-300 bg-ok-50 text-ok-700'
+                : 'border-slate-200 bg-slate-50 text-ink-500'
+          }`}
+        >
+          <div className="flex items-center gap-1.5">
+            {full.status === 'fail' ? (
+              <Icon name="alert" size={15} />
+            ) : full.status === 'pass' ? (
+              <Icon name="check" size={15} />
+            ) : (
+              <Icon name="clock" size={15} />
+            )}
+            {full.status === 'fail' ? 'הבדיקה נכשלה' : full.status === 'pass' ? 'הבדיקה עברה' : 'טרם הושלמה'}
+          </div>
+          {full.status === 'fail' && full.fail_reasons.length > 0 && (
+            <ul className="mt-1 list-disc pr-5 text-[12px] font-medium text-fault-700">
+              {full.fail_reasons.map((rz, i) => (
+                <li key={i}>{rz}</li>
+              ))}
+            </ul>
           )}
         </div>
       )}
     </div>
   );
+}
+
+/** Compact datetime display: "DD.MM HH:MM" (date shown; mainly for the record). */
+function fmtDT(iso: string): string {
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return iso;
+  const d = new Date(t);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${p(d.getDate())}.${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 function CellInput({
@@ -160,6 +223,8 @@ function CellInput({
       return <input type="time" className={`${base} nums`} value={value} onChange={(e) => onChange(e.target.value)} />;
     case 'date':
       return <input type="date" className={`${base} nums`} value={value} onChange={(e) => onChange(e.target.value)} />;
+    case 'datetime':
+      return <input type="datetime-local" className={`${base} nums`} value={value} onChange={(e) => onChange(e.target.value)} />;
     case 'bool':
       return (
         <select className={base} value={value} onChange={(e) => onChange(e.target.value)}>
