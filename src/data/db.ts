@@ -317,6 +317,26 @@ export class ChecklistDB extends Dexie {
         }
         if (blocks.length) await tx.table('template_blocks').bulkAdd(blocks);
       });
+
+    // v11: Draft/Publish for templates. Existing templates are treated as
+    // already published (ever_published = true) so they keep working as-is;
+    // only templates built in the new editor are drafts until first published.
+    // Data-only fields, so stores({}) is enough.
+    this.version(11)
+      .stores({})
+      .upgrade(async (tx) => {
+        const templates = await tx.table('templates').toArray();
+        await Promise.all(
+          templates
+            .filter((t: Template) => t.ever_published === undefined)
+            .map((t: Template) =>
+              tx.table('templates').update(t.id, {
+                ever_published: true,
+                has_unpublished_changes: false,
+              })
+            )
+        );
+      });
   }
 }
 

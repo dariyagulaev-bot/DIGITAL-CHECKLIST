@@ -110,6 +110,41 @@ export interface Performer {
   updated_at: string;
 }
 
+/** A frozen, self-contained copy of a check block's content for publishing. */
+export interface PublishedCheckConfig {
+  part_name: string;
+  action: string;
+  equipment: string;
+  equipment_items: string[];
+  image_data: string | null;
+}
+
+/** One block inside a published template version (self-contained, no DB refs). */
+export interface PublishedBlock {
+  type: BlockType;
+  sort_order: number;
+  config: PublishedCheckConfig | BlockConfig;
+}
+
+/** One entry in a template's version history. */
+export interface VersionEntry {
+  version: string; // e.g. "1.0", "1.1", "2.0"
+  published_at: string;
+  published_by_id: string;
+  published_by_name: string;
+  change_summary?: string;
+}
+
+/** The currently-published content of a template (used for NEW forms). */
+export interface PublishedContent {
+  version: string;
+  published_at: string;
+  published_by_id: string;
+  published_by_name: string;
+  change_summary?: string;
+  blocks: PublishedBlock[];
+}
+
 /** A checklist/בד״ח template, associated with a system type + rank. */
 export interface Template {
   id: string;
@@ -121,6 +156,14 @@ export interface Template {
   version: number; // bumped on structural edits, snapshotted onto forms
   created_at: string;
   updated_at: string;
+  // ---- Draft / Publish (all optional for backward compatibility) ----
+  // Legacy templates have no `published` snapshot and are treated as already
+  // published (ever_published defaults to true via migration). A template built
+  // in the new editor is a DRAFT until first published.
+  published?: PublishedContent; // frozen content NEW forms are built from
+  ever_published?: boolean; // has it ever been published?
+  has_unpublished_changes?: boolean; // draft edits since the last publish
+  version_history?: VersionEntry[];
 }
 
 /**
