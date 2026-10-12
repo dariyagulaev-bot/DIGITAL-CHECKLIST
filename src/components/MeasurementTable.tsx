@@ -25,6 +25,13 @@ export function MeasurementTable({
   const full = useMemo(() => evaluateTableFull(config, cells), [config, cells]);
   const results = full.results;
   const dur = full.duration_result;
+  // Signed differences (direction matters) for the compact execution summary.
+  const signedGap = (n: number | null | undefined) =>
+    n === null || n === undefined ? '' : n > 0 ? `+${n}` : `${n}`;
+  const gapText = results
+    .map((r) => signedGap(r.difference))
+    .filter(Boolean)
+    .join(', ');
   const rowLabel = (id: string) => config.rows.find((r) => r.id === id)?.label ?? '';
   const colLabel = (id: string) => config.columns.find((c) => c.id === id)?.label ?? '';
   const dtCell = (ref?: { row_id: string; col_id: string }) =>
@@ -80,8 +87,49 @@ export function MeasurementTable({
         </table>
       </div>
 
-      {/* Minimum-duration summary */}
-      {config.duration && (
+      {/*
+        Execution view: a single compact pass/fail summary with the actual
+        signed gap — no duration/ranges/times/endpoints/calc steps. All full
+        data stays persisted for the record, Audit, PDF and Excel. The detailed
+        breakdown below renders only in the read-only report/documentation view.
+      */}
+      {editable && full.status && (
+        <div
+          className={`mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border px-3 py-2 text-[13px] font-bold ${
+            full.status === 'fail'
+              ? 'border-fault-300 bg-fault-50 text-fault-700'
+              : full.status === 'pass'
+                ? 'border-ok-300 bg-ok-50 text-ok-700'
+                : 'border-slate-200 bg-slate-50 text-ink-500'
+          }`}
+        >
+          <span className="flex items-center gap-1.5">
+            {full.status === 'fail' ? (
+              <Icon name="alert" size={15} />
+            ) : full.status === 'pass' ? (
+              <Icon name="check" size={15} />
+            ) : (
+              <Icon name="clock" size={15} />
+            )}
+            {full.status === 'fail'
+              ? 'הבדיקה נכשלה'
+              : full.status === 'pass'
+                ? 'הבדיקה עברה בהצלחה'
+                : 'הבדיקה טרם הושלמה'}
+          </span>
+          {full.status !== 'incomplete' && gapText && (
+            <>
+              <span className="font-normal text-ink-300">|</span>
+              <span className="font-semibold">
+                פער: <bdi dir="ltr" className="nums">{gapText}</bdi>
+              </span>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Minimum-duration summary (report / documentation view only) */}
+      {!editable && config.duration && (
         <div
           className={`mt-2 rounded-lg border px-3 py-2 text-[12.5px] ${
             dur?.invalid || dur?.passed === false
@@ -111,8 +159,8 @@ export function MeasurementTable({
         </div>
       )}
 
-      {/* ±X gap results */}
-      {(config.rules ?? []).length > 0 && (
+      {/* ±X gap results (report / documentation view only) */}
+      {!editable && (config.rules ?? []).length > 0 && (
         <div className="mt-2 space-y-1.5">
           {(config.rules ?? []).map((rule) => {
             const res = results.find((x) => x.rule_id === rule.id) as MeasurementResult | undefined;
@@ -151,8 +199,8 @@ export function MeasurementTable({
         </div>
       )}
 
-      {/* Overall measurement result (duration + gap combined) */}
-      {full.status && (
+      {/* Overall measurement result — duration + gap combined (report view only) */}
+      {!editable && full.status && (
         <div
           className={`mt-2 rounded-lg border px-3 py-2 text-[13px] font-bold ${
             full.status === 'fail'
