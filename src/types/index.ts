@@ -271,8 +271,16 @@ export interface MeasurementRule {
  * The start/end cell refs are stable even if the admin renames the rows/columns.
  */
 export interface DurationRule {
-  start: CellRef; // cell holding the start datetime
-  end: CellRef; // cell holding the end datetime
+  /**
+   * How the measurement duration is captured:
+   *  - 'timer' (default): the performer presses "התחל דגימה" / "סיום דגימה" and
+   *    the device clock is stamped at each press (started_at / ended_at on the
+   *    table data). The admin only sets the minimum — no fields to pick.
+   *  - 'fields' (legacy): duration = (end datetime cell) − (start datetime cell).
+   */
+  mode?: 'timer' | 'fields';
+  start?: CellRef; // legacy 'fields' mode: cell holding the start datetime
+  end?: CellRef; // legacy 'fields' mode: cell holding the end datetime
   use_default?: boolean; // take min_minutes from the system+rank default
   min_minutes?: number; // explicit minimum (when not using the default)
 }
@@ -367,6 +375,8 @@ export type TableStatus = 'pass' | 'fail' | 'incomplete';
 /** User-entered data for a table block during execution. */
 export interface TableData {
   cells: Record<string, string>; // key `${row_id}|${col_id}` → raw value
+  started_at?: string | null; // timer mode: device clock at "התחל דגימה"
+  ended_at?: string | null; // timer mode: device clock at "סיום דגימה"
   results?: MeasurementResult[]; // ±X gap results
   duration_result?: DurationResult;
   status?: TableStatus; // combined pass/fail/incomplete

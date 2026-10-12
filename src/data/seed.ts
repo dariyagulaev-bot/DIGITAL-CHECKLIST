@@ -224,7 +224,6 @@ export async function runSeed(): Promise<void> {
         text: 'יש לבצע מדידה רצופה במשך 6 שעות לפחות ולתעד מספר התחלתי וסופי.',
       });
       const cNum = newId();
-      const cDt = newId();
       const rInit = newId();
       const rFin = newId();
       await addBlock(tproc.id, 'table', {
@@ -232,14 +231,12 @@ export async function runSeed(): Promise<void> {
         description: '',
         required: false,
         duration: {
-          start: { row_id: rInit, col_id: cDt },
-          end: { row_id: rFin, col_id: cDt },
+          mode: 'timer', // performer presses Start/Stop; device clock is stamped
           use_default: false,
           min_minutes: 360, // 6 hours minimum
         },
         columns: [
           { id: cNum, label: 'מספר', field_type: 'number', required: false, unit: '' },
-          { id: cDt, label: 'תאריך ושעה', field_type: 'datetime', required: false },
         ],
         rows: [
           { id: rInit, label: 'תחילת מדידה' },

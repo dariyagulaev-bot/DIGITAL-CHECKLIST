@@ -168,7 +168,11 @@ function requiredCellKeys(config: TableConfig): string[] {
  * any required value (or a criterion input) is missing. The result is always
  * derived from the data — it can never be manually overridden.
  */
-export function evaluateTableFull(config: TableConfig, cells: Record<string, string>): TableEvaluation {
+export function evaluateTableFull(
+  config: TableConfig,
+  cells: Record<string, string>,
+  timer?: { started_at?: string | null; ended_at?: string | null }
+): TableEvaluation {
   const results = evaluateTable(config, cells);
   const reasons: string[] = [];
   let anyFail = false;
@@ -176,8 +180,11 @@ export function evaluateTableFull(config: TableConfig, cells: Record<string, str
 
   let duration_result: DurationResult | undefined;
   if (config.duration) {
-    const startRaw = cells[cellKey(config.duration.start)];
-    const endRaw = cells[cellKey(config.duration.end)];
+    // Legacy 'fields' mode reads two datetime cells; the default 'timer' mode
+    // reads the Start/Stop device-clock stamps carried on the table data.
+    const isFields = config.duration.mode === 'fields' || (!!config.duration.start && !!config.duration.end);
+    const startRaw = isFields && config.duration.start ? cells[cellKey(config.duration.start)] : timer?.started_at ?? null;
+    const endRaw = isFields && config.duration.end ? cells[cellKey(config.duration.end)] : timer?.ended_at ?? null;
     duration_result = computeDuration(startRaw, endRaw, config.duration.min_minutes ?? null);
     if (duration_result.invalid) {
       anyFail = true;
@@ -220,7 +227,7 @@ export function evaluateTableFull(config: TableConfig, cells: Record<string, str
 
 /** Recompute and attach results onto table data (immutably). */
 export function withResults(config: TableConfig, data: TableData): TableData {
-  const full = evaluateTableFull(config, data.cells ?? {});
+  const full = evaluateTableFull(config, data.cells ?? {}, { started_at: data.started_at, ended_at: data.ended_at });
   return {
     ...data,
     results: full.results,

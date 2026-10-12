@@ -107,3 +107,50 @@ describe('minimum measurement duration', () => {
     expect(formatDuration(null)).toBe('—');
   });
 });
+
+describe('timer-mode minimum duration (Start/Stop device clock)', () => {
+  /** Timer-mode table: no datetime cells; duration comes from Start/Stop stamps. */
+  function tcfg(minMinutes = 360): TableConfig {
+    return {
+      title: 'מדידה',
+      columns: [{ id: C_NUM, label: 'מספר', field_type: 'number' }],
+      rows: [
+        { id: R_INIT, label: 'תחילת מדידה' },
+        { id: R_FIN, label: 'סיום מדידה' },
+      ],
+      rules: [
+        { id: 'g', type: 'delta', initial: { row_id: R_INIT, col_id: C_NUM }, final: { row_id: R_FIN, col_id: C_NUM }, allowed_difference: 25, fail_on_exceed: true },
+      ],
+      duration: { mode: 'timer', min_minutes: minMinutes },
+    };
+  }
+  const nums = (initNum = '100', finNum = '90') => ({ [`${R_INIT}|${C_NUM}`]: initNum, [`${R_FIN}|${C_NUM}`]: finNum });
+
+  it('no Start → duration incomplete (table incomplete, never NaN)', () => {
+    const f = evaluateTableFull(tcfg(360), nums(), {});
+    expect(f.duration_result?.passed).toBeNull();
+    expect(f.status).toBe('incomplete');
+  });
+
+  it('Started but not Stopped → incomplete', () => {
+    const f = evaluateTableFull(tcfg(360), nums(), { started_at: '2026-10-12T08:00', ended_at: null });
+    expect(f.status).toBe('incomplete');
+  });
+
+  it('Stop before minimum elapsed → FAIL; enough elapsed + gap ok → PASS', () => {
+    // 5h elapsed < 6h → fail (time)
+    let f = evaluateTableFull(tcfg(360), nums('100', '90'), { started_at: '2026-10-12T08:00', ended_at: '2026-10-12T13:00' });
+    expect(f.status).toBe('fail');
+    expect(f.fail_reasons.join(' ')).toContain('משך המדידה');
+    // 7h elapsed, gap -10 → pass
+    f = evaluateTableFull(tcfg(360), nums('100', '90'), { started_at: '2026-10-12T08:00', ended_at: '2026-10-12T15:00' });
+    expect(f.status).toBe('pass');
+    expect(f.duration_result?.actual_minutes).toBe(420);
+  });
+
+  it('enforces the minimum even when the gap passes', () => {
+    // enough gap but only 1h elapsed → still fails on time
+    const f = evaluateTableFull(tcfg(360), nums('100', '100'), { started_at: '2026-10-12T08:00', ended_at: '2026-10-12T09:00' });
+    expect(f.status).toBe('fail');
+  });
+});

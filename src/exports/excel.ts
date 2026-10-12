@@ -164,7 +164,7 @@ export async function exportFormToExcel(formId: string): Promise<void> {
     const cfg = b.config_snapshot as TableConfig;
     const cells = b.data?.cells ?? {};
     r++; // blank
-    const full = evaluateTableFull(cfg, cells);
+    const full = evaluateTableFull(cfg, cells, { started_at: b.data?.started_at, ended_at: b.data?.ended_at });
     const th = ws.getCell(`A${r}`);
     th.value = `טבלת מדידה: ${cfg.title}`;
     th.font = { bold: true, color: { argb: 'FF0F2B52' } };
@@ -206,7 +206,15 @@ export async function exportFormToExcel(formId: string): Promise<void> {
       ws.mergeCells(`A${r}:B${r}`);
       ws.mergeCells(`C${r}:F${r}`);
       const dc = ws.getCell(`C${r}`);
-      dc.value = `נדרש מינימום: ${formatDuration(dr.min_minutes)} | בפועל: ${formatDuration(dr.actual_minutes)} | תוצאה: ${
+      const fmtTs = (iso: string | null) => {
+        if (!iso) return '—';
+        const t = Date.parse(iso);
+        if (!Number.isFinite(t)) return iso;
+        const d = new Date(t);
+        const p = (n: number) => String(n).padStart(2, '0');
+        return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+      };
+      dc.value = `התחלה: ${fmtTs(dr.start)} | סיום: ${fmtTs(dr.end)} | נדרש מינימום: ${formatDuration(dr.min_minutes)} | בפועל: ${formatDuration(dr.actual_minutes)} | תוצאה: ${
         dr.invalid ? 'זמן סיום מוקדם מהתחלה' : dr.passed === null ? 'ממתין' : dr.passed ? '✓ עבר' : '✕ לא עבר'
       }`;
       dc.alignment = { horizontal: 'right', wrapText: true };

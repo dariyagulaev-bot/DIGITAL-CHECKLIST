@@ -20,12 +20,14 @@ export function BlockContent({
   context,
   editable = false,
   onTableChange,
+  onTableTimer,
   onViewImage,
 }: {
   block: CompletedBlock;
   context: 'execution' | 'report';
   editable?: boolean;
   onTableChange?: (blockId: string, cells: Record<string, string>) => void;
+  onTableTimer?: (blockId: string, action: 'start' | 'stop' | 'reset') => void;
   onViewImage?: (src: string) => void;
 }) {
   switch (block.type) {
@@ -89,6 +91,9 @@ export function BlockContent({
             cells={block.data?.cells ?? {}}
             editable={editable}
             onChange={(next) => onTableChange?.(block.id, next)}
+            startedAt={block.data?.started_at}
+            endedAt={block.data?.ended_at}
+            onTimer={(action) => onTableTimer?.(block.id, action)}
           />
         </section>
       );

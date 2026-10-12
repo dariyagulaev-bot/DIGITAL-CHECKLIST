@@ -16,15 +16,26 @@ export function MeasurementTable({
   cells,
   editable,
   onChange,
+  startedAt,
+  endedAt,
+  onTimer,
 }: {
   config: TableConfig;
   cells: Record<string, string>;
   editable: boolean;
   onChange?: (next: Record<string, string>) => void;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  onTimer?: (action: 'start' | 'stop' | 'reset') => void;
 }) {
-  const full = useMemo(() => evaluateTableFull(config, cells), [config, cells]);
+  const full = useMemo(
+    () => evaluateTableFull(config, cells, { started_at: startedAt, ended_at: endedAt }),
+    [config, cells, startedAt, endedAt]
+  );
   const results = full.results;
   const dur = full.duration_result;
+  // A timer-mode duration uses Start/Stop device-clock stamps (no datetime cells).
+  const timerMode = !!config.duration && config.duration.mode !== 'fields' && !config.duration.start && !config.duration.end;
   // Signed differences (direction matters) for the compact execution summary.
   const signedGap = (n: number | null | undefined) =>
     n === null || n === undefined ? '' : n > 0 ? `+${n}` : `${n}`;
@@ -88,6 +99,55 @@ export function MeasurementTable({
       </div>
 
       {/*
+        Minimum-duration timer (timer mode): the performer presses "התחל דגימה"
+        and "סיום דגימה"; the device clock is stamped at each press. The duration
+        and PASS/FAIL are derived from those stamps — the configured minimum is
+        still enforced (actual ≥ min). No datetime fields to fill or pick.
+      */}
+      {timerMode && (
+        <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[13px] font-bold text-ink-700">דגימת זמן מדידה</span>
+            <span className="text-[12px] text-ink-500">משך מינימלי נדרש: <b>{formatDuration(config.duration?.min_minutes ?? null)}</b></span>
+          </div>
+          {editable ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {!startedAt ? (
+                <button type="button" className="btn-primary btn-sm gap-1.5" onClick={() => onTimer?.('start')}>
+                  <Icon name="clock" size={15} /> התחל דגימה
+                </button>
+              ) : !endedAt ? (
+                <>
+                  <span className="inline-flex items-center gap-1.5 rounded-md bg-ok-50 px-2 py-1 text-[12.5px] font-medium text-ok-700">
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-ok-500" /> דגימה פעילה · התחלה {fmtDT(startedAt)}
+                  </span>
+                  <button type="button" className="btn-primary btn-sm gap-1.5" onClick={() => onTimer?.('stop')}>
+                    <Icon name="check" size={15} /> סיום דגימה
+                  </button>
+                  <button type="button" className="btn-ghost btn-sm text-ink-500" onClick={() => onTimer?.('reset')}>אפס</button>
+                </>
+              ) : (
+                <>
+                  <span className="text-[12.5px] text-ink-600">התחלה: <b className="nums">{fmtDT(startedAt)}</b></span>
+                  <span className="text-[12.5px] text-ink-600">סיום: <b className="nums">{fmtDT(endedAt)}</b></span>
+                  <span className="text-[12.5px] text-ink-600">משך בפועל: <b>{formatDuration(dur?.actual_minutes ?? null)}</b></span>
+                  <button type="button" className="btn-ghost btn-sm gap-1.5 text-ink-500" onClick={() => onTimer?.('start')}>
+                    <Icon name="clock" size={14} /> דגימה חדשה
+                  </button>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] text-ink-600">
+              <span>התחלה: <b className="nums">{startedAt ? fmtDT(startedAt) : '—'}</b></span>
+              <span>סיום: <b className="nums">{endedAt ? fmtDT(endedAt) : '—'}</b></span>
+              <span>משך בפועל: <b>{dur?.actual_minutes === null || dur?.actual_minutes === undefined ? '—' : formatDuration(dur.actual_minutes)}</b></span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/*
         Execution view: a single compact pass/fail summary with the actual
         signed gap — no duration/ranges/times/endpoints/calc steps. All full
         data stays persisted for the record, Audit, PDF and Excel. The detailed
@@ -128,8 +188,8 @@ export function MeasurementTable({
         </div>
       )}
 
-      {/* Minimum-duration summary (report / documentation view only) */}
-      {!editable && config.duration && (
+      {/* Legacy field-mode duration detail (report / documentation view only) */}
+      {!editable && config.duration && !timerMode && (
         <div
           className={`mt-2 rounded-lg border px-3 py-2 text-[12.5px] ${
             dur?.invalid || dur?.passed === false

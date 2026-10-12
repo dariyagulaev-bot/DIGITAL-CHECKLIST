@@ -436,10 +436,65 @@ export async function setBlockData(
   }
   const { evaluateTableFull } = await import('./measurements');
   const config = block.config_snapshot as import('@/types').TableConfig;
-  const full = evaluateTableFull(config, cells);
+  // Preserve the timer stamps (Start/Stop) across ordinary cell edits.
+  const prev = block.data as import('@/types').TableData | undefined;
+  const started_at = prev?.started_at ?? null;
+  const ended_at = prev?.ended_at ?? null;
+  const full = evaluateTableFull(config, cells, { started_at, ended_at });
   await db.completed_blocks.update(blockId, {
     data: {
       cells,
+      started_at,
+      ended_at,
+      results: full.results,
+      duration_result: full.duration_result,
+      status: full.status,
+      fail_reasons: full.fail_reasons,
+    },
+  });
+  await touchInProgress(form);
+}
+
+/**
+ * Measurement-duration timer (timer-mode tables): the performer presses
+ * "התחל דגימה" to stamp the device clock as the start, and "סיום דגימה" to stamp
+ * the end. 'reset' clears both for a fresh sample. The duration and PASS/FAIL are
+ * always recomputed from these stamps — never set by hand — and the configured
+ * minimum is still enforced (actual ≥ min to pass).
+ */
+export async function setBlockTimer(
+  formId: string,
+  userId: string,
+  blockId: string,
+  action: 'start' | 'stop' | 'reset'
+): Promise<void> {
+  const form = await assertEditable(formId, userId);
+  const block = await db.completed_blocks.get(blockId);
+  if (!block || block.completed_form_id !== formId) throw new Error('הרכיב לא נמצא');
+  if (block.type !== 'table') throw new Error('רכיב זה אינו טבלת מדידה');
+  const { evaluateTableFull } = await import('./measurements');
+  const config = block.config_snapshot as import('@/types').TableConfig;
+  const prev = block.data as import('@/types').TableData | undefined;
+  const cells = prev?.cells ?? {};
+  let started_at = prev?.started_at ?? null;
+  let ended_at = prev?.ended_at ?? null;
+  const now = nowIso();
+  if (action === 'start') {
+    started_at = now;
+    ended_at = null; // a new sample clears any previous end
+  } else if (action === 'stop') {
+    if (!started_at) throw new Error('יש להתחיל דגימה לפני סיום');
+    ended_at = now;
+  } else {
+    started_at = null;
+    ended_at = null;
+  }
+  const full = evaluateTableFull(config, cells, { started_at, ended_at });
+  await db.completed_blocks.update(blockId, {
+    data: {
+      cells,
+      started_at,
+      ended_at,
       results: full.results,
       duration_result: full.duration_result,
       status: full.status,

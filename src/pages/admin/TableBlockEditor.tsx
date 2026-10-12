@@ -29,7 +29,6 @@ const FIELD_LABELS: Record<FieldType, string> = {
   percent: 'אחוז',
 };
 const NUMERIC: FieldType[] = ['number', 'decimal', 'percent'];
-const DATETIME: FieldType[] = ['datetime'];
 const HAS_UNIT: FieldType[] = ['number', 'decimal', 'percent'];
 const HAS_OPTIONS: FieldType[] = ['select', 'multiselect'];
 
@@ -71,10 +70,8 @@ export function TableBlockEditor({
   const [columns, setColumns] = useState<TableColumn[]>(initial.columns ?? []);
   const [rows, setRows] = useState<TableRow[]>(initial.rows ?? []);
   const [rules, setRules] = useState<MeasurementRule[]>(initial.rules ?? []);
-  // Duration rule
+  // Duration rule (timer mode — Start/Stop device clock; admin sets only the minimum)
   const [durOn, setDurOn] = useState(!!initial.duration);
-  const [durStart, setDurStart] = useState<string>(initial.duration ? `${initial.duration.start.row_id}|${initial.duration.start.col_id}` : '');
-  const [durEnd, setDurEnd] = useState<string>(initial.duration ? `${initial.duration.end.row_id}|${initial.duration.end.col_id}` : '');
   const [durUseDefault, setDurUseDefault] = useState(initial.duration?.use_default ?? true);
   const [durMinutes, setDurMinutes] = useState<number>(initial.duration?.min_minutes ?? 360);
   const [sysDefault, setSysDefault] = useState<number | null>(null);
@@ -143,43 +140,7 @@ export function TableBlockEditor({
     updateRule(id, { [side]: { row_id, col_id } } as Partial<MeasurementRule>);
   };
 
-  // ---- duration: datetime cells available as start/end ----
-  const datetimeCells = rows.flatMap((row) =>
-    columns.filter((c) => DATETIME.includes(c.field_type)).map((col) => ({
-      key: `${row.id}|${col.id}`,
-      label: `${row.label} · ${col.label}`,
-    }))
-  );
   const effectiveMin = durUseDefault ? sysDefault ?? 0 : durMinutes;
-
-  /**
-   * One-click setup when the table has no datetime fields to measure against:
-   * ensure a "תאריך ושעה" column exists and at least two rows (start/end), then
-   * pre-select them as the duration's start/end. The admin can rename/move/remove
-   * them afterwards like any other field.
-   */
-  const addDatetimeFields = () => {
-    let cols = columns;
-    let rws = rows;
-    if (!cols.some((c) => DATETIME.includes(c.field_type))) {
-      const dtCol: TableColumn = { id: newId(), label: 'תאריך ושעה', field_type: 'datetime', required: false };
-      cols = [...cols, dtCol];
-      setColumns(cols);
-    }
-    if (rws.length < 2) {
-      const labels = ['תחילת מדידה', 'סיום מדידה'];
-      const extra: TableRow[] = [];
-      for (let i = rws.length; i < 2; i++) extra.push({ id: newId(), label: labels[i] ?? `שורה ${i + 1}` });
-      rws = [...rws, ...extra];
-      setRows(rws);
-    }
-    const dtCols = cols.filter((c) => DATETIME.includes(c.field_type));
-    const cellKeys = rws.flatMap((row) => dtCols.map((col) => `${row.id}|${col.id}`));
-    if (cellKeys.length >= 2) {
-      setDurStart(cellKeys[0]);
-      setDurEnd(cellKeys[1]);
-    }
-  };
 
   const save = async () => {
     if (!title.trim()) { notify('יש להזין שם טבלה', 'error'); return; }
@@ -197,14 +158,10 @@ export function TableBlockEditor({
     }
     let duration: DurationRule | undefined;
     if (durOn) {
-      if (!durStart || !durEnd) { notify('יש לבחור שדה התחלה ושדה סיום (סוג "תאריך ושעה")', 'error'); return; }
-      if (durStart === durEnd) { notify('שדה ההתחלה והסיום חייבים להיות שונים', 'error'); return; }
       if (!durUseDefault && !(durMinutes > 0)) { notify('משך מינימלי חייב להיות גדול מאפס', 'error'); return; }
-      const [sr, sc] = durStart.split('|');
-      const [er, ec] = durEnd.split('|');
+      if (durUseDefault && !(Number(sysDefault) > 0)) { notify('יש להגדיר ברירת מחדל של משך (דקות) למערכת והדרג', 'error'); return; }
       duration = {
-        start: { row_id: sr, col_id: sc },
-        end: { row_id: er, col_id: ec },
+        mode: 'timer',
         use_default: durUseDefault,
         min_minutes: durUseDefault ? undefined : durMinutes,
       };
@@ -274,28 +231,10 @@ export function TableBlockEditor({
           </label>
           {durOn && (
             <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50/50 p-3">
-              {datetimeCells.length < 2 && (
-                <div className="rounded-md border border-pending-200 bg-pending-50 px-3 py-2.5 text-[12.5px] text-pending-700">
-                  <div>יש להגדיר לפחות שני תאים מסוג "תאריך ושעה" (למשל שורות התחלה/סיום) כדי לחשב משך.</div>
-                  <button type="button" className="btn-secondary btn-sm mt-2 gap-1.5" onClick={addDatetimeFields}>
-                    <Icon name="plus" size={14} /> הוסף שדות תאריך ושעה אוטומטית
-                  </button>
-                </div>
-              )}
-              <div className="grid gap-2 sm:grid-cols-2">
-                <label className="text-xs text-ink-600">שדה התחלה (תאריך ושעה)
-                  <select className="input !min-h-0 !py-1.5" value={durStart} onChange={(e) => setDurStart(e.target.value)}>
-                    <option value="">בחר שדה…</option>
-                    {datetimeCells.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
-                  </select>
-                </label>
-                <label className="text-xs text-ink-600">שדה סיום (תאריך ושעה)
-                  <select className="input !min-h-0 !py-1.5" value={durEnd} onChange={(e) => setDurEnd(e.target.value)}>
-                    <option value="">בחר שדה…</option>
-                    {datetimeCells.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
-                  </select>
-                </label>
-              </div>
+              <p className="text-[12.5px] text-ink-500">
+                המבצע ילחץ "התחל דגימה" ו"סיום דגימה" בזמן הבדיקה; התאריך והשעה נלקחים משעון המכשיר.
+                המערכת מחשבת את המשך בפועל ואוכפת את המינימום שתגדיר כאן — אין צורך להגדיר שדות.
+              </p>
               <label className="flex cursor-pointer items-center gap-2">
                 <input type="checkbox" className="h-5 w-5" checked={durUseDefault} onChange={(e) => setDurUseDefault(e.target.checked)} />
                 <span className="text-sm text-ink-700">השתמש בברירת המחדל של המערכת והדרג</span>

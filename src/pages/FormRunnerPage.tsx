@@ -17,6 +17,7 @@ import {
   isEditableByPerformer,
   reportRepair,
   setBlockData,
+  setBlockTimer,
   setTaskComment,
   setTaskFaultImage,
   setTaskResult,
@@ -200,6 +201,23 @@ export default function FormRunnerPage() {
     saveTimers.current[blockId] = setTimeout(() => {
       setBlockData(form.id, user.id, blockId, cells).catch((e) => notify((e as Error).message, 'error'));
     }, 250);
+  };
+
+  // Measurement-duration timer: stamp the device clock on Start/Stop (or reset),
+  // persist, then reload so the computed duration + result refresh immediately.
+  const onTableTimer = async (blockId: string, action: 'start' | 'stop' | 'reset') => {
+    try {
+      // Flush any pending cell autosave first so it isn't lost on reload.
+      if (saveTimers.current[blockId]) {
+        clearTimeout(saveTimers.current[blockId]);
+        delete saveTimers.current[blockId];
+        if (tableCells[blockId]) await setBlockData(form.id, user.id, blockId, tableCells[blockId]);
+      }
+      await setBlockTimer(form.id, user.id, blockId, action);
+      await load();
+    } catch (e) {
+      notify((e as Error).message, 'error');
+    }
   };
 
   const saveSig = async (type: SignerType, signer: { id: string; full_name: string }, dataUrl: string) => {
@@ -519,6 +537,7 @@ export default function FormRunnerPage() {
                 context="execution"
                 editable={editable}
                 onTableChange={onTableChange}
+                onTableTimer={onTableTimer}
                 onViewImage={(src) => setLightbox(src)}
               />
             );
