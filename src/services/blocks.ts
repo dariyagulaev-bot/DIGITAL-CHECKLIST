@@ -122,6 +122,11 @@ async function nextSort(templateId: string): Promise<number> {
   return blocks.length ? Math.max(...blocks.map((b) => b.sort_order)) + 1 : 0;
 }
 
+/** Any block edit makes the draft differ from the published version. */
+async function markDirty(templateId: string): Promise<void> {
+  await db.templates.update(templateId, { has_unpublished_changes: true, updated_at: nowIso() });
+}
+
 /** Append a new block of the given type (non-check). Returns the new block. */
 export async function addBlock(
   templateId: string,
@@ -140,6 +145,7 @@ export async function addBlock(
     updated_at: now,
   };
   await db.template_blocks.add(block);
+  await markDirty(templateId);
   return block;
 }
 
@@ -165,11 +171,14 @@ export async function addCheckBlock(
     updated_at: now,
   };
   await db.template_blocks.add(block);
+  await markDirty(templateId);
   return block;
 }
 
 export async function updateBlockConfig(blockId: string, config: BlockConfig): Promise<void> {
   await db.template_blocks.update(blockId, { config, updated_at: nowIso() });
+  const b = await db.template_blocks.get(blockId);
+  if (b) await markDirty(b.template_id);
 }
 
 /** Delete a block. For a check block, also delete its backing task. */
@@ -184,10 +193,12 @@ export async function deleteBlock(blockId: string): Promise<void> {
   // Re-pack sort_order.
   const rest = await getTemplateBlocks(block.template_id);
   await Promise.all(rest.map((b, i) => db.template_blocks.update(b.id, { sort_order: i })));
+  await markDirty(block.template_id);
 }
 
-export async function reorderBlocks(_templateId: string, orderedIds: string[]): Promise<void> {
+export async function reorderBlocks(templateId: string, orderedIds: string[]): Promise<void> {
   await Promise.all(orderedIds.map((id, i) => db.template_blocks.update(id, { sort_order: i })));
+  await markDirty(templateId);
 }
 
 export async function moveBlock(blockId: string, dir: 'up' | 'down'): Promise<void> {
@@ -238,6 +249,7 @@ export async function duplicateBlock(blockId: string): Promise<TemplateBlock> {
   // Re-pack to integers preserving order.
   const reordered = [...blocks, dup].sort((a, b) => a.sort_order - b.sort_order);
   await Promise.all(reordered.map((b, i) => db.template_blocks.update(b.id, { sort_order: i })));
+  await markDirty(block.template_id);
   return dup;
 }
 

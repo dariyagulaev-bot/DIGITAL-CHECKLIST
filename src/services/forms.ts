@@ -21,7 +21,13 @@ import { equipmentItemsOf } from '@/exports/labels';
 import { isUserCertified } from './certifications';
 import { getUserById, getUserRoles } from './auth';
 import { getEffectiveBlocks } from './blocks';
-import type { BlockSnapshot, CheckRefConfig, CompletedBlock, TaskSnapshot } from '@/types';
+import type {
+  BlockSnapshot,
+  CheckRefConfig,
+  CompletedBlock,
+  PublishedCheckConfig,
+  TaskSnapshot,
+} from '@/types';
 
 /** Full aggregate for a form. */
 export interface FormBundle {
@@ -109,9 +115,42 @@ export async function createDraftForm(params: {
   // sort_order sequence interleaves both so the בד״ח renders in the exact order
   // the admin designed. Everything is frozen here — later template edits never
   // change this historical document.
-  const effBlocks = await getEffectiveBlocks(params.templateId);
-  const taskRows = await getTemplateTasks(params.templateId);
-  const taskMap = new Map(taskRows.map((t) => [t.id, t]));
+  // Source of truth for a NEW form: the PUBLISHED snapshot when the template has
+  // one, else the live draft (legacy templates never published via the new flow
+  // keep working as before). Published check blocks carry their content inline.
+  type Norm = { refId: string; type: string; check?: PublishedCheckConfig; config?: unknown };
+  let normalized: Norm[];
+  if (template.published) {
+    normalized = template.published.blocks.map((pb, i) =>
+      pb.type === 'check'
+        ? { refId: `pub-${i}`, type: 'check', check: pb.config as PublishedCheckConfig }
+        : { refId: `pub-${i}`, type: pb.type, config: JSON.parse(JSON.stringify(pb.config)) }
+    );
+  } else {
+    const effBlocks = await getEffectiveBlocks(params.templateId);
+    const taskRows = await getTemplateTasks(params.templateId);
+    const taskMap = new Map(taskRows.map((t) => [t.id, t]));
+    normalized = effBlocks.map((b) => {
+      if (b.type === 'check') {
+        const t = taskMap.get((b.config as CheckRefConfig).task_id);
+        return {
+          refId: b.id,
+          type: 'check',
+          check: t
+            ? {
+                part_name: t.part_name,
+                action: t.action,
+                equipment: t.equipment,
+                equipment_items: equipmentItemsOf(t.equipment_items, t.equipment),
+                image_data: t.image_data,
+              }
+            : undefined,
+        };
+      }
+      return { refId: b.id, type: b.type, config: JSON.parse(JSON.stringify(b.config)) };
+    });
+  }
+
   // Resolve the system+rank default minimum measurement duration ONCE and bake
   // it into each table snapshot that uses the default — so a later change to the
   // default never alters this historical בד״ח.
@@ -124,51 +163,51 @@ export async function createDraftForm(params: {
   const draftBlocks: CompletedBlock[] = [];
   const formId = newId();
 
-  effBlocks.forEach((b, i) => {
-    if (b.type === 'check') {
-      const t = taskMap.get((b.config as CheckRefConfig).task_id);
-      if (!t) return;
-      const items = equipmentItemsOf(t.equipment_items, t.equipment);
+  normalized.forEach((n, i) => {
+    if (n.type === 'check') {
+      const c = n.check;
+      if (!c) return;
+      const items = equipmentItemsOf(c.equipment_items, c.equipment);
       taskSnaps.push({
-        part_name: t.part_name,
-        action: t.action,
-        equipment: t.equipment,
+        part_name: c.part_name,
+        action: c.action,
+        equipment: c.equipment,
         equipment_items: items,
-        image_data: t.image_data,
+        image_data: c.image_data,
         sort_order: i,
       });
-      blockSnaps.push({ template_block_id: b.id, type: 'check', sort_order: i, config: { task_id: t.id } });
+      blockSnaps.push({ template_block_id: n.refId, type: 'check', sort_order: i, config: { task_id: n.refId } });
       draftTasks.push({
         id: newId(),
         completed_form_id: formId,
-        part_name_snapshot: t.part_name,
-        action_snapshot: t.action,
-        equipment_snapshot: t.equipment,
+        part_name_snapshot: c.part_name,
+        action_snapshot: c.action,
+        equipment_snapshot: c.equipment,
         equipment_items_snapshot: items,
-        image_snapshot: t.image_data,
+        image_snapshot: c.image_data,
         result: TaskResult.UNSET,
         comment: '',
         fault_image: null,
         sort_order: i,
       });
     } else {
-      const cfg = JSON.parse(JSON.stringify(b.config));
+      const cfg = JSON.parse(JSON.stringify(n.config)) as Record<string, unknown> & {
+        duration?: { use_default?: boolean; min_minutes?: number };
+      };
       // Freeze the effective minimum duration into the table snapshot.
-      if (b.type === 'table' && cfg.duration) {
-        if (cfg.duration.use_default) {
-          cfg.duration.min_minutes = durationDefault ?? undefined;
-        }
-        cfg.duration.use_default = false; // snapshot carries the resolved value
+      if (n.type === 'table' && cfg.duration) {
+        if (cfg.duration.use_default) cfg.duration.min_minutes = durationDefault ?? undefined;
+        cfg.duration.use_default = false;
       }
-      blockSnaps.push({ template_block_id: b.id, type: b.type, sort_order: i, config: cfg });
+      blockSnaps.push({ template_block_id: n.refId, type: n.type as BlockSnapshot['type'], sort_order: i, config: cfg as BlockSnapshot['config'] });
       draftBlocks.push({
         id: newId(),
         completed_form_id: formId,
-        template_block_id: b.id,
-        type: b.type,
+        template_block_id: n.refId,
+        type: n.type as CompletedBlock['type'],
         sort_order: i,
-        config_snapshot: cfg,
-        data: b.type === 'table' ? { cells: {}, results: [] } : undefined,
+        config_snapshot: cfg as CompletedBlock['config_snapshot'],
+        data: n.type === 'table' ? { cells: {}, results: [] } : undefined,
       });
     }
   });

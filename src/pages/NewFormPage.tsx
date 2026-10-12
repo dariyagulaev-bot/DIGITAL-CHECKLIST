@@ -55,7 +55,10 @@ export default function NewFormPage() {
       listTemplates(false),
       admin ? Promise.resolve([]) : listCertifications(user.id),
     ])
-      .then(([systems, units, ranks, templates, certs]) => {
+      .then(([systems, units, ranks, allTemplates, certs]) => {
+        // Only PUBLISHED templates are offered for new forms (a draft never
+        // published via the editor is hidden until it is published).
+        const templates = allTemplates.filter((t) => t.ever_published !== false);
         const max = new Map(certs.map((c) => [c.system_id, c.max_rank_id]));
         // A system is offerable only if it has a published בד״ח AND the user can
         // reach at least one of its ranks (a null-rank בד״ח applies to all).

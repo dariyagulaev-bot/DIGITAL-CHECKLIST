@@ -21,11 +21,15 @@ import {
 import { fileToManagedDataUrl } from '@/services/images';
 import { listSystems } from '@/services/systems';
 import { listRanks } from '@/services/ranks';
+import { publishTemplate, validateTemplate, buildDraftContent } from '@/services/publish';
+import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { Modal, Spinner } from '@/components/ui';
 import { Icon, type IconName } from '@/components/Icon';
 import { equipmentItemsOf } from '@/exports/labels';
+import { BlockContent } from '@/components/BlockContent';
 import { TableBlockEditor } from './TableBlockEditor';
+import type { CompletedBlock, PublishedBlock, PublishedCheckConfig } from '@/types';
 import type {
   BlockType,
   EquipmentConfig,
@@ -60,6 +64,7 @@ type Editing =
 export default function TemplateEditorPage() {
   const { id } = useParams<{ id: string }>();
   const { notify } = useToast();
+  const { user: admin } = useAuth();
   const [template, setTemplate] = useState<Template | null>(null);
   const [blocks, setBlocks] = useState<TemplateBlock[]>([]);
   const [tasks, setTasks] = useState<Map<string, TemplateTask>>(new Map());
@@ -69,6 +74,8 @@ export default function TemplateEditorPage() {
   const [editing, setEditing] = useState<Editing>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
+  const [preview, setPreview] = useState<PublishedBlock[] | null>(null);
+  const [publishOpen, setPublishOpen] = useState(false);
   const dragId = useRef<string | null>(null);
 
   const load = async () => {
@@ -127,6 +134,19 @@ export default function TemplateEditorPage() {
     load();
   };
 
+  const doPreview = async () => {
+    setPreview(await buildDraftContent(template.id));
+  };
+  const openPublish = async () => {
+    const errs = await validateTemplate(template.id);
+    if (errs.length) {
+      notify('לא ניתן לפרסם — יש לתקן שגיאות', 'error');
+      setPublishOpen(true);
+      return;
+    }
+    setPublishOpen(true);
+  };
+
   const pickType = async (type: BlockType) => {
     setAddOpen(false);
     if (type === 'check') {
@@ -143,11 +163,36 @@ export default function TemplateEditorPage() {
 
   return (
     <div className="space-y-6">
+      {/* Publish toolbar */}
+      <section className="card flex flex-wrap items-center justify-between gap-3 p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="badge border-brand-200 bg-brand-50 text-brand-700">
+            גרסה שפורסמה: {template.published?.version ?? '— טרם פורסם'}
+          </span>
+          {template.has_unpublished_changes && (
+            <span className="badge border-pending-200 bg-pending-50 text-pending-700">
+              <Icon name="alert" size={12} /> יש שינויים שלא פורסמו
+            </span>
+          )}
+          {template.ever_published === false && (
+            <span className="badge border-slate-200 bg-slate-100 text-slate-600">טיוטה — אינו זמין למבצעים</span>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <button className="btn-secondary btn-sm gap-1.5" onClick={doPreview}>
+            <Icon name="eye" size={16} /> תצוגה מקדימה
+          </button>
+          <button className="btn-primary btn-sm gap-1.5" onClick={openPublish}>
+            <Icon name="check" size={16} /> פרסם גרסה
+          </button>
+        </div>
+      </section>
+
       {/* Template meta */}
       <section className="card p-5">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-700">פרטי הבד״ח</h2>
-          <span className="badge border-brand-200 bg-brand-50 text-brand-700">גרסה {template.version}</span>
+          <span className="badge border-slate-200 bg-slate-100 text-slate-500">גרסת עריכה {template.version}</span>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
@@ -291,10 +336,165 @@ export default function TemplateEditorPage() {
         />
       )}
 
+      {preview && (
+        <PreviewModal blocks={preview} onClose={() => setPreview(null)} />
+      )}
+      {publishOpen && admin && (
+        <PublishDialog
+          templateId={template.id}
+          actor={{ id: admin.id, full_name: admin.full_name }}
+          firstPublish={!template.published}
+          onClose={() => setPublishOpen(false)}
+          onPublished={() => { setPublishOpen(false); load(); }}
+          notify={notify}
+        />
+      )}
+
       <Modal open={!!lightbox} onClose={() => setLightbox(null)} title="תמונה" maxWidth="max-w-3xl">
         {lightbox && <img src={lightbox} alt="" className="w-full rounded-lg" />}
       </Modal>
     </div>
+  );
+}
+
+/** Preview the draft as the performer would see it (read-only, no real form). */
+function PreviewModal({ blocks, onClose }: { blocks: PublishedBlock[]; onClose: () => void }) {
+  // Build read-only pseudo blocks for the shared renderer.
+  const nodes: React.ReactNode[] = [];
+  let checks: PublishedCheckConfig[] = [];
+  const flush = (k: string) => {
+    if (!checks.length) return;
+    const group = checks;
+    checks = [];
+    nodes.push(
+      <div key={`c${k}`} className="overflow-x-auto">
+        <table className="w-full min-w-[480px] border-collapse text-right text-sm">
+          <thead>
+            <tr className="bg-slate-800 text-white">
+              <th className="border border-slate-300 p-2">שם האזור</th>
+              <th className="border border-slate-300 p-2">פעולה</th>
+              <th className="border border-slate-300 p-2">ציוד נדרש</th>
+              <th className="border border-slate-300 p-2 text-center">תוצאה</th>
+            </tr>
+          </thead>
+          <tbody>
+            {group.map((c, i) => (
+              <tr key={i}>
+                <td className="border border-slate-300 p-2 font-medium">{c.part_name}</td>
+                <td className="border border-slate-300 p-2">{c.action}</td>
+                <td className="border border-slate-300 p-2">{(c.equipment_items ?? []).join(', ') || c.equipment || 'ללא'}</td>
+                <td className="border border-slate-300 p-2 text-center text-ink-300">תקין / לא תקין</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+  blocks.forEach((b, i) => {
+    if (b.type === 'check') checks.push(b.config as PublishedCheckConfig);
+    else {
+      flush(`b${i}`);
+      const pseudo = {
+        id: `prev-${i}`,
+        completed_form_id: 'preview',
+        template_block_id: `prev-${i}`,
+        type: b.type,
+        sort_order: i,
+        config_snapshot: b.config,
+      } as CompletedBlock;
+      nodes.push(<BlockContent key={i} block={pseudo} context="execution" editable={false} />);
+    }
+  });
+  flush('end');
+  return (
+    <Modal open onClose={onClose} title="תצוגה מקדימה — כפי שהמבצע יראה" maxWidth="max-w-3xl">
+      <div className="space-y-3">{nodes}</div>
+      <p className="mt-3 text-[12.5px] text-ink-400">תצוגה מקדימה בלבד — אינה יוצרת בד״ח אמיתי ואינה משפיעה על מספור/סטטיסטיקות.</p>
+    </Modal>
+  );
+}
+
+function PublishDialog({
+  templateId,
+  actor,
+  firstPublish,
+  onClose,
+  onPublished,
+  notify,
+}: {
+  templateId: string;
+  actor: { id: string; full_name: string };
+  firstPublish: boolean;
+  onClose: () => void;
+  onPublished: () => void;
+  notify: (m: string, k?: 'ok' | 'error' | 'info') => void;
+}) {
+  const [errors, setErrors] = useState<string[] | null>(null);
+  const [bump, setBump] = useState<'minor' | 'major'>('minor');
+  const [summary, setSummary] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    validateTemplate(templateId).then(setErrors).catch(() => setErrors([]));
+  }, [templateId]);
+
+  const publish = async () => {
+    setBusy(true);
+    try {
+      const v = await publishTemplate(templateId, actor, { bump, summary });
+      notify(`פורסמה גרסה ${v}`, 'ok');
+      onPublished();
+    } catch (e) {
+      notify((e as Error).message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const ok = errors !== null && errors.length === 0;
+  return (
+    <Modal open onClose={onClose} title="פרסום גרסת תבנית" tone="primary" icon="check" maxWidth="max-w-lg">
+      <div className="space-y-4">
+        {errors === null ? (
+          <Spinner />
+        ) : errors.length > 0 ? (
+          <div className="rounded-lg border border-fault-200 bg-fault-50 p-3">
+            <div className="mb-1 flex items-center gap-1.5 font-bold text-fault-700"><Icon name="alert" size={16} /> יש לתקן לפני פרסום:</div>
+            <ul className="list-disc pr-5 text-[13px] text-fault-700">
+              {errors.map((er, i) => <li key={i}>{er}</li>)}
+            </ul>
+          </div>
+        ) : (
+          <>
+            <div className="rounded-lg border border-ok-200 bg-ok-50 px-3 py-2 text-[13px] font-medium text-ok-700">
+              התבנית תקינה ומוכנה לפרסום.
+            </div>
+            {!firstPublish && (
+              <div>
+                <label className="label">סוג הגרסה</label>
+                <div className="flex gap-2">
+                  <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-sm ${bump === 'minor' ? 'border-brand-400 bg-brand-50 text-brand-700' : 'border-slate-300'}`}>
+                    <input type="radio" className="hidden" checked={bump === 'minor'} onChange={() => setBump('minor')} /> עדכון משני (x.Y)
+                  </label>
+                  <label className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-sm ${bump === 'major' ? 'border-brand-400 bg-brand-50 text-brand-700' : 'border-slate-300'}`}>
+                    <input type="radio" className="hidden" checked={bump === 'major'} onChange={() => setBump('major')} /> גרסה ראשית (X.0)
+                  </label>
+                </div>
+              </div>
+            )}
+            <div>
+              <label className="label">תקציר שינויים (אופציונלי)</label>
+              <textarea className="input min-h-[70px]" value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="מה השתנה בגרסה זו…" />
+            </div>
+          </>
+        )}
+        <div className="flex gap-3">
+          <button className="btn-primary flex-1" disabled={!ok || busy} onClick={publish}>פרסם</button>
+          <button className="btn-ghost" onClick={onClose}>סגור</button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 

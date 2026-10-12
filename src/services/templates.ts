@@ -23,6 +23,8 @@ async function touchTemplate(templateId: string): Promise<void> {
   await db.templates.update(templateId, {
     updated_at: nowIso(),
     version: (t?.version ?? 1) + 1,
+    // Any structural edit makes the draft differ from the published version.
+    has_unpublished_changes: true,
   });
 }
 
