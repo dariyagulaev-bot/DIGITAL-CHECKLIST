@@ -152,6 +152,35 @@ export function TableBlockEditor({
   );
   const effectiveMin = durUseDefault ? sysDefault ?? 0 : durMinutes;
 
+  /**
+   * One-click setup when the table has no datetime fields to measure against:
+   * ensure a "תאריך ושעה" column exists and at least two rows (start/end), then
+   * pre-select them as the duration's start/end. The admin can rename/move/remove
+   * them afterwards like any other field.
+   */
+  const addDatetimeFields = () => {
+    let cols = columns;
+    let rws = rows;
+    if (!cols.some((c) => DATETIME.includes(c.field_type))) {
+      const dtCol: TableColumn = { id: newId(), label: 'תאריך ושעה', field_type: 'datetime', required: false };
+      cols = [...cols, dtCol];
+      setColumns(cols);
+    }
+    if (rws.length < 2) {
+      const labels = ['תחילת מדידה', 'סיום מדידה'];
+      const extra: TableRow[] = [];
+      for (let i = rws.length; i < 2; i++) extra.push({ id: newId(), label: labels[i] ?? `שורה ${i + 1}` });
+      rws = [...rws, ...extra];
+      setRows(rws);
+    }
+    const dtCols = cols.filter((c) => DATETIME.includes(c.field_type));
+    const cellKeys = rws.flatMap((row) => dtCols.map((col) => `${row.id}|${col.id}`));
+    if (cellKeys.length >= 2) {
+      setDurStart(cellKeys[0]);
+      setDurEnd(cellKeys[1]);
+    }
+  };
+
   const save = async () => {
     if (!title.trim()) { notify('יש להזין שם טבלה', 'error'); return; }
     if (columns.length === 0 || rows.length === 0) { notify('הטבלה חייבת לפחות עמודה ושורה אחת', 'error'); return; }
@@ -246,8 +275,11 @@ export function TableBlockEditor({
           {durOn && (
             <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50/50 p-3">
               {datetimeCells.length < 2 && (
-                <div className="rounded-md border border-pending-200 bg-pending-50 px-3 py-2 text-[12.5px] text-pending-700">
-                  יש להגדיר לפחות שני תאים מסוג "תאריך ושעה" (למשל שורות התחלה/סיום) כדי לחשב משך.
+                <div className="rounded-md border border-pending-200 bg-pending-50 px-3 py-2.5 text-[12.5px] text-pending-700">
+                  <div>יש להגדיר לפחות שני תאים מסוג "תאריך ושעה" (למשל שורות התחלה/סיום) כדי לחשב משך.</div>
+                  <button type="button" className="btn-secondary btn-sm mt-2 gap-1.5" onClick={addDatetimeFields}>
+                    <Icon name="plus" size={14} /> הוסף שדות תאריך ושעה אוטומטית
+                  </button>
                 </div>
               )}
               <div className="grid gap-2 sm:grid-cols-2">
