@@ -241,19 +241,25 @@ export function TableBlockEditor({
               </label>
               {durUseDefault ? (
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm text-ink-600">ברירת מחדל למערכת+דרג (דקות):</span>
+                  <span className="text-sm text-ink-600">ברירת מחדל למערכת+דרג (שעות):</span>
                   <input
                     type="number"
                     min={0}
-                    className="input !min-h-0 w-28 !py-1.5"
-                    value={sysDefault ?? ''}
+                    step="0.5"
+                    className="input !min-h-0 w-28 !py-1.5 nums"
+                    value={sysDefault == null ? '' : sysDefault / 60}
                     placeholder="לא הוגדר"
-                    onChange={(e) => setSysDefault(e.target.value === '' ? null : Number(e.target.value))}
+                    onChange={(e) => setSysDefault(e.target.value === '' ? null : Math.max(0, Math.round(Number(e.target.value) * 60)))}
                   />
                   <span className="text-xs text-ink-400">({formatDuration(sysDefault)})</span>
                 </div>
               ) : (
-                <DurationInput minutes={durMinutes} onChange={setDurMinutes} />
+                <HoursInput hours={durMinutes / 60} onChange={(h) => setDurMinutes(Math.max(0, Math.round(h * 60)))} />
+              )}
+              {!(effectiveMin > 0) && (
+                <div className="rounded-md border border-pending-200 bg-pending-50 px-3 py-2 text-[12.5px] text-pending-700">
+                  שים לב: לא הוגדר משך מינימלי — כרגע הבדיקה לא תאכוף זמן. הזן מספר שעות כדי להפעיל את האכיפה.
+                </div>
               )}
               <div className="text-xs text-ink-500">משך מינימלי מיושם: <b>{formatDuration(effectiveMin || null)}</b></div>
             </div>
@@ -370,17 +376,21 @@ function SectionBox({ title, children }: { title: string; children: React.ReactN
   );
 }
 
-/** Minimum-duration input as hours + minutes (stored as total minutes). */
-function DurationInput({ minutes, onChange }: { minutes: number; onChange: (m: number) => void }) {
-  const h = Math.floor((minutes || 0) / 60);
-  const m = (minutes || 0) % 60;
+/** Minimum-duration input in hours (half-hour steps; stored as total minutes). */
+function HoursInput({ hours, onChange }: { hours: number; onChange: (h: number) => void }) {
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm text-ink-600">
       <span>משך מדידה מינימלי נדרש:</span>
-      <input type="number" min={0} className="input !min-h-0 w-20 !py-1.5 nums" value={h} onChange={(e) => onChange(Math.max(0, Number(e.target.value)) * 60 + m)} />
+      <input
+        type="number"
+        min={0}
+        step="0.5"
+        className="input !min-h-0 w-24 !py-1.5 nums"
+        value={hours || ''}
+        placeholder="0"
+        onChange={(e) => onChange(Math.max(0, Number(e.target.value)))}
+      />
       <span>שעות</span>
-      <input type="number" min={0} max={59} className="input !min-h-0 w-20 !py-1.5 nums" value={m} onChange={(e) => onChange(h * 60 + Math.min(59, Math.max(0, Number(e.target.value))))} />
-      <span>דקות</span>
     </div>
   );
 }
