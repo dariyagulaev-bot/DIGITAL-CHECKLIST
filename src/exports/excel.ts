@@ -170,33 +170,69 @@ export async function exportFormToExcel(formId: string): Promise<void> {
     th.font = { bold: true, color: { argb: 'FF0F2B52' } };
     ws.mergeCells(`A${r}:F${r}`);
     r++;
-    // Header row: first cell blank, then column labels (+ unit).
-    const hdr = ws.getRow(r);
-    hdr.getCell(1).value = '';
-    cfg.columns.forEach((c, i) => {
-      const cell = hdr.getCell(2 + i);
-      cell.value = c.unit ? `${c.label} (${c.unit})` : c.label;
-      cell.font = { bold: true, color: { argb: HEADER_TEXT } };
-      cell.fill = solid(HEADER_BG);
-      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-      cell.border = allBorders();
-    });
-    hdr.getCell(1).border = allBorders();
-    r++;
-    // Data rows.
-    for (const row of cfg.rows) {
-      const xr = ws.getRow(r);
-      xr.getCell(1).value = row.label;
-      xr.getCell(1).font = { bold: true };
-      xr.getCell(1).border = allBorders();
-      xr.getCell(1).alignment = { horizontal: 'right', vertical: 'middle' };
-      cfg.columns.forEach((c, i) => {
-        const cell = xr.getCell(2 + i);
-        cell.value = cells[`${row.id}|${c.id}`] ?? '';
+    const NUMERIC = ['number', 'decimal', 'percent'];
+    // Keep numbers numeric (never "230 V" as a string) so Excel calcs still work;
+    // the unit is stored in its own column, separate from the value.
+    const asValue = (raw: string, type: string) => {
+      const t = (raw ?? '').trim();
+      if (t === '') return '';
+      if (NUMERIC.includes(type)) { const n = Number(t); return Number.isFinite(n) ? n : t; }
+      return t;
+    };
+    if (cfg.layout === 'fields') {
+      // Simplified field layout → one row per field: שדה | ערך | יחידה.
+      const rowId = cfg.rows[0]?.id ?? '';
+      const heads = ['שדה', 'ערך', 'יחידה'];
+      const hdr = ws.getRow(r);
+      heads.forEach((h, i) => {
+        const cell = hdr.getCell(1 + i);
+        cell.value = h;
+        cell.font = { bold: true, color: { argb: HEADER_TEXT } };
+        cell.fill = solid(HEADER_BG);
+        cell.alignment = { horizontal: i === 0 ? 'right' : 'center', vertical: 'middle' };
         cell.border = allBorders();
-        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
       });
       r++;
+      for (const c of cfg.columns) {
+        const xr = ws.getRow(r);
+        xr.getCell(1).value = c.label;
+        xr.getCell(1).font = { bold: true };
+        xr.getCell(1).alignment = { horizontal: 'right', vertical: 'middle' };
+        xr.getCell(2).value = asValue(cells[`${rowId}|${c.id}`] ?? '', c.field_type);
+        xr.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
+        xr.getCell(3).value = NUMERIC.includes(c.field_type) ? (c.unit ?? '') : '';
+        xr.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
+        [1, 2, 3].forEach((n) => (xr.getCell(n).border = allBorders()));
+        r++;
+      }
+    } else {
+      // Legacy row × column grid.
+      const hdr = ws.getRow(r);
+      hdr.getCell(1).value = '';
+      cfg.columns.forEach((c, i) => {
+        const cell = hdr.getCell(2 + i);
+        cell.value = c.unit ? `${c.label} (${c.unit})` : c.label;
+        cell.font = { bold: true, color: { argb: HEADER_TEXT } };
+        cell.fill = solid(HEADER_BG);
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.border = allBorders();
+      });
+      hdr.getCell(1).border = allBorders();
+      r++;
+      for (const row of cfg.rows) {
+        const xr = ws.getRow(r);
+        xr.getCell(1).value = row.label;
+        xr.getCell(1).font = { bold: true };
+        xr.getCell(1).border = allBorders();
+        xr.getCell(1).alignment = { horizontal: 'right', vertical: 'middle' };
+        cfg.columns.forEach((c, i) => {
+          const cell = xr.getCell(2 + i);
+          cell.value = asValue(cells[`${row.id}|${c.id}`] ?? '', c.field_type);
+          cell.border = allBorders();
+          cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        });
+        r++;
+      }
     }
     // Duration result.
     if (cfg.duration && full.duration_result) {
@@ -234,7 +270,13 @@ export async function exportFormToExcel(formId: string): Promise<void> {
       ws.getCell(`A${r}`).font = { bold: true };
       ws.mergeCells(`A${r}:B${r}`);
       const decided = res && res.passed !== null;
-      const text = `התחלתי: ${res?.initial ?? '—'} | סופי: ${res?.final ?? '—'} | פער בפועל: ${res?.difference ?? '—'} | פער מותר: ±${rule.allowed_difference} | תוצאה: ${
+      const unitFor = (ref: { col_id: string }) => {
+        const c = cfg.columns.find((x) => x.id === ref.col_id);
+        return c && NUMERIC.includes(c.field_type) ? (c.unit ?? '').trim() : '';
+      };
+      const u = unitFor(rule.final) || unitFor(rule.initial);
+      const wu = (v: number | null | undefined) => (v === null || v === undefined ? '—' : u ? `${v} ${u}` : `${v}`);
+      const text = `התחלתי: ${wu(res?.initial)} | סופי: ${wu(res?.final)} | פער בפועל: ${wu(res?.difference)} | פער מותר: ±${rule.allowed_difference}${u ? ` ${u}` : ''} | תוצאה: ${
         !decided ? 'ממתין' : res!.passed ? '✓ עבר' : '✕ לא עבר'
       }`;
       ws.mergeCells(`C${r}:F${r}`);

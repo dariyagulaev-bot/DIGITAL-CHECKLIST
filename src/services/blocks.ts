@@ -81,16 +81,17 @@ export function defaultRow(label = 'שורה'): TableRow {
   return { id: newId(), label };
 }
 export function defaultTableConfig(): TableConfig {
+  // A clean flat-field table: two numeric measurement fields to start with.
   return {
     title: 'טבלת מדידה',
     description: '',
+    layout: 'fields',
     required: false,
-    duration_label: '',
     columns: [
-      { id: newId(), label: 'ערך', field_type: 'number', required: false, unit: '' },
-      { id: newId(), label: 'שעה', field_type: 'time', required: false },
+      { id: newId(), label: 'מספר התחלתי', field_type: 'number', required: false, unit: '' },
+      { id: newId(), label: 'מספר סופי', field_type: 'number', required: false, unit: '' },
     ],
-    rows: [defaultRow('תחילת בדיקה'), defaultRow('סיום בדיקה')],
+    rows: [{ id: newId(), label: '' }],
     rules: [],
     show_in_execution: true,
     show_in_pdf: true,

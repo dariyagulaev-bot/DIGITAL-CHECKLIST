@@ -4,6 +4,8 @@ import { cellKey, evaluateTableFull, allowedRange, formatDuration } from '@/serv
 import type { FieldType, MeasurementResult, TableColumn, TableConfig } from '@/types';
 
 const key = (rowId: string, colId: string) => `${rowId}|${colId}`;
+/** Field types that carry a unit of measure (shown next to the value). */
+const NUMERIC_UNIT: FieldType[] = ['number', 'decimal', 'percent'];
 
 /**
  * Measurement / data table — rendered at execution time (editable) and in the
@@ -36,17 +38,30 @@ export function MeasurementTable({
   const dur = full.duration_result;
   // A timer-mode duration uses Start/Stop device-clock stamps (no datetime cells).
   const timerMode = !!config.duration && config.duration.mode !== 'fields' && !config.duration.start && !config.duration.end;
-  // Signed differences (direction matters) for the compact execution summary.
+  // Field layout: a flat vertical list of labeled fields (vs. the legacy grid).
+  const fieldMode = config.layout === 'fields';
+  const theRowId = config.rows[0]?.id ?? '';
+  const unitOf = (fieldId?: string) => {
+    const c = fieldId ? config.columns.find((x) => x.id === fieldId) : undefined;
+    return c && NUMERIC_UNIT.includes(c.field_type) ? (c.unit ?? '').trim() : '';
+  };
+  // Signed differences (direction matters) + the field's unit, for the summary.
   const signedGap = (n: number | null | undefined) =>
     n === null || n === undefined ? '' : n > 0 ? `+${n}` : `${n}`;
   const gapText = results
-    .map((r) => signedGap(r.difference))
+    .map((r) => {
+      const s = signedGap(r.difference);
+      if (!s) return '';
+      const rule = (config.rules ?? []).find((x) => x.id === r.rule_id);
+      const unit = rule ? unitOf(rule.final.col_id) || unitOf(rule.initial.col_id) : '';
+      return unit ? `${s} ${unit}` : s;
+    })
     .filter(Boolean)
     .join(', ');
   const rowLabel = (id: string) => config.rows.find((r) => r.id === id)?.label ?? '';
   const colLabel = (id: string) => config.columns.find((c) => c.id === id)?.label ?? '';
   const dtCell = (ref?: { row_id: string; col_id: string }) =>
-    ref ? `${rowLabel(ref.row_id)} · ${colLabel(ref.col_id)}` : '';
+    !ref ? '' : fieldMode ? colLabel(ref.col_id) : `${rowLabel(ref.row_id)} · ${colLabel(ref.col_id)}`;
 
   const setCell = (rowId: string, colId: string, value: string) => {
     if (!editable || !onChange) return;
@@ -63,40 +78,57 @@ export function MeasurementTable({
       </div>
       {config.description && <p className="mb-2 text-[13px] text-ink-500">{config.description}</p>}
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[480px] border-collapse text-right text-[13.5px]">
-          <thead>
-            <tr className="bg-slate-50">
-              <th className="border border-slate-200 p-2 font-semibold text-ink-600"></th>
-              {config.columns.map((c) => (
-                <th key={c.id} className="border border-slate-200 p-2 font-semibold text-ink-700">
-                  {c.label}
-                  {c.unit ? <span className="text-ink-400"> ({c.unit})</span> : null}
-                  {(config.required || c.required) && <span className="text-fault-500"> *</span>}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {config.rows.map((r) => (
-              <tr key={r.id}>
-                <th className="border border-slate-200 bg-slate-50/60 p-2 text-right font-semibold text-ink-700">{r.label}</th>
+      {fieldMode ? (
+        /* Simplified field layout: a clean vertical list of labeled inputs. */
+        <div className="space-y-2.5">
+          {config.columns.map((c) => (
+            <FieldRow
+              key={c.id}
+              field={c}
+              value={cells[key(theRowId, c.id)] ?? ''}
+              required={!!(config.required || c.required)}
+              editable={editable}
+              onChange={(v) => setCell(theRowId, c.id, v)}
+            />
+          ))}
+        </div>
+      ) : (
+        /* Legacy row × column grid. */
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[480px] border-collapse text-right text-[13.5px]">
+            <thead>
+              <tr className="bg-slate-50">
+                <th className="border border-slate-200 p-2 font-semibold text-ink-600"></th>
                 {config.columns.map((c) => (
-                  <td key={c.id} className="border border-slate-200 p-1.5">
-                    <CellInput
-                      type={c.field_type}
-                      column={c}
-                      value={cells[key(r.id, c.id)] ?? ''}
-                      editable={editable}
-                      onChange={(v) => setCell(r.id, c.id, v)}
-                    />
-                  </td>
+                  <th key={c.id} className="border border-slate-200 p-2 font-semibold text-ink-700">
+                    {c.label}
+                    {c.unit ? <span className="text-ink-400"> ({c.unit})</span> : null}
+                    {(config.required || c.required) && <span className="text-fault-500"> *</span>}
+                  </th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {config.rows.map((r) => (
+                <tr key={r.id}>
+                  <th className="border border-slate-200 bg-slate-50/60 p-2 text-right font-semibold text-ink-700">{r.label}</th>
+                  {config.columns.map((c) => (
+                    <td key={c.id} className="border border-slate-200 p-1.5">
+                      <CellInput
+                        type={c.field_type}
+                        column={c}
+                        value={cells[key(r.id, c.id)] ?? ''}
+                        editable={editable}
+                        onChange={(v) => setCell(r.id, c.id, v)}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/*
         Minimum-duration timer (timer mode): the performer presses "התחל דגימה"
@@ -226,6 +258,8 @@ export function MeasurementTable({
             const res = results.find((x) => x.rule_id === rule.id) as MeasurementResult | undefined;
             const range = res && res.initial !== null ? allowedRange(res.initial, rule.allowed_difference) : null;
             const decided = res && res.passed !== null;
+            const u = unitOf(rule.final.col_id) || unitOf(rule.initial.col_id);
+            const withU = (v: number | null | undefined) => (v === null || v === undefined ? '—' : u ? `${v} ${u}` : `${v}`);
             return (
               <div
                 key={rule.id}
@@ -238,11 +272,11 @@ export function MeasurementTable({
                 }`}
               >
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5">
-                  <span>שדה התחלתי (<bdi>{dtCell(rule.initial)}</bdi>): <b className="nums">{res?.initial ?? '—'}</b></span>
-                  <span>שדה סופי (<bdi>{dtCell(rule.final)}</bdi>): <b className="nums">{res?.final ?? '—'}</b></span>
-                  <span>פער בפועל: <b className="nums">{res?.difference ?? '—'}</b></span>
-                  <span>פער מותר: <b className="nums">±{rule.allowed_difference}</b></span>
-                  {range && <span>טווח תקין: <b className="nums">{range.min}–{range.max}</b></span>}
+                  <span>שדה התחלתי (<bdi>{dtCell(rule.initial)}</bdi>): <b className="nums">{withU(res?.initial ?? null)}</b></span>
+                  <span>שדה סופי (<bdi>{dtCell(rule.final)}</bdi>): <b className="nums">{withU(res?.final ?? null)}</b></span>
+                  <span>פער בפועל: <b className="nums">{withU(res?.difference ?? null)}</b></span>
+                  <span>פער מותר: <b className="nums">±{rule.allowed_difference}{u ? ` ${u}` : ''}</b></span>
+                  {range && <span>טווח תקין: <b className="nums">{range.min}–{range.max}{u ? ` ${u}` : ''}</b></span>}
                   <span className="font-bold">
                     {!decided ? (
                       <span className="text-ink-400">ממתין לנתונים</span>
@@ -300,6 +334,63 @@ function fmtDT(iso: string): string {
   const d = new Date(t);
   const p = (n: number) => String(n).padStart(2, '0');
   return `${p(d.getDate())}.${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/**
+ * One measurement field in the simplified field layout — a labeled input with
+ * the unit shown next to the value (execution), or "label: value unit"
+ * (read-only report / PDF). The unit is presentation only; the raw numeric
+ * value is what gets stored and fed to the ±X math.
+ */
+function FieldRow({
+  field,
+  value,
+  required,
+  editable,
+  onChange,
+}: {
+  field: TableColumn;
+  value: string;
+  required: boolean;
+  editable: boolean;
+  onChange: (v: string) => void;
+}) {
+  const showUnit = !!(field.unit && field.unit.trim()) && NUMERIC_UNIT.includes(field.field_type);
+  if (!editable) {
+    const shown = value.trim();
+    return (
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
+        <span className="text-[13.5px] font-semibold text-ink-700">
+          {field.label}
+          {required && <span className="text-fault-500"> *</span>}
+        </span>
+        <span className="text-[13.5px] text-ink-900">
+          {shown ? (
+            <>
+              <bdi className="nums">{shown}</bdi>
+              {showUnit ? <span className="text-ink-500"> {field.unit}</span> : null}
+            </>
+          ) : (
+            '—'
+          )}
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2.5">
+      <label className="mb-1 block text-[13px] font-semibold text-ink-700">
+        {field.label}
+        {required && <span className="text-fault-500"> *</span>}
+      </label>
+      <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <CellInput type={field.field_type} column={field} value={value} editable onChange={onChange} />
+        </div>
+        {showUnit && <span className="shrink-0 text-[13px] font-medium text-ink-500">{field.unit}</span>}
+      </div>
+    </div>
+  );
 }
 
 function CellInput({

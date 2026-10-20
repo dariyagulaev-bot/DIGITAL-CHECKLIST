@@ -223,12 +223,13 @@ export async function runSeed(): Promise<void> {
       await addBlock(tproc.id, 'text', {
         text: 'יש לבצע מדידה רצופה במשך 6 שעות לפחות ולתעד מספר התחלתי וסופי.',
       });
-      const cNum = newId();
-      const rInit = newId();
-      const rFin = newId();
+      const fInit = newId();
+      const fFin = newId();
+      const rowId = newId();
       await addBlock(tproc.id, 'table', {
-        title: 'בדיקת נתוני עבודה',
-        description: '',
+        title: 'בדיקת מתח',
+        description: 'מדדו את המתח ההתחלתי והסופי. הפער המותר הוא ±25 V.',
+        layout: 'fields', // simplified flat field layout
         required: false,
         duration: {
           mode: 'timer', // performer presses Start/Stop; device clock is stamped
@@ -236,18 +237,16 @@ export async function runSeed(): Promise<void> {
           min_minutes: 360, // 6 hours minimum
         },
         columns: [
-          { id: cNum, label: 'מספר', field_type: 'number', required: false, unit: '' },
+          { id: fInit, label: 'מתח התחלתי', field_type: 'number', required: false, unit: 'V' },
+          { id: fFin, label: 'מתח סופי', field_type: 'number', required: false, unit: 'V' },
         ],
-        rows: [
-          { id: rInit, label: 'תחילת מדידה' },
-          { id: rFin, label: 'סיום מדידה' },
-        ],
+        rows: [{ id: rowId, label: '' }],
         rules: [
           {
             id: newId(),
             type: 'delta',
-            initial: { row_id: rInit, col_id: cNum },
-            final: { row_id: rFin, col_id: cNum },
+            initial: { row_id: rowId, col_id: fInit },
+            final: { row_id: rowId, col_id: fFin },
             allowed_difference: 25,
             fail_on_exceed: true,
           },

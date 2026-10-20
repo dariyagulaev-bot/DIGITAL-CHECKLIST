@@ -292,6 +292,14 @@ export interface TableConfig {
   /** @deprecated free-text label; replaced by the enforced `duration` rule. */
   duration_label?: string;
   duration?: DurationRule; // enforced minimum-duration rule
+  /**
+   * 'fields' (default for tables built in the simplified editor): the admin
+   * defines a flat list of measurement FIELDS. Internally each field is a column
+   * on a single hidden row, so the whole evaluation/snapshot engine is reused;
+   * the performer sees a clean vertical list of labeled inputs (label [value]
+   * unit). Undefined / 'grid' = the legacy row×column spreadsheet layout.
+   */
+  layout?: 'fields' | 'grid';
   columns: TableColumn[];
   rows: TableRow[];
   rules?: MeasurementRule[];

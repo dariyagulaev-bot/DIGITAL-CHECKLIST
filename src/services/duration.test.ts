@@ -154,3 +154,32 @@ describe('timer-mode minimum duration (Start/Stop device clock)', () => {
     expect(f.status).toBe('fail');
   });
 });
+
+describe('field-layout tables (flat fields, one hidden row)', () => {
+  const ROW = 'row';
+  const F1 = 'f_init';
+  const F2 = 'f_fin';
+  // A field-mode table: two numeric fields with a unit and a ±25 gap between them.
+  const fcfg = (): TableConfig => ({
+    title: 'בדיקת מתח',
+    layout: 'fields',
+    columns: [
+      { id: F1, label: 'מתח התחלתי', field_type: 'number', unit: 'V' },
+      { id: F2, label: 'מתח סופי', field_type: 'number', unit: 'V' },
+    ],
+    rows: [{ id: ROW, label: '' }],
+    rules: [{ id: 'g', type: 'delta', initial: { row_id: ROW, col_id: F1 }, final: { row_id: ROW, col_id: F2 }, allowed_difference: 25, fail_on_exceed: true }],
+  });
+  const fcells = (a: string, b: string) => ({ [`${ROW}|${F1}`]: a, [`${ROW}|${F2}`]: b });
+
+  it('evaluates ±X on fields exactly like the grid (unit does not affect math)', () => {
+    expect(evaluateTableFull(fcfg(), fcells('230', '221')).status).toBe('pass'); // diff -9
+    const fail = evaluateTableFull(fcfg(), fcells('230', '180'));
+    expect(fail.status).toBe('fail'); // diff -50 > 25
+    expect(fail.results[0].difference).toBe(-50);
+  });
+
+  it('is incomplete until both fields are filled', () => {
+    expect(evaluateTableFull(fcfg(), fcells('230', '')).status).toBe('incomplete');
+  });
+});
