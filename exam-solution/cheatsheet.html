@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>דף נוסחאות ופתרון – מבוא להסתברות ב'</title>
+<style>
+  @page { size: A4; margin: 7mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Noto Sans Hebrew", "Arial", sans-serif; font-size: 8.3pt; line-height: 1.32; color: #1a1a1a; margin: 0; background: #fff; }
+  .page { page-break-after: always; }
+  .page:last-child { page-break-after: auto; }
+  header { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #1f4e79; padding-bottom: 2px; margin-bottom: 4px; }
+  header h1 { font-size: 12.5pt; margin: 0; color: #1f4e79; }
+  header span { font-size: 7.5pt; color: #555; }
+  .cols { column-count: 2; column-gap: 5mm; column-rule: 1px solid #d0d7e2; }
+  .cols3 { column-count: 3; column-gap: 4mm; column-rule: 1px solid #d0d7e2; }
+  .box { break-inside: avoid; border: 1px solid #c5d3e6; border-radius: 4px; margin: 0 0 4px; padding: 3px 5px; background: #f7faff; }
+  .box h2 { font-size: 9pt; margin: 0 0 2px; color: #fff; background: #1f4e79; padding: 1px 5px; border-radius: 3px; }
+  .box h3 { font-size: 8.5pt; margin: 3px 0 1px; color: #1f4e79; }
+  .q { background: #fffdf6; border-color: #e6d7a8; }
+  .q h2 { background: #8a6d1d; }
+  .m { direction: ltr; unicode-bidi: isolate; font-family: "Cambria Math", "Times New Roman", serif; font-size: 8.6pt; white-space: nowrap; }
+  .eq { direction: ltr; text-align: left; font-family: "Cambria Math", "Times New Roman", serif; font-size: 8.6pt; margin: 1px 0; padding: 1px 4px; background: #eef3fa; border-radius: 2px; }
+  .q .eq { background: #f6f0dc; }
+  .ans { display: inline-block; background: #1e7b34; color: #fff; font-weight: 700; padding: 0 5px; border-radius: 3px; margin-top: 1px; }
+  .tip { color: #a12a2a; font-weight: 600; }
+  ul, ol { margin: 0; padding-inline-start: 13px; }
+  li { margin: 0; }
+  table { border-collapse: collapse; width: 100%; direction: ltr; font-size: 7.6pt; margin: 2px 0; }
+  td, th { border: 1px solid #c5d3e6; padding: 0 3px; text-align: center; }
+  th { background: #dfe8f5; }
+  .steps { counter-reset: s; }
+  .small { font-size: 7.4pt; color: #444; }
+</style>
+</head>
+<body>
+
+<!-- ================= עמוד 1: דף נוסחאות ================= -->
+<section class="page">
+<header><h1>דף נוסחאות – מבוא להסתברות ב' (70181)</h1><span>מותאם לבחינה: מועד א' תשפ"ו קיץ</span></header>
+<div class="cols">
+
+<div class="box"><h2>1. משתנה מקרי רציף</h2>
+<ul>
+<li>נרמול: <span class="m">∫ f(x)dx = 1</span> → מוצאים קבוע <span class="m">c</span>.</li>
+<li>פונקציה מצטברת: <span class="m">F(x)=P(X≤x)=∫<sub>−∞</sub><sup>x</sup> f(t)dt</span>; בצפיפות מפוצלת – <b>לצבור</b> את השטח של הקטעים הקודמים.</li>
+<li><span class="m">P(a&lt;X≤b)=F(b)−F(a)</span>, <span class="m">P(X&gt;a)=1−F(a)</span>.</li>
+<li>הסתברות מותנית: <span class="m">P(X&gt;b | X&gt;a)=(1−F(b))/(1−F(a))</span>, <span class="m">b&gt;a</span>.</li>
+<li>תוחלת/שונות: <span class="m">E[X]=∫x f(x)dx</span>, <span class="m">V(X)=E[X²]−E²[X]</span>.</li>
+<li>טרנספורמציה לינארית <span class="m">Y=aX+b, a&gt;0</span>:</li>
+</ul>
+<div class="eq">P(Y&gt;y) = P(X &gt; (y−b)/a),&nbsp;&nbsp; F_Y(y)=F_X((y−b)/a),&nbsp;&nbsp; f_Y(y)=(1/a)·f_X((y−b)/a)</div>
+<div class="small">⚠ לשים לב ליחידות: 20 דקות = 1/3 שעה, 10 דקות = 1/6 שעה, 30 דקות = 0.5 שעה.</div>
+</div>
+
+<div class="box"><h2>2. התפלגות נורמלית</h2>
+<div class="eq">X~N(μ,σ²):&nbsp; Z=(X−μ)/σ ~ N(0,1),&nbsp; P(X≤x)=Φ((x−μ)/σ),&nbsp; Φ(−z)=1−Φ(z)</div>
+<ul>
+<li>מציאת <span class="m">μ,σ</span> משתי הסתברויות: <span class="m">x₁=μ+z₁σ</span>, <span class="m">x₂=μ+z₂σ</span> → שתי משוואות בשני נעלמים.</li>
+<li>ממוצע מדגם: <span class="m">X̄ ~ N(μ, σ²/n)</span> → <span class="m">σ<sub>X̄</sub>=σ/√n</span>.</li>
+<li>סכום: <span class="m">S=ΣX<sub>i</sub> ~ N(nμ, nσ²)</span> → <span class="m">σ<sub>S</sub>=σ√n</span>.</li>
+<li>הפרש/צירוף בלתי תלויים: <span class="m">aX+bY ~ N(aμ<sub>X</sub>+bμ<sub>Y</sub>, a²σ²<sub>X</sub>+b²σ²<sub>Y</sub>)</span>.</li>
+<li>מותנה: <span class="m">P(S&gt;b | S&gt;a)=P(S&gt;b)/P(S&gt;a)</span>.</li>
+<li>משפט הגבול המרכזי (CLT): לכל התפלגות עם <span class="m">μ,σ</span>, ל־n גדול <span class="m">S ≈ N(nμ,nσ²)</span>.</li>
+</ul>
+<table><tr><th>z</th><td>0</td><td>0.5</td><td>1</td><td>1.28</td><td>1.645</td><td>1.67</td><td>1.96</td><td>2</td><td>2.33</td><td>3</td><td>3.44</td></tr>
+<tr><th>Φ(z)</th><td>.5</td><td>.6915</td><td>.8413</td><td>.90</td><td>.95</td><td>.9525</td><td>.975</td><td>.9772</td><td>.99</td><td>.9987</td><td>.9997</td></tr></table>
+<div class="small">ערכים שימושיים: <span class="m">P(Z&lt;−2)=0.0228</span>, <span class="m">P(Z&gt;1)=0.1587</span>.</div>
+</div>
+
+<div class="box"><h2>3. אי־שוויונות</h2>
+<div class="eq">Markov (X≥0):&nbsp; P(X ≥ a) ≤ E[X]/a</div>
+<div class="eq">Chebyshev:&nbsp; P(|X−μ| ≥ kσ) ≤ 1/k²&nbsp;&nbsp;⇔&nbsp;&nbsp;P(|X−μ| &lt; ε) ≥ 1 − σ²/ε²</div>
+<div class="small">שלבים בצ'בישב: (1) לבדוק שהקטע סימטרי סביב μ, (2) ε = חצי רוחב הקטע, (3) להציב. מרקוב – חסם עליון, צ'בישב לקטע – חסם תחתון.</div>
+</div>
+
+<div class="box"><h2>4. פואסון ותהליך פואסון</h2>
+<div class="eq">N(t) ~ Poisson(λt):&nbsp; P(N=k)=e<sup>−λt</sup>(λt)<sup>k</sup>/k!,&nbsp; E=V=λt</div>
+<ul>
+<li><b>פיצול (thinning):</b> כל אירוע מסוג A בהסתברות p ⇒ <span class="m">N<sub>A</sub>~Pois(λpt)</span>, <span class="m">N<sub>B</sub>~Pois(λ(1−p)t)</span>, <b>בלתי תלויים</b>.</li>
+<li>בהינתן <span class="m">N=n</span>: מספר מסוג A ~ <span class="m">Bin(n,p)</span> ⇒ <span class="m">P(N=n, N<sub>A</sub>≥k)=P(N=n)·P(Bin(n,p)≥k)</span>.</li>
+<li><b>בהינתן n אירועים בקטע באורך T</b> – הם מפוזרים אחיד ובלתי תלויים: מספר האירועים בתת־קטע באורך s ~ <span class="m">Bin(n, s/T)</span>; כמה תת־קטעים זרים ⇒ <b>מולטינומית</b>:</li>
+</ul>
+<div class="eq">P(n₁,n₂,n₃) = n!/(n₁!n₂!n₃!) · p₁<sup>n₁</sup> p₂<sup>n₂</sup> p₃<sup>n₃</sup>,&nbsp;&nbsp; p<sub>i</sub>=s<sub>i</sub>/T</div>
+<ul>
+<li>זמן בין אירועים: <span class="m">T~Exp(λ)</span>, <span class="m">P(T&gt;t)=e<sup>−λt</sup></span>, <span class="m">E[T]=1/λ</span>; חסר זיכרון.</li>
+<li>זמן עד האירוע ה־k: <span class="m">Gamma(k,λ)</span>; <span class="m">P(T<sub>k</sub>&gt;t)=P(N(t)≤k−1)</span>.</li>
+<li>קירוב נורמלי לפואסון (λt גדול): <span class="m">N ≈ N(λt, λt)</span>; הפרש בלתי תלויים: <span class="m">D=N<sub>A</sub>−N<sub>B</sub> ≈ N(μ<sub>A</sub>−μ<sub>B</sub>, μ<sub>A</sub>+μ<sub>B</sub>)</span> (שונויות <b>מתחברות</b>!).</li>
+<li><b>תיקון רציפות</b> (משתנה שלם): <span class="m">P(D≥k)≈P(D&gt;k−0.5)</span>, <span class="m">P(D≤k)≈P(D&lt;k+0.5)</span>, <span class="m">P(D=k)≈P(k−0.5&lt;D&lt;k+0.5)</span>.</li>
+</ul>
+</div>
+
+<div class="box"><h2>5. בינומית</h2>
+<div class="eq">X~Bin(n,p): P(X=k)=C(n,k)p<sup>k</sup>(1−p)<sup>n−k</sup>,&nbsp; E=np,&nbsp; V=np(1−p)</div>
+<div class="small">"לפחות k" ⇒ משלים: <span class="m">1−P(0)−…−P(k−1)</span>.</div>
+</div>
+
+<div class="box"><h2>6. התפלגות אחידה U(a,b)</h2>
+<div class="eq">f=1/(b−a),&nbsp; F(x)=(x−a)/(b−a),&nbsp; E=(a+b)/2,&nbsp; V=(b−a)²/12</div>
+<div class="small">מציאת a,b מתוחלת ושונות: <span class="m">b−a=√(12V)</span>, <span class="m">a+b=2E</span>.</div>
+</div>
+
+<div class="box"><h2>7. מינימום ומקסימום של n בלתי תלויים זהים</h2>
+<div class="eq">min:&nbsp; P(min &gt; t) = [1−F(t)]<sup>n</sup>&nbsp;&nbsp;&nbsp; max:&nbsp; P(max ≤ t) = [F(t)]<sup>n</sup></div>
+<div class="eq">P(min &gt; s, max ≤ t) = [F(t)−F(s)]<sup>n</sup>&nbsp;&nbsp; (כולם בקטע (s,t])</div>
+<ul>
+<li>מערכת <b>טורית</b> (צריך את כולם) ⇒ אורך חיים = <b>min</b>. מערכת <b>מקבילה</b> (מספיק אחד) ⇒ <b>max</b>.</li>
+<li>עבור <span class="m">U(a,b)</span>: <span class="m">E[max]=a+(b−a)·n/(n+1)</span>, <span class="m">E[min]=a+(b−a)/(n+1)</span>.</li>
+<li>כללי: <span class="m">E[X]=a+∫<sub>a</sub><sup>b</sup>P(X&gt;t)dt</span> ; עבור אקספוננציאלים: <span class="m">min~Exp(nλ)</span>.</li>
+</ul>
+</div>
+
+<div class="box"><h2>8. שלבי עבודה כלליים</h2>
+<ol>
+<li>להגדיר משתנה מקרי + התפלגות + פרמטרים (ובדיקת יחידות זמן).</li>
+<li>לתרגם את המילים לאירוע: "לפחות", "יותר מ", "בהינתן" (=חילוק), "גם... וגם" (=חיתוך/אי־תלות).</li>
+<li>לבחור נוסחה מהטבלה, להציב, לבדוק שהתוצאה בין 0 ל־1.</li>
+<li>לכתוב נימוק – תשובה ללא הסבר לא מתקבלת!</li>
+</ol>
+</div>
+
+</div>
+</section>
+
+<!-- ================= עמוד 2: פתרון מלא ================= -->
+<section class="page">
+<header><h1>פתרון מלא – מועד א' (6.10.2026)</h1><span>פותרים 3 מתוך 4 שאלות • נבדקות 3 הראשונות במחברת</span></header>
+<div class="cols">
+
+<div class="box q"><h2>שאלה 1 – משתנה רציף (צפיפות "משולש")</h2>
+<div class="eq">f(x)= cx (0≤x&lt;1);&nbsp; c(2−x) (1≤x≤2);&nbsp; 0 otherwise</div>
+<h3>סעיף 1 – הקבוע c</h3>
+<div class="eq">∫₀¹ cx dx + ∫₁² c(2−x)dx = c/2 + c/2 = c = 1</div>
+<span class="ans">c = 1</span>
+<h3>סעיף 2 – F(x)</h3>
+<div class="eq">0≤x&lt;1:&nbsp; F=∫₀<sup>x</sup> t dt = x²/2</div>
+<div class="eq">1≤x≤2:&nbsp; F=1/2+∫₁<sup>x</sup>(2−t)dt = 2x − x²/2 − 1&nbsp; (= 1 − (2−x)²/2)</div>
+<div class="eq">F(x)= 0 (x&lt;0);&nbsp; x²/2;&nbsp; 2x−x²/2−1;&nbsp; 1 (x&gt;2)</div>
+<div class="small">בדיקה: F(1)=0.5 משני הצדדים, F(2)=1 ✓</div>
+<h3>סעיף 3 – בהינתן שעבד 20 דקות (=1/3 שעה)</h3>
+<div class="eq">F(1/3)=(1/9)/2=1/18,&nbsp;&nbsp; F(0.7)=0.49/2=0.245</div>
+<div class="eq">P(X&gt;0.7 | X&gt;1/3) = (1−0.245)/(1−1/18) = 0.755/(17/18) = 0.7994</div>
+<span class="ans">≈ 0.7994</span>
+<h3>סעיף 4 – Y = 0.5X</h3>
+<div class="eq">P(Y&gt;0.7)=P(0.5X&gt;0.7)=P(X&gt;1.4)=1−F(1.4)=(2−1.4)²/2=0.18</div>
+<span class="ans">0.18</span>
+</div>
+
+<div class="box q"><h2>שאלה 2 – נורמלית</h2>
+<h3>מציאת μ, σ</h3>
+<div class="eq">P(X&lt;470)=0.0228 ⇒ z=−2 ⇒ μ−2σ=470</div>
+<div class="eq">P(X&gt;515)=0.1587 ⇒ z=1 ⇒ μ+σ=515</div>
+<div class="eq">3σ=45 ⇒ σ=15,&nbsp; μ=500</div>
+<h3>סעיף 5</h3>
+<div class="eq">P(X&gt;525)=P(Z&gt;(525−500)/15)=P(Z&gt;1.67)=1−0.9525</div>
+<span class="ans">≈ 0.0475</span>
+<h3>סעיף 6 – ממוצע 36 בקבוקים</h3>
+<div class="eq">X̄~N(500, 15²/36) ⇒ σ<sub>X̄</sub>=2.5;&nbsp; P(X̄&gt;505)=P(Z&gt;2)=1−0.9772</div>
+<span class="ans">0.0228</span>
+<h3>סעיף 7 – סכום 25 בקבוקים, מותנה</h3>
+<div class="eq">S~N(25·500, 25·15²)=N(12500, 75²)</div>
+<div class="eq">P(S&gt;12575 | S&gt;12500)=P(Z&gt;1)/P(Z&gt;0)=0.1587/0.5</div>
+<span class="ans">0.3174</span>
+<h3>סעיף 8 – מרקוב וצ'בישב (E=500, σ=20)</h3>
+<div class="eq">Markov: P(Y≥600) ≤ 500/600 = 0.8333</div>
+<div class="eq">Chebyshev: P(440&lt;Y&lt;560)=P(|Y−500|&lt;60) ≥ 1−20²/60² = 1−1/9 = 8/9</div>
+<span class="ans">P(Y≥600) ≤ 0.833</span>&nbsp;<span class="ans">P(440&lt;Y&lt;560) ≥ 0.889</span>
+<div class="small">הקטע סימטרי סביב 500 (±60 = 3σ ⇒ k=3).</div>
+</div>
+
+<div class="box q"><h2>שאלה 3 – תהליך פואסון (λ=6 לשעה, p=0.4)</h2>
+<h3>סעיף 9 – 1.5 שעות: בדיוק 10, מתוכן ≥3 דחופות</h3>
+<div class="eq">N~Pois(6·1.5=9): P(N=10)=e<sup>−9</sup>9<sup>10</sup>/10! = 0.11858</div>
+<div class="eq">בהינתן N=10: U~Bin(10,0.4)</div>
+<div class="eq">P(U≤2)=0.6<sup>10</sup>+10·0.4·0.6<sup>9</sup>+45·0.4²·0.6<sup>8</sup>=0.00605+0.04031+0.12093=0.16729</div>
+<div class="eq">P = 0.11858 · (1−0.16729) = 0.11858 · 0.83271</div>
+<span class="ans">≈ 0.0987</span>
+<h3>סעיף 10 – בהינתן 8 פניות ב־8:00–10:00</h3>
+<div class="small">בהינתן 8 פניות בשעתיים – הזמנים אחידים ובלתי תלויים. חלוקה: [8:00–8:30] p₁=1/4, [8:30–9:00] p₂=1/4, [9:00–10:00] p₃=1/2. צריך n₁=3, n₃∈{4,5}, n₂=5−n₃.</div>
+<div class="eq">n₃=4: 8!/(3!·1!·4!)·(1/4)³(1/4)¹(1/2)⁴ = 280/4096</div>
+<div class="eq">n₃=5: 8!/(3!·0!·5!)·(1/4)³(1/2)⁵ = 56/2048 = 112/4096</div>
+<div class="eq">P = 392/4096</div>
+<span class="ans">≈ 0.0957</span>
+<div class="small">דרך חלופית: C(8,3)(1/4)³(3/4)⁵ · [P(Bin(5,2/3)≥4)=112/243] = 0.0957 ✓</div>
+<h3>סעיף 11 – זמן עד הפנייה הבאה &gt; 10 דקות</h3>
+<div class="eq">T~Exp(λ=6), t = 10 min = 1/6 h:&nbsp; P(T&gt;1/6)=e<sup>−6·1/6</sup>=e<sup>−1</sup></div>
+<span class="ans">≈ 0.3679</span>
+<div class="small">חוסר זיכרון – לא משנה שבדיוק התקבלה פנייה.</div>
+<h3>סעיף 12 – יממה: דחופות − רגילות ≥ 13 (תיקון רציפות)</h3>
+<div class="eq">U~Pois(6·0.4·24=57.6),&nbsp; R~Pois(6·0.6·24=86.4), בלתי תלויים</div>
+<div class="eq">D=U−R ≈ N(57.6−86.4, 57.6+86.4) = N(−28.8, 144), σ=12</div>
+<div class="eq">P(D≥13) ≈ P(D&gt;12.5) = P(Z &gt; (12.5+28.8)/12) = P(Z&gt;3.44) = 1−0.99971</div>
+<span class="ans">≈ 0.0003</span>
+<div class="small">הגיוני שזה כמעט 0: בממוצע יש 28.8 פניות רגילות <b>יותר</b> מדחופות.</div>
+</div>
+
+<div class="box q"><h2>שאלה 4 – רחפן, 4 מנועים אחידים</h2>
+<h3>מציאת הפרמטרים</h3>
+<div class="eq">(a+b)/2=7,&nbsp; (b−a)²/12=3 ⇒ b−a=6 ⇒ X~U(4,10),&nbsp; F(t)=(t−4)/6</div>
+<div class="small">טיסה רגילה = כל 4 פועלים ⇒ <b>min</b>. נחיתת חירום = לפחות אחד פועל ⇒ <b>max</b>.</div>
+<h3>סעיף 13 – הפסקת טיסה רגילה לפני 6 שעות</h3>
+<div class="eq">P(min&lt;6)=1−P(X&gt;6)⁴=1−(4/6)⁴=1−16/81=65/81</div>
+<span class="ans">≈ 0.8025</span>
+<h3>סעיף 14 – אחרי 9 שעות נחיתת חירום עדיין אפשרית</h3>
+<div class="eq">P(max&gt;9)=1−P(X≤9)⁴=1−(5/6)⁴=1−625/1296=671/1296</div>
+<span class="ans">≈ 0.5177</span>
+<h3>סעיף 15 – רגילה &gt;5 שעות וכולם כבו עד 9</h3>
+<div class="eq">P(min&gt;5, max≤9)=P(5&lt;X≤9)⁴=(4/6)⁴=16/81</div>
+<span class="ans">≈ 0.1975</span>
+<h3>סעיף 16 – תוחלת זמן נחיתת החירום (max)</h3>
+<div class="eq">F<sub>max</sub>(t)=((t−4)/6)⁴ ⇒ E[max]=4+6·4/5 = 4+∫₄¹⁰[1−((t−4)/6)⁴]dt = 4+6−6/5</div>
+<span class="ans">E = 8.8 שעות</span>
+</div>
+
+</div>
+</section>
+</body>
+</html>
