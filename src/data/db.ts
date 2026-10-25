@@ -18,6 +18,9 @@ import type {
   UserSystemRank,
   TemplateBlock,
   CompletedBlock,
+  Device,
+  SyncState,
+  SyncLogEntry,
 } from '@/types';
 
 /**
@@ -44,6 +47,9 @@ export class ChecklistDB extends Dexie {
   user_system_ranks!: Table<UserSystemRank, string>;
   template_blocks!: Table<TemplateBlock, string>;
   completed_blocks!: Table<CompletedBlock, string>;
+  devices!: Table<Device, string>;
+  sync_state!: Table<SyncState, string>;
+  sync_log!: Table<SyncLogEntry, string>;
 
   constructor(name = 'digital_checklist') {
     super(name);
@@ -337,6 +343,15 @@ export class ChecklistDB extends Dexie {
             )
         );
       });
+
+    // v12: Central station & two-way sync. Device registry, per-peer sync
+    // watermarks, and a sync history. Additive only — no existing data touched,
+    // so a device with no central keeps working exactly as before.
+    this.version(12).stores({
+      devices: 'id, code, status',
+      sync_state: 'key',
+      sync_log: 'id, at, direction, peer_device',
+    });
   }
 }
 

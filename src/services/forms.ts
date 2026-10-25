@@ -106,7 +106,10 @@ export async function createDraftForm(params: {
   // Mint the running בד״ח number ONCE, at creation. Numbering advances per
   // physical unit (or per system when the form has no unit).
   const counterKey = params.unitId ?? template.system_id ?? 'GLOBAL';
-  const serial = await nextSequence(counterKey);
+  // Offset the serial by this device's numbering band so בד״ח numbers never
+  // collide across tablets (base 0 for a single/central device → unchanged).
+  const { deviceSerialBase } = await import('./sync');
+  const serial = (await deviceSerialBase()) + (await nextSequence(counterKey));
   const badachNumber = buildBadachNumber(system?.name ?? '', unit?.name ?? '', serial);
 
   // Build the form from the template's ordered BLOCKS. 'check' blocks snapshot

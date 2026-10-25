@@ -604,3 +604,72 @@ export type CertStatus = 'valid' | 'needs_renewal' | 'expired' | 'none';
 export interface UserWithRoles extends User {
   roles: RoleName[];
 }
+
+// ---------------------------------------------------------------------------
+// Central station & two-way sync (VERO Central).
+// ---------------------------------------------------------------------------
+
+/** This install's role. 'tablet' = execution station; 'central' = master station. */
+export type VeroRole = 'tablet' | 'central';
+
+/** A device's authorization state at the central station. */
+export type DeviceStatus = 'authorized' | 'pending' | 'disabled';
+
+/**
+ * A registered device (tablet or the central station itself). The central
+ * station is the authority for this registry; each tablet keeps a cached copy
+ * of its own record. `ordinal` gives the device a non-overlapping numbering
+ * band so בד״ח serials never collide between devices (serial base =
+ * (ordinal-1) * block_size).
+ */
+export interface Device {
+  id: string; // stable device UUID (getDeviceId)
+  code: string; // human code, e.g. 'VERO-TAB-001'
+  friendly_name: string; // e.g. 'טאבלט מחלקה א׳'
+  status: DeviceStatus;
+  ordinal: number; // numbering band (0 = central / unassigned)
+  block_size: number; // serials reserved per device per counter (e.g. 1000)
+  last_sync_at?: string | null;
+  last_dir?: 'in' | 'out' | null;
+  received_forms?: number; // cumulative: forms received from this device (central)
+  sent_updates?: number; // cumulative: config updates sent to this device (central)
+  is_self?: boolean; // true on the device's own record
+  created_at: string;
+  updated_at: string;
+}
+
+/** Per-peer sync watermark + last result (incremental, resumable sync). */
+export interface SyncState {
+  key: string; // peer device id (or 'self')
+  last_received_at?: string | null; // newest effective mtime applied FROM this peer
+  last_sent_at?: string | null; // watermark last sent TO this peer
+  last_import_checksum?: string | null; // short-circuit exact duplicate imports
+  last_summary?: string | null;
+  updated_at: string;
+}
+
+/** A sync entry in the sync history (central + tablet). */
+export interface SyncLogEntry {
+  id: string;
+  at: string;
+  direction: 'in' | 'out'; // in = received, out = sent/exported
+  peer_device: string | null;
+  peer_code?: string | null;
+  kind: string; // 'device-to-central' | 'central-to-device'
+  counts: Record<string, number>; // {forms, templates, certs, users, devices, skipped}
+  ok: boolean;
+  message?: string | null;
+}
+
+/** Summary returned after applying a package (drives the UI message). */
+export interface SyncSummary {
+  direction: 'in' | 'out';
+  forms: number;
+  templates: number;
+  certs: number;
+  users: number;
+  devices: number;
+  skipped: number;
+  at: string;
+  message: string;
+}
