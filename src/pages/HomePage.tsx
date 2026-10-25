@@ -11,6 +11,7 @@ import {
 } from '@/services/forms';
 import { listAlertsForUser, certificationSummary, type CertDetail } from '@/services/certifications';
 import { Icon, type IconName } from '@/components/Icon';
+import { SyncIndicator } from '@/components/SyncIndicator';
 import type { CompletedForm } from '@/types';
 import { formatDate } from '@/exports/labels';
 
@@ -116,6 +117,9 @@ export default function HomePage() {
         <div className="text-[15px] font-medium text-ink-500">שלום, {user.full_name}</div>
         <h1 className="mt-0.5 text-[24px] font-extrabold text-navy-900">מערכת בד״ח דיגיטלית</h1>
       </div>
+
+      {/* Tablet sync status + "סנכרן עכשיו" */}
+      <SyncIndicator />
 
       {/* Persistent certification-renewal indicator (stays until an admin renews) */}
       {certAlerts.length > 0 && (

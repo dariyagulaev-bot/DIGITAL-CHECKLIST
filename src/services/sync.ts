@@ -386,16 +386,49 @@ export async function applyIncomingPackage(pkg: SyncPackage, admin?: { id: strin
     await db.transaction('rw', [db.users, db.roles, db.user_roles, db.systems, db.units, db.ranks, db.performers, db.templates, db.template_tasks, db.template_blocks, db.user_system_ranks, db.settings, db.devices], async () => {
       // Central-authoritative tables (small) → unconditional upsert so that
       // permission/cert revocations always reach the tablet. Idempotent.
-      if (pkg.users?.length) await db.users.bulkPut(pkg.users);
-      if (pkg.roles?.length) await db.roles.bulkPut(pkg.roles);
+      //
+      // Natural-key reconciliation: a tablet enrolled from central shares the
+      // central's ids, so a plain id-upsert is exact. But a device that was
+      // independently seeded has the same usernames under different ids and a
+      // unique `username` index — so central wins by replacing the local row by
+      // its natural key (username / role name), making central's id canonical.
+      if (pkg.users?.length) {
+        const byName = new Map((await db.users.toArray()).map((u) => [u.username, u]));
+        for (const u of pkg.users) {
+          const loc = byName.get(u.username);
+          if (loc && loc.id !== u.id) {
+            await db.user_roles.where('user_id').equals(loc.id).delete();
+            await db.user_system_ranks.where('user_id').equals(loc.id).delete();
+            await db.users.delete(loc.id);
+          }
+          await db.users.put(u);
+        }
+        counts.users = pkg.users.length;
+      }
+      if (pkg.roles?.length) {
+        const byName = new Map((await db.roles.toArray()).map((r) => [r.name, r]));
+        for (const r of pkg.roles) {
+          const loc = byName.get(r.name);
+          if (loc && loc.id !== r.id) await db.roles.delete(loc.id);
+          await db.roles.put(r);
+        }
+      }
       if (pkg.user_roles?.length) await db.user_roles.bulkPut(pkg.user_roles);
-      if (pkg.systems?.length) await db.systems.bulkPut(pkg.systems);
+      // Structure: a standalone-seeded tablet shares the central's names but not
+      // ids, so reconcile top-level structure by name too (central authoritative)
+      // instead of adding duplicates. Units stay id-based (names repeat per system).
+      if (pkg.systems?.length) {
+        const byName = new Map((await db.systems.toArray()).map((s) => [s.name, s]));
+        for (const s of pkg.systems) { const loc = byName.get(s.name); if (loc && loc.id !== s.id) await db.systems.delete(loc.id); await db.systems.put(s); }
+      }
+      if (pkg.ranks?.length) {
+        const byName = new Map((await db.ranks.toArray()).map((r) => [r.name, r]));
+        for (const r of pkg.ranks) { const loc = byName.get(r.name); if (loc && loc.id !== r.id) await db.ranks.delete(loc.id); await db.ranks.put(r); }
+      }
       if (pkg.units?.length) await db.units.bulkPut(pkg.units);
-      if (pkg.ranks?.length) await db.ranks.bulkPut(pkg.ranks);
       if (pkg.performers?.length) await db.performers.bulkPut(pkg.performers);
       if (pkg.user_system_ranks?.length) await db.user_system_ranks.bulkPut(pkg.user_system_ranks);
       if (pkg.settings?.length) await db.settings.bulkPut(pkg.settings.filter((s) => s.key !== ROLE_KEY));
-      counts.users = pkg.users?.length ?? 0;
       counts.certs = pkg.user_system_ranks?.length ?? 0;
       // Heavy tables (templates may carry images) → incremental newer-wins.
       const mt = <T extends { updated_at?: string; created_at?: string }>(r: T) => maxIso(r.updated_at, r.created_at);

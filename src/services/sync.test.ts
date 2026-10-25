@@ -30,7 +30,7 @@ function form(id: string, patch: Partial<CompletedForm> = {}): CompletedForm {
     completed_at: now,
     approved_at: now,
     ...(patch as object),
-  } as CompletedForm;
+  } as unknown as CompletedForm;
 }
 
 describe('sync — role & device identity', () => {

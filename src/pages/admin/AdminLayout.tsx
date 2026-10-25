@@ -38,6 +38,10 @@ const groups: NavGroup[] = [
     items: [{ to: '/admin', label: 'לוח בקרה', icon: 'clipboard-check', end: true }],
   },
   {
+    title: 'מכשירים וסנכרון',
+    items: [{ to: '/admin/devices', label: 'מכשירים וסנכרון', icon: 'refresh' }],
+  },
+  {
     title: 'הגדרות',
     items: [
       { to: '/admin/settings', label: 'הגדרות מערכת', icon: 'settings' },
