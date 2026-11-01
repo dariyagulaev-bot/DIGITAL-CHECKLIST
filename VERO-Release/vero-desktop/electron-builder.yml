@@ -1,0 +1,54 @@
+# electron-builder configuration — produces BOTH distribution options:
+#   • nsis      → VERO-Setup-<version>.exe   (Option 1: installer)
+#   • portable  → VERO-Portable-<version>.exe (Option 2: portable, no install)
+#
+# The build is fully offline at RUNTIME; the BUILD machine needs internet once
+# to download the pinned Electron runtime. Nothing here downloads at runtime.
+
+appId: com.org.vero
+productName: VERO
+
+directories:
+  output: dist-win
+  buildResources: build
+
+# Only these are packed into the app (asar). No source maps, no dev files.
+files:
+  - main.js
+  - preload.js
+  - resources/**
+
+asar: true
+# Do not auto-publish anywhere. This is an air-gapped, offline distribution.
+publish: null
+
+win:
+  target:
+    - nsis
+    - portable
+  icon: build/icon.ico
+  # Fill in the real, legal publisher name. When the build is code-signed, this
+  # should match the certificate subject exactly.
+  publisherName: ORG-PUBLISHER-NAME-HERE
+  # --- Code signing (leave commented until IT provides a certificate) ---------
+  # Do NOT invent or self-sign a public-trust certificate. Use the organization's
+  # Authenticode OV/EV code-signing certificate (or Azure Trusted Signing).
+  # certificateFile: path\\to\\org-codesign.pfx
+  # certificatePassword: ${env.CSC_KEY_PASSWORD}
+  # signingHashAlgorithms: [sha256]
+  # rfc3161TimeStampServer: http://<org-approved-timestamp-authority>
+
+nsis:
+  oneClick: false
+  perMachine: false # per-user install → NO administrator rights required
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: VERO
+  artifactName: VERO-Setup-${version}.exe
+  # Leave uninstaller enabled so IT can cleanly remove it.
+
+portable:
+  artifactName: VERO-Portable-${version}.exe
+  # The portable exe unpacks to a per-user temp dir at run time; VERO's data
+  # still lives permanently under %APPDATA%\VERO (see IT documentation).
