@@ -40,3 +40,6 @@ preview-artifact.html
 # design screenshots
 shot-*.png
 _shots.mjs
+
+# electron-builder Windows output (74MB binaries — delivered out-of-band, never committed)
+VERO-Release/vero-desktop/dist-win/
