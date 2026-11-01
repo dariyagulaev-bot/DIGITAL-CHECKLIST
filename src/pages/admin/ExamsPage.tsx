@@ -24,6 +24,8 @@ export default function ExamsPage() {
     try {
       const e = await createExam({ title: 'מבחן חדש' });
       nav(`/admin/exams/${e.id}`);
+    } catch (err) {
+      notify('לא ניתן ליצור מבחן: ' + (err as Error).message, 'error');
     } finally { setBusy(false); }
   };
   const remove = async (e: Exam) => {
