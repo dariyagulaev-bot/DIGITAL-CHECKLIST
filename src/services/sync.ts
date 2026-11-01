@@ -28,6 +28,8 @@ import type {
   Exam,
   ExamQuestion,
   ExamAttempt,
+  CertRenewal,
+  RenewalApprover,
 } from '@/types';
 
 /**
@@ -210,6 +212,7 @@ export interface SyncPackage {
   signatures?: Signature[];
   form_audit?: AuditEntry[];
   exam_attempts?: ExamAttempt[]; // owned by the device that sat the exam
+  cert_renewals?: CertRenewal[]; // shared: created on a tablet, approved on central (newer-wins)
   device?: Device | null; // the sending device's own record (identity)
   // central → device (owned by central):
   users?: User[];
@@ -226,6 +229,7 @@ export interface SyncPackage {
   settings?: Setting[];
   exams?: Exam[]; // central-owned exam definitions
   exam_questions?: ExamQuestion[];
+  renewal_approvers?: RenewalApprover[]; // central-owned approver assignments
   devices?: Device[]; // device registry mirror
   allocation?: { ordinal: number; block_size: number } | null; // band for the target
 }
@@ -286,6 +290,8 @@ export async function buildOutgoingPackage(opts?: { targetDeviceId?: string }): 
     base.signatures = allSigs.filter((s) => ids.has(s.completed_form_id));
     base.form_audit = allAudit.filter((a) => a.entity_type === 'form' && ids.has(a.entity_id));
     base.exam_attempts = allAttempts.filter((a) => !since || (a.updated_at ?? a.started_at) > since);
+    const allRenewals = await db.cert_renewals.toArray();
+    base.cert_renewals = allRenewals.filter((r) => !since || r.updated_at > since);
     base.device = self;
     base.since = since;
   } else {
@@ -317,6 +323,9 @@ export async function buildOutgoingPackage(opts?: { targetDeviceId?: string }): 
     base.settings = settings.filter((s) => s.key !== ROLE_KEY); // never push role onto a device
     base.exams = fresh(exams);
     base.exam_questions = exam_questions.filter((q) => fresh(exams).some((e) => e.id === q.exam_id) || !since);
+    base.renewal_approvers = await db.renewal_approvers.toArray(); // central-owned (small)
+    const centralRenewals = await db.cert_renewals.toArray();
+    base.cert_renewals = centralRenewals.filter((r) => !since || r.updated_at > since); // send approvals/rejections back
     base.devices = devices.map((d) => ({ ...d, is_self: false }));
     base.allocation = target && target.status === 'authorized' ? { ordinal: target.ordinal, block_size: target.block_size } : null;
     base.since = since;
@@ -370,12 +379,18 @@ export async function applyIncomingPackage(pkg: SyncPackage, admin?: { id: strin
       await addSyncLog({ direction: 'in', peer_device: pkg.from_device, peer_code: pkg.from_code, kind: pkg.kind, counts, ok: false, message: 'מכשיר אינו מאושר — הסנכרון נדחה' });
       throw new Error('המכשיר אינו מאושר בתחנה המרכזית');
     }
-    await db.transaction('rw', [db.completed_forms, db.completed_tasks, db.completed_blocks, db.signatures, db.audit_log, db.exam_attempts], async () => {
+    await db.transaction('rw', [db.completed_forms, db.completed_tasks, db.completed_blocks, db.signatures, db.audit_log, db.exam_attempts, db.cert_renewals], async () => {
       // Exam attempts are owned by the device that sat them — newer wins.
       if (pkg.exam_attempts?.length) {
         const curA = new Map((await db.exam_attempts.toArray()).map((a) => [a.id, a]));
         const put = pkg.exam_attempts.filter((a) => { const c = curA.get(a.id); return !c || (a.updated_at ?? a.started_at) > (c.updated_at ?? c.started_at); });
         if (put.length) await db.exam_attempts.bulkPut(put);
+      }
+      // Renewal records (shared) — newer wins; idempotent by id (one per attempt).
+      if (pkg.cert_renewals?.length) {
+        const curR = new Map((await db.cert_renewals.toArray()).map((r) => [r.id, r]));
+        const put = pkg.cert_renewals.filter((r) => { const c = curR.get(r.id); return !c || r.updated_at > c.updated_at; });
+        if (put.length) await db.cert_renewals.bulkPut(put);
       }
       const curForms = new Map((await db.completed_forms.toArray()).map((f) => [f.id, f]));
       const fRes = upsertNewer(curForms, pkg.forms ?? [], (f) => maxIso(f.updated_at, f.created_at, f.completed_at, f.approved_at));
@@ -400,7 +415,7 @@ export async function applyIncomingPackage(pkg: SyncPackage, admin?: { id: strin
   } else {
     // central → device: config + registry + numbering band.
     if (role === 'central') throw new Error('חבילת הגדרות אינה חלה על התחנה המרכזית');
-    await db.transaction('rw', [db.users, db.roles, db.user_roles, db.systems, db.units, db.ranks, db.performers, db.templates, db.template_tasks, db.template_blocks, db.user_system_ranks, db.settings, db.devices, db.exams, db.exam_questions], async () => {
+    await db.transaction('rw', [db.users, db.roles, db.user_roles, db.systems, db.units, db.ranks, db.performers, db.templates, db.template_tasks, db.template_blocks, db.user_system_ranks, db.settings, db.devices, db.exams, db.exam_questions, db.renewal_approvers, db.cert_renewals], async () => {
       // Central-authoritative tables (small) → unconditional upsert so that
       // permission/cert revocations always reach the tablet. Idempotent.
       //
@@ -464,6 +479,12 @@ export async function applyIncomingPackage(pkg: SyncPackage, admin?: { id: strin
         counts.skipped += eRes.skipped;
       }
       if (pkg.exam_questions?.length) await db.exam_questions.bulkPut(pkg.exam_questions);
+      if (pkg.renewal_approvers?.length) await db.renewal_approvers.bulkPut(pkg.renewal_approvers);
+      if (pkg.cert_renewals?.length) {
+        const curR = new Map((await db.cert_renewals.toArray()).map((r) => [r.id, r]));
+        const put = pkg.cert_renewals.filter((r) => { const c = curR.get(r.id); return !c || r.updated_at > c.updated_at; });
+        if (put.length) await db.cert_renewals.bulkPut(put);
+      }
       // Mirror the device registry (but keep THIS device's own row / self flag).
       if (pkg.devices?.length) {
         const selfId = getDeviceId();

@@ -23,6 +23,7 @@ import CertificationsPage from './pages/admin/CertificationsPage';
 import DevicesPage from './pages/admin/DevicesPage';
 import ExamsPage from './pages/admin/ExamsPage';
 import ExamEditorPage from './pages/admin/ExamEditorPage';
+import RenewalAdminPage from './pages/admin/RenewalAdminPage';
 import ExamsListPage from './pages/ExamsListPage';
 import ExamTakePage from './pages/ExamTakePage';
 import ExamResultPage from './pages/ExamResultPage';
@@ -147,6 +148,7 @@ function AppRoutes() {
         <Route path="certifications" element={<CertificationsPage />} />
         <Route path="exams" element={<ExamsPage />} />
         <Route path="exams/:id" element={<ExamEditorPage />} />
+        <Route path="renewals" element={<RenewalAdminPage />} />
         <Route path="devices" element={<DevicesPage />} />
         <Route path="templates" element={<TemplatesPage />} />
         <Route path="templates/:id" element={<TemplateEditorPage />} />
