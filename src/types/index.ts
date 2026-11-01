@@ -606,6 +606,127 @@ export interface UserWithRoles extends User {
 }
 
 // ---------------------------------------------------------------------------
+// Certification exams (מבחני הסמכה).
+// ---------------------------------------------------------------------------
+
+/** Pass score is fixed system-wide: 80 / 100. */
+export const EXAM_PASS_SCORE = 80;
+
+export type ExamQuestionType =
+  | 'single' // בחירה יחידה (אמריקאית)
+  | 'multi' // בחירה מרובה
+  | 'open' // שאלה פתוחה (בדיקה ידנית)
+  | 'image_match'; // זיהוי ציוד בתמונה
+
+export interface ExamOption {
+  id: string;
+  text: string;
+  image?: string | null; // optional data URL on an answer
+}
+
+/** A hotspot on an equipment image. Coordinates are RELATIVE (0..1) to the
+ * image's own width/height, so markers stay put on any screen size. */
+export interface ExamMarker {
+  id: string;
+  x: number; // 0..1 of image width
+  y: number; // 0..1 of image height
+  component_name: string; // the correct component for this point
+}
+
+export interface ExamQuestionConfig {
+  image?: string | null; // equipment image (data URL) — attached to any type
+  // single / multi
+  options?: ExamOption[];
+  correct_option_ids?: string[];
+  multi_partial?: boolean; // multi: allow partial credit (default false = all-or-nothing)
+  // open
+  sample_answer?: string;
+  rubric?: string;
+  // image_match
+  markers?: ExamMarker[];
+  distractors?: string[]; // extra component names not on the image
+  image_partial?: boolean; // image_match: partial credit by correct matches (default true)
+}
+
+export interface ExamQuestion {
+  id: string;
+  exam_id: string;
+  sort_order: number;
+  type: ExamQuestionType;
+  text: string;
+  points: number; // weight toward the 0..100 normalized score
+  config: ExamQuestionConfig;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Frozen copy of a question on a published version / an attempt snapshot. */
+export interface ExamQuestionSnapshot {
+  id: string; // original question id (stable for answer mapping)
+  sort_order: number;
+  type: ExamQuestionType;
+  text: string;
+  points: number;
+  config: ExamQuestionConfig;
+}
+
+export interface ExamPublished {
+  version: string;
+  published_at: string;
+  questions: ExamQuestionSnapshot[];
+}
+
+export interface Exam {
+  id: string;
+  title: string;
+  description?: string;
+  system_id?: string | null;
+  rank_id?: string | null;
+  version: string; // '1.0', '1.1', '2.0'
+  ever_published?: boolean;
+  has_unpublished_changes?: boolean;
+  version_history?: VersionEntry[];
+  published?: ExamPublished | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ExamAttemptStatus = 'in_progress' | 'pending_review' | 'graded';
+
+/** A single answer within an attempt (shape depends on the question type). */
+export interface ExamAnswer {
+  question_id: string;
+  selected_option_ids?: string[]; // single (1) / multi (n)
+  text?: string; // open
+  matches?: Record<string, string>; // image_match: marker id → chosen component name
+  auto_awarded?: number | null; // computed for single/multi/image_match
+  manual_awarded?: number | null; // graded by admin for open questions
+  manual_note?: string | null;
+  needs_manual?: boolean; // open question awaiting manual grading
+}
+
+export interface ExamAttempt {
+  id: string;
+  exam_id: string;
+  exam_version: string;
+  exam_title: string;
+  exam_snapshot: ExamQuestionSnapshot[]; // frozen at start — exam edits never change it
+  user_id: string;
+  user_name: string;
+  device_id: string;
+  status: ExamAttemptStatus;
+  answers: ExamAnswer[];
+  score: number | null; // 0..100, null until fully graded
+  passed: boolean | null; // null until graded; score ≥ 80
+  started_at: string;
+  updated_at: string;
+  submitted_at?: string | null;
+  graded_at?: string | null;
+  graded_by_id?: string | null;
+  graded_by_name?: string | null;
+}
+
+// ---------------------------------------------------------------------------
 // Central station & two-way sync (VERO Central).
 // ---------------------------------------------------------------------------
 

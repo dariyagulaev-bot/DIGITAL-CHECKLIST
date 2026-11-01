@@ -21,6 +21,9 @@ import type {
   Device,
   SyncState,
   SyncLogEntry,
+  Exam,
+  ExamQuestion,
+  ExamAttempt,
 } from '@/types';
 
 /**
@@ -50,6 +53,9 @@ export class ChecklistDB extends Dexie {
   devices!: Table<Device, string>;
   sync_state!: Table<SyncState, string>;
   sync_log!: Table<SyncLogEntry, string>;
+  exams!: Table<Exam, string>;
+  exam_questions!: Table<ExamQuestion, string>;
+  exam_attempts!: Table<ExamAttempt, string>;
 
   constructor(name = 'digital_checklist') {
     super(name);
@@ -351,6 +357,13 @@ export class ChecklistDB extends Dexie {
       devices: 'id, code, status',
       sync_state: 'key',
       sync_log: 'id, at, direction, peer_device',
+    });
+
+    // v13: Certification exams. Additive — exams, their questions, and attempts.
+    this.version(13).stores({
+      exams: 'id, title, system_id, rank_id',
+      exam_questions: 'id, exam_id, sort_order',
+      exam_attempts: 'id, exam_id, user_id, device_id, status, started_at',
     });
   }
 }
