@@ -676,10 +676,15 @@ export interface ExamPublished {
   questions: ExamQuestionSnapshot[];
 }
 
+/** 'initial' = first-time certification exam; 'renewal' = periodic renewal exam
+ * matched to a certification by system + rank. */
+export type ExamType = 'initial' | 'renewal';
+
 export interface Exam {
   id: string;
   title: string;
   description?: string;
+  exam_type?: ExamType; // default 'initial'
   system_id?: string | null;
   rank_id?: string | null;
   version: string; // '1.0', '1.1', '2.0'
@@ -711,6 +716,11 @@ export interface ExamAttempt {
   exam_version: string;
   exam_title: string;
   exam_snapshot: ExamQuestionSnapshot[]; // frozen at start — exam edits never change it
+  // Renewal context (only when the attempt is a certification renewal):
+  purpose?: 'initial' | 'renewal';
+  cert_id?: string | null; // the user_system_rank being renewed
+  cert_system_id?: string | null;
+  cert_rank_id?: string | null;
   user_id: string;
   user_name: string;
   device_id: string;
@@ -724,6 +734,61 @@ export interface ExamAttempt {
   graded_at?: string | null;
   graded_by_id?: string | null;
   graded_by_name?: string | null;
+}
+
+// ---- Certification renewal (חידוש הסמכה) ----------------------------------
+
+export type RenewalStatus = 'pending_approval' | 'approved' | 'rejected';
+
+/**
+ * A certification renewal record. Created automatically when a user PASSES a
+ * renewal exam (≥80). Passing never renews the certification on its own — it
+ * sits in 'pending_approval' until an authorized approver approves it (with
+ * their signature), only then is the certification's expiry extended. One
+ * record per exam attempt (the attempt id is the idempotency key).
+ */
+export interface CertRenewal {
+  id: string;
+  user_id: string;
+  user_name: string;
+  system_id: string;
+  system_name?: string;
+  rank_id: string | null;
+  rank_name?: string;
+  cert_id: string; // user_system_rank id
+  exam_id: string;
+  exam_version: string;
+  attempt_id: string; // one renewal per attempt
+  score: number;
+  passed: boolean;
+  status: RenewalStatus;
+  prev_expires_at?: string | null; // current validity before renewal
+  new_expires_at?: string | null; // set on approval
+  started_at: string;
+  submitted_at: string;
+  approved_by_id?: string | null;
+  approved_by_name?: string | null;
+  approved_by_role?: string | null;
+  approver_signature?: string | null; // data URL — reuses the signature mechanism
+  approved_at?: string | null;
+  reject_reason?: string | null;
+  device_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Grants a user the right to approve certification renewals, optionally scoped
+ * to a system and/or rank (null = any). Being an admin does NOT by itself grant
+ * approval authority — it must be assigned here.
+ */
+export interface RenewalApprover {
+  id: string;
+  user_id: string;
+  user_name?: string;
+  system_id?: string | null; // null = any system
+  rank_id?: string | null; // null = any rank
+  created_at: string;
 }
 
 // ---------------------------------------------------------------------------

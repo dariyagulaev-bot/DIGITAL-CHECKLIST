@@ -103,10 +103,11 @@ export async function listExams(): Promise<Exam[]> {
 export async function getExam(id: string): Promise<Exam | undefined> {
   return db.exams.get(id);
 }
-export async function createExam(params: { title: string; description?: string; system_id?: string | null; rank_id?: string | null }): Promise<Exam> {
+export async function createExam(params: { title: string; description?: string; exam_type?: Exam['exam_type']; system_id?: string | null; rank_id?: string | null }): Promise<Exam> {
   const now = nowIso();
   const exam: Exam = {
     id: newId(), title: params.title.trim() || 'מבחן חדש', description: params.description ?? '',
+    exam_type: params.exam_type ?? 'initial',
     system_id: params.system_id ?? null, rank_id: params.rank_id ?? null,
     version: '1.0', ever_published: false, has_unpublished_changes: true, version_history: [], published: null,
     created_at: now, updated_at: now,
@@ -114,7 +115,7 @@ export async function createExam(params: { title: string; description?: string; 
   await db.exams.add(exam);
   return exam;
 }
-export async function updateExamMeta(id: string, patch: Partial<Pick<Exam, 'title' | 'description' | 'system_id' | 'rank_id'>>): Promise<void> {
+export async function updateExamMeta(id: string, patch: Partial<Pick<Exam, 'title' | 'description' | 'exam_type' | 'system_id' | 'rank_id'>>): Promise<void> {
   await db.exams.update(id, { ...patch, updated_at: nowIso() });
   await markExamDirty(id);
 }
@@ -264,8 +265,13 @@ export async function getAttempt(id: string): Promise<ExamAttempt | undefined> {
   return db.exam_attempts.get(id);
 }
 
-/** Start a real attempt from the exam's PUBLISHED version (snapshot frozen). */
-export async function startAttempt(examId: string, user: UserWithRoles): Promise<string> {
+/** Start a real attempt from the exam's PUBLISHED version (snapshot frozen).
+ * `context` carries renewal info when the attempt is a certification renewal. */
+export async function startAttempt(
+  examId: string,
+  user: UserWithRoles,
+  context?: { purpose?: 'initial' | 'renewal'; cert_id?: string | null; cert_system_id?: string | null; cert_rank_id?: string | null }
+): Promise<string> {
   const exam = await db.exams.get(examId);
   if (!exam) throw new Error('המבחן לא נמצא');
   if (!exam.published) throw new Error('המבחן טרם פורסם');
@@ -273,6 +279,10 @@ export async function startAttempt(examId: string, user: UserWithRoles): Promise
   const attempt: ExamAttempt = {
     id: newId(), exam_id: examId, exam_version: exam.published.version, exam_title: exam.title,
     exam_snapshot: exam.published.questions, user_id: user.id, user_name: user.full_name, device_id: getDeviceId(),
+    purpose: context?.purpose ?? 'initial',
+    cert_id: context?.cert_id ?? null,
+    cert_system_id: context?.cert_system_id ?? null,
+    cert_rank_id: context?.cert_rank_id ?? null,
     status: 'in_progress', answers: [], score: null, passed: null, started_at: now, updated_at: now,
   };
   await db.exam_attempts.add(attempt);
@@ -303,7 +313,13 @@ export async function submitAttempt(attemptId: string): Promise<ExamAttempt> {
   const status: ExamAttempt['status'] = sc.needs_review ? 'pending_review' : 'graded';
   const patch = { answers, status, score: sc.score, passed: sc.passed, submitted_at: now, updated_at: now, graded_at: sc.needs_review ? null : now };
   await db.exam_attempts.update(attemptId, patch);
-  return { ...a, ...patch } as ExamAttempt;
+  const updated = { ...a, ...patch } as ExamAttempt;
+  // A renewal exam that is fully graded (no open questions pending) records a
+  // pending certification renewal. Dynamic import avoids a module cycle.
+  if (updated.purpose === 'renewal' && updated.status === 'graded') {
+    try { await (await import('./certRenewals')).onAttemptSubmitted(updated); } catch { /* non-fatal */ }
+  }
+  return updated;
 }
 
 /** Grade one open question; finalizes the attempt once all open Qs are graded. */
@@ -322,5 +338,10 @@ export async function gradeOpenAnswer(attemptId: string, questionId: string, poi
   const patch = { answers, score: sc.score, passed: sc.passed, status: done ? 'graded' : 'pending_review', graded_at: done ? now : null, graded_by_id: admin.id, graded_by_name: admin.full_name, updated_at: now } as Partial<ExamAttempt>;
   await db.exam_attempts.update(attemptId, patch);
   await logAudit({ user_id: admin.id, user_name: admin.full_name, action: 'EXAM_GRADE', entity_type: 'exam_attempt', entity_id: attemptId, field: questionId, new_value: String(capped) });
-  return { ...a, ...patch } as ExamAttempt;
+  const updated = { ...a, ...patch } as ExamAttempt;
+  // Finalizing a renewal exam by manual grading also records the renewal.
+  if (done && updated.purpose === 'renewal') {
+    try { await (await import('./certRenewals')).onAttemptSubmitted(updated); } catch { /* non-fatal */ }
+  }
+  return updated;
 }

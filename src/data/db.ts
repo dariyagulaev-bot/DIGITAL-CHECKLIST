@@ -24,6 +24,8 @@ import type {
   Exam,
   ExamQuestion,
   ExamAttempt,
+  CertRenewal,
+  RenewalApprover,
 } from '@/types';
 
 /**
@@ -56,6 +58,8 @@ export class ChecklistDB extends Dexie {
   exams!: Table<Exam, string>;
   exam_questions!: Table<ExamQuestion, string>;
   exam_attempts!: Table<ExamAttempt, string>;
+  cert_renewals!: Table<CertRenewal, string>;
+  renewal_approvers!: Table<RenewalApprover, string>;
 
   constructor(name = 'digital_checklist') {
     super(name);
@@ -364,6 +368,12 @@ export class ChecklistDB extends Dexie {
       exams: 'id, title, system_id, rank_id',
       exam_questions: 'id, exam_id, sort_order',
       exam_attempts: 'id, exam_id, user_id, device_id, status, started_at',
+    });
+
+    // v14: Certification renewal flow — renewal records + approver assignments.
+    this.version(14).stores({
+      cert_renewals: 'id, user_id, system_id, cert_id, attempt_id, status',
+      renewal_approvers: 'id, user_id, system_id, rank_id',
     });
   }
 }
