@@ -23,6 +23,9 @@ import CertificationsPage from './pages/admin/CertificationsPage';
 import DevicesPage from './pages/admin/DevicesPage';
 import ExamsPage from './pages/admin/ExamsPage';
 import ExamEditorPage from './pages/admin/ExamEditorPage';
+import ExamsListPage from './pages/ExamsListPage';
+import ExamTakePage from './pages/ExamTakePage';
+import ExamResultPage from './pages/ExamResultPage';
 import SystemsPage from './pages/admin/SystemsPage';
 import UnitsPage from './pages/admin/UnitsPage';
 import RanksPage from './pages/admin/RanksPage';
@@ -91,6 +94,9 @@ function AppRoutes() {
           </RequireAuth>
         }
       />
+      <Route path="/exams" element={<RequireAuth><Layout><ExamsListPage /></Layout></RequireAuth>} />
+      <Route path="/exam/take/:attemptId" element={<RequireAuth><Layout><ExamTakePage /></Layout></RequireAuth>} />
+      <Route path="/exam/result/:attemptId" element={<RequireAuth><Layout><ExamResultPage /></Layout></RequireAuth>} />
       <Route
         path="/pending"
         element={

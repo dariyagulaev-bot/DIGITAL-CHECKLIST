@@ -216,6 +216,12 @@ export default function HomePage() {
             desc="חיפוש, צפייה והפקת דוחות"
             icon="history"
           />
+          <ActionRow
+            to="/exams"
+            title="מבחני הסמכה"
+            desc="מבחנים זמינים והניסיונות שלי"
+            icon="clipboard-check"
+          />
           {isAdmin(user) && (
             <>
               <ActionRow

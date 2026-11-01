@@ -25,6 +25,9 @@ import type {
   UserRole,
   UserSystemRank,
   VeroRole,
+  Exam,
+  ExamQuestion,
+  ExamAttempt,
 } from '@/types';
 
 /**
@@ -206,6 +209,7 @@ export interface SyncPackage {
   blocks?: CompletedBlock[];
   signatures?: Signature[];
   form_audit?: AuditEntry[];
+  exam_attempts?: ExamAttempt[]; // owned by the device that sat the exam
   device?: Device | null; // the sending device's own record (identity)
   // central → device (owned by central):
   users?: User[];
@@ -220,6 +224,8 @@ export interface SyncPackage {
   template_blocks?: TemplateBlock[];
   user_system_ranks?: UserSystemRank[];
   settings?: Setting[];
+  exams?: Exam[]; // central-owned exam definitions
+  exam_questions?: ExamQuestion[];
   devices?: Device[]; // device registry mirror
   allocation?: { ordinal: number; block_size: number } | null; // band for the target
 }
@@ -258,12 +264,13 @@ export async function buildOutgoingPackage(opts?: { targetDeviceId?: string }): 
   if (role === 'tablet') {
     const peerKey = 'central';
     const since = (await getSyncState(peerKey)).last_sent_at ?? null;
-    const [allForms, allTasks, allBlocks, allSigs, allAudit] = await Promise.all([
+    const [allForms, allTasks, allBlocks, allSigs, allAudit, allAttempts] = await Promise.all([
       db.completed_forms.toArray(),
       db.completed_tasks.toArray(),
       db.completed_blocks.toArray(),
       db.signatures.toArray(),
       db.audit_log.toArray(),
+      db.exam_attempts.toArray(),
     ]);
     const sigsByForm = new Map<string, Signature[]>();
     for (const s of allSigs) (sigsByForm.get(s.completed_form_id) ?? sigsByForm.set(s.completed_form_id, []).get(s.completed_form_id)!).push(s);
@@ -278,6 +285,7 @@ export async function buildOutgoingPackage(opts?: { targetDeviceId?: string }): 
     base.blocks = allBlocks.filter((b) => ids.has(b.completed_form_id));
     base.signatures = allSigs.filter((s) => ids.has(s.completed_form_id));
     base.form_audit = allAudit.filter((a) => a.entity_type === 'form' && ids.has(a.entity_id));
+    base.exam_attempts = allAttempts.filter((a) => !since || (a.updated_at ?? a.started_at) > since);
     base.device = self;
     base.since = since;
   } else {
@@ -286,12 +294,13 @@ export async function buildOutgoingPackage(opts?: { targetDeviceId?: string }): 
     const target = opts?.targetDeviceId ? await db.devices.get(opts.targetDeviceId) : null;
     const peerKey = opts?.targetDeviceId ?? 'broadcast';
     const since = (await getSyncState(peerKey)).last_sent_at ?? null;
-    const [users, roles, user_roles, systems, units, ranks, performers, templates, template_tasks, template_blocks, usr, settings, devices] =
+    const [users, roles, user_roles, systems, units, ranks, performers, templates, template_tasks, template_blocks, usr, settings, devices, exams, exam_questions] =
       await Promise.all([
         db.users.toArray(), db.roles.toArray(), db.user_roles.toArray(),
         db.systems.toArray(), db.units.toArray(), db.ranks.toArray(), db.performers.toArray(),
         db.templates.toArray(), db.template_tasks.toArray(), db.template_blocks.toArray(),
         db.user_system_ranks.toArray(), db.settings.toArray(), db.devices.toArray(),
+        db.exams.toArray(), db.exam_questions.toArray(),
       ]);
     const fresh = <T extends { updated_at?: string }>(rows: T[]) => (since ? rows.filter((r) => !r.updated_at || r.updated_at > since) : rows);
     base.users = users; // full (revocations)
@@ -306,6 +315,8 @@ export async function buildOutgoingPackage(opts?: { targetDeviceId?: string }): 
     base.template_tasks = template_tasks.filter((t) => fresh(templates).some((tp) => tp.id === t.template_id) || !since);
     base.template_blocks = template_blocks.filter((b) => fresh(templates).some((tp) => tp.id === b.template_id) || !since);
     base.settings = settings.filter((s) => s.key !== ROLE_KEY); // never push role onto a device
+    base.exams = fresh(exams);
+    base.exam_questions = exam_questions.filter((q) => fresh(exams).some((e) => e.id === q.exam_id) || !since);
     base.devices = devices.map((d) => ({ ...d, is_self: false }));
     base.allocation = target && target.status === 'authorized' ? { ordinal: target.ordinal, block_size: target.block_size } : null;
     base.since = since;
@@ -359,7 +370,13 @@ export async function applyIncomingPackage(pkg: SyncPackage, admin?: { id: strin
       await addSyncLog({ direction: 'in', peer_device: pkg.from_device, peer_code: pkg.from_code, kind: pkg.kind, counts, ok: false, message: 'מכשיר אינו מאושר — הסנכרון נדחה' });
       throw new Error('המכשיר אינו מאושר בתחנה המרכזית');
     }
-    await db.transaction('rw', [db.completed_forms, db.completed_tasks, db.completed_blocks, db.signatures, db.audit_log], async () => {
+    await db.transaction('rw', [db.completed_forms, db.completed_tasks, db.completed_blocks, db.signatures, db.audit_log, db.exam_attempts], async () => {
+      // Exam attempts are owned by the device that sat them — newer wins.
+      if (pkg.exam_attempts?.length) {
+        const curA = new Map((await db.exam_attempts.toArray()).map((a) => [a.id, a]));
+        const put = pkg.exam_attempts.filter((a) => { const c = curA.get(a.id); return !c || (a.updated_at ?? a.started_at) > (c.updated_at ?? c.started_at); });
+        if (put.length) await db.exam_attempts.bulkPut(put);
+      }
       const curForms = new Map((await db.completed_forms.toArray()).map((f) => [f.id, f]));
       const fRes = upsertNewer(curForms, pkg.forms ?? [], (f) => maxIso(f.updated_at, f.created_at, f.completed_at, f.approved_at));
       if (fRes.put.length) await db.completed_forms.bulkPut(fRes.put);
@@ -383,7 +400,7 @@ export async function applyIncomingPackage(pkg: SyncPackage, admin?: { id: strin
   } else {
     // central → device: config + registry + numbering band.
     if (role === 'central') throw new Error('חבילת הגדרות אינה חלה על התחנה המרכזית');
-    await db.transaction('rw', [db.users, db.roles, db.user_roles, db.systems, db.units, db.ranks, db.performers, db.templates, db.template_tasks, db.template_blocks, db.user_system_ranks, db.settings, db.devices], async () => {
+    await db.transaction('rw', [db.users, db.roles, db.user_roles, db.systems, db.units, db.ranks, db.performers, db.templates, db.template_tasks, db.template_blocks, db.user_system_ranks, db.settings, db.devices, db.exams, db.exam_questions], async () => {
       // Central-authoritative tables (small) → unconditional upsert so that
       // permission/cert revocations always reach the tablet. Idempotent.
       //
@@ -439,6 +456,14 @@ export async function applyIncomingPackage(pkg: SyncPackage, admin?: { id: strin
       counts.skipped += tRes.skipped;
       if (pkg.template_tasks?.length) await db.template_tasks.bulkPut(pkg.template_tasks);
       if (pkg.template_blocks?.length) await db.template_blocks.bulkPut(pkg.template_blocks);
+      // Exams (central-owned, may carry images) → incremental newer-wins.
+      if (pkg.exams?.length) {
+        const curE = new Map((await db.exams.toArray()).map((e) => [e.id, e]));
+        const eRes = upsertNewer(curE, pkg.exams, mt);
+        if (eRes.put.length) await db.exams.bulkPut(eRes.put);
+        counts.skipped += eRes.skipped;
+      }
+      if (pkg.exam_questions?.length) await db.exam_questions.bulkPut(pkg.exam_questions);
       // Mirror the device registry (but keep THIS device's own row / self flag).
       if (pkg.devices?.length) {
         const selfId = getDeviceId();
