@@ -11,7 +11,9 @@ import {
   getExam, updateExamMeta, listQuestions, addQuestion, updateQuestion, deleteQuestion, duplicateQuestion, moveQuestion,
   publishExam, validateExam, snapshotQuestions,
 } from '@/services/exams';
-import type { Exam, ExamAnswer, ExamOption, ExamQuestion, ExamQuestionSnapshot, ExamQuestionType } from '@/types';
+import { listSystems } from '@/services/systems';
+import { listRanks } from '@/services/ranks';
+import type { Exam, ExamAnswer, ExamOption, ExamQuestion, ExamQuestionSnapshot, ExamQuestionType, Rank, System } from '@/types';
 
 const TYPES: { type: ExamQuestionType; label: string }[] = [
   { type: 'single', label: 'בחירה יחידה (אמריקאית)' },
@@ -29,6 +31,8 @@ export default function ExamEditorPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [preview, setPreview] = useState<ExamQuestionSnapshot[] | null>(null);
   const [previewAns, setPreviewAns] = useState<ExamAnswer[]>([]);
+  const [systems, setSystems] = useState<System[]>([]);
+  const [ranks, setRanks] = useState<Rank[]>([]);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const load = useCallback(async () => {
@@ -37,6 +41,9 @@ export default function ExamEditorPage() {
     setQuestions(await listQuestions(id));
   }, [id]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { listSystems().then(setSystems); listRanks().then(setRanks); }, []);
+
+  const setMeta = (patch: Partial<Exam>) => { setExam((e) => (e ? { ...e, ...patch } : e)); updateExamMeta(id, patch); };
 
   const patchQuestionLocal = (qid: string, patch: Partial<ExamQuestion>) => {
     setQuestions((qs) => qs.map((q) => (q.id === qid ? { ...q, ...patch } : q)));
@@ -82,6 +89,34 @@ export default function ExamEditorPage() {
         <input className="input mb-3" value={exam.title} onChange={(e) => { setExam({ ...exam, title: e.target.value }); updateExamMeta(id, { title: e.target.value }); }} />
         <label className="label">תיאור (לא חובה)</label>
         <textarea className="input min-h-[52px]" value={exam.description ?? ''} onChange={(e) => { setExam({ ...exam, description: e.target.value }); updateExamMeta(id, { description: e.target.value }); }} />
+
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <div>
+            <label className="label">סוג מבחן</label>
+            <select className="input" value={exam.exam_type ?? 'initial'} onChange={(e) => setMeta({ exam_type: e.target.value as Exam['exam_type'] })}>
+              <option value="initial">הסמכה ראשונית</option>
+              <option value="renewal">רענון הסמכה</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">מערכת (סוג){exam.exam_type === 'renewal' ? ' *' : ''}</label>
+            <select className="input" value={exam.system_id ?? ''} onChange={(e) => setMeta({ system_id: e.target.value || null })}>
+              <option value="">— כללי —</option>
+              {systems.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">דרג{exam.exam_type === 'renewal' ? ' *' : ''}</label>
+            <select className="input" value={exam.rank_id ?? ''} onChange={(e) => setMeta({ rank_id: e.target.value || null })}>
+              <option value="">— כל הדרגים —</option>
+              {ranks.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
+          </div>
+        </div>
+        {exam.exam_type === 'renewal' && (
+          <p className="mt-1.5 text-[12px] text-ink-400">מבחן רענון משויך לפי מערכת + דרג, ומוצג אוטומטית למי שהסמכתו באותה מערכת/דרג מתקרבת לפקיעה.</p>
+        )}
+
         <div className="mt-2 flex items-center gap-2 text-[12px] text-ink-400">
           <Icon name="shield-check" size={14} /> ציון מעבר: 80/100 · {exam.ever_published ? `גרסה ${exam.version}${exam.has_unpublished_changes ? ' (יש שינויים שלא פורסמו)' : ''}` : 'טיוטה — טרם פורסם'}
         </div>

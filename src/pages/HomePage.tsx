@@ -10,6 +10,7 @@ import {
   type UserFormSummary,
 } from '@/services/forms';
 import { listAlertsForUser, certificationSummary, type CertDetail } from '@/services/certifications';
+import { listPendingRenewals } from '@/services/certRenewals';
 import { Icon, type IconName } from '@/components/Icon';
 import { SyncIndicator } from '@/components/SyncIndicator';
 import type { CompletedForm } from '@/types';
@@ -90,12 +91,14 @@ export default function HomePage() {
   const [todayCount, setTodayCount] = useState(0);
   const [certAlerts, setCertAlerts] = useState<CertDetail[]>([]);
   const [adminNeedsRenewal, setAdminNeedsRenewal] = useState(0);
+  const [renewalsToApprove, setRenewalsToApprove] = useState(0);
 
   useEffect(() => {
     if (!user) return;
     listDrafts(user.id).then(setDrafts).catch(() => {});
     getUserSummary(user.id).then(setSummary).catch(() => {});
     listAlertsForUser(user.id).then(setCertAlerts).catch(() => {});
+    listPendingRenewals({ id: user.id }).then((r) => setRenewalsToApprove(r.length)).catch(() => {});
     const today = new Date().toISOString().slice(0, 10);
     listFormsByPerformer(user.id)
       .then((forms) => setTodayCount(forms.filter((f) => f.created_at.slice(0, 10) === today).length))
@@ -121,15 +124,29 @@ export default function HomePage() {
       {/* Tablet sync status + "סנכרן עכשיו" */}
       <SyncIndicator />
 
-      {/* Persistent certification-renewal indicator (stays until an admin renews) */}
+      {/* Persistent certification-renewal indicator → the user can self-renew */}
       {certAlerts.length > 0 && (
-        <div className="flex items-center gap-2 rounded-xl border border-pending-300 bg-pending-50 px-4 py-2.5 text-[14px] font-semibold text-pending-800">
+        <Link
+          to="/my-certifications"
+          className="flex flex-wrap items-center gap-2 rounded-xl border border-pending-300 bg-pending-50 px-4 py-2.5 text-[14px] font-semibold text-pending-800 transition-colors hover:border-pending-400"
+        >
           <Icon name="alert" size={18} className="shrink-0 text-pending-600" />
-          נדרש רענון הסמכה
-          <span className="font-normal text-pending-700">
-            ({certAlerts.map((a) => a.system_name).join(', ')}) — יש לפנות למנהל המערכת.
+          יש לבצע רענון הסמכה
+          <span className="font-normal text-pending-700">({certAlerts.map((a) => a.system_name).join(', ')})</span>
+          <span className="mr-auto flex items-center gap-1 rounded-md bg-pending-600 px-2.5 py-1 text-[13px] font-bold text-white">
+            <Icon name="refresh" size={14} /> בצע רענון
           </span>
-        </div>
+        </Link>
+      )}
+      {renewalsToApprove > 0 && (
+        <Link
+          to="/renewals"
+          className="flex items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 px-4 py-2.5 text-[14px] font-semibold text-brand-800 transition-colors hover:border-brand-300"
+        >
+          <Icon name="clock" size={18} className="shrink-0 text-brand-600" />
+          {renewalsToApprove} רענוני הסמכה ממתינים לאישורך
+          <Icon name="chevron-start" size={16} className="mr-auto" />
+        </Link>
       )}
       {isAdmin(user) && adminNeedsRenewal > 0 && (
         <Link
@@ -221,6 +238,12 @@ export default function HomePage() {
             title="מבחני הסמכה"
             desc={isAdmin(user) ? 'יצירה, עריכה ופרסום מבחנים' : 'מבחנים זמינים והניסיונות שלי'}
             icon="clipboard-check"
+          />
+          <ActionRow
+            to="/my-certifications"
+            title="ההסמכות שלי"
+            desc="מצב ההסמכות ורענון"
+            icon="shield-check"
           />
           {isAdmin(user) && (
             <>
