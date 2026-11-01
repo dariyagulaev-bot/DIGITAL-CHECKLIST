@@ -124,4 +124,40 @@ describe('certification renewal flow', () => {
     await addApprover({ user_id: approver.id, system_id: S });
     expect(await listPendingRenewals(approver)).toHaveLength(1);
   });
+
+  it('edge: a certification that fully expired before approval is still renewable (expiry recomputed from today)', async () => {
+    // Force the cert past its expiry date.
+    await db.user_system_ranks.update(cert.id, { expires_at: addMonths(todayStr(), -1) });
+    await onAttemptSubmitted(renewalAttempt(user, cert, true, 88));
+    const r = (await listRenewalsForUser(user.id))[0];
+    await addApprover({ user_id: approver.id, system_id: S });
+    const approved = await approveRenewal(r.id, approver, null, 'מפקד');
+    expect(approved.status).toBe('approved');
+    const after = await getCertRow(user.id, S);
+    expect(after!.expires_at).toBe(addMonths(todayStr(), 12)); // extended from approval day, not the old lapsed date
+  });
+
+  it('edge: retake after a rejection creates a new pending and preserves the rejected record as history', async () => {
+    await onAttemptSubmitted(renewalAttempt(user, cert, true, 82, 'a1'));
+    let r = (await listRenewalsForUser(user.id))[0];
+    await addApprover({ user_id: approver.id, system_id: S });
+    await rejectRenewal(r.id, approver, 'לא עמד בדרישות');
+
+    // A fresh passing attempt → a NEW pending renewal; the rejected one stays.
+    await onAttemptSubmitted(renewalAttempt(user, cert, true, 93, 'a2'));
+    const all = await listRenewalsForUser(user.id);
+    expect(all).toHaveLength(2);
+    expect(all.filter((x) => x.status === 'rejected')).toHaveLength(1);
+    const pend = all.filter((x) => x.status === 'pending_approval');
+    expect(pend).toHaveLength(1);
+    expect(pend[0].score).toBe(93);
+
+    // Approving the new pending renews the cert; both records remain.
+    r = pend[0];
+    await approveRenewal(r.id, approver, null, 'מפקד');
+    const final = await listRenewalsForUser(user.id);
+    expect(final).toHaveLength(2);
+    expect(final.filter((x) => x.status === 'rejected')).toHaveLength(1);
+    expect(final.filter((x) => x.status === 'approved')).toHaveLength(1);
+  });
 });

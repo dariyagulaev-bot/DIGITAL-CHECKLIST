@@ -17,6 +17,8 @@ interface Row {
   status: ReturnType<typeof certStatus>;
   hasExam: boolean;
   pending?: CertRenewal;
+  /** Every renewal event for this cert, newest first — the immutable history. */
+  history: CertRenewal[];
 }
 
 export default function MyCertificationsPage() {
@@ -24,6 +26,7 @@ export default function MyCertificationsPage() {
   const { notify } = useToast();
   const nav = useNavigate();
   const [rows, setRows] = useState<Row[]>([]);
+  const [open, setOpen] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -35,9 +38,10 @@ export default function MyCertificationsPage() {
     const out: Row[] = [];
     for (const cert of certs) {
       const av = await renewalAvailable(cert);
+      const history = renewals.filter((r) => r.cert_id === cert.id);
       out.push({
         cert, systemName: sName(cert.system_id), rankName: rName(cert.max_rank_id), status: certStatus(cert),
-        hasExam: !!av.exam, pending: renewals.find((r) => r.cert_id === cert.id && r.status === 'pending_approval'),
+        hasExam: !!av.exam, pending: history.find((r) => r.status === 'pending_approval'), history,
       });
     }
     setRows(out);
@@ -56,7 +60,7 @@ export default function MyCertificationsPage() {
     <div className="space-y-5">
       <div className="pt-1">
         <h1 className="text-[22px] font-extrabold text-navy-900">ההסמכות שלי</h1>
-        <p className="mt-0.5 text-[14px] text-ink-500">מצב ההסמכות שלך ורענון כשמתקרב מועד הפקיעה.</p>
+        <p className="mt-0.5 text-[14px] text-ink-500">מצב ההסמכות שלך, היסטוריית חידושים ורענון כשמתקרב מועד הפקיעה.</p>
       </div>
 
       {rows.length === 0 ? (
@@ -75,11 +79,62 @@ export default function MyCertificationsPage() {
                 </div>
                 <RowAction row={row} onRenew={() => doRenew(row)} />
               </div>
+
+              {row.history.length > 0 && (
+                <div className="mt-3 border-t border-slate-100 pt-2">
+                  <button
+                    className="flex items-center gap-1.5 text-[12.5px] font-semibold text-ink-600 hover:text-ink-900"
+                    onClick={() => setOpen((o) => ({ ...o, [row.cert.id]: !o[row.cert.id] }))}
+                  >
+                    <Icon name={open[row.cert.id] ? 'up' : 'down'} size={14} />
+                    היסטוריית רענונים ({row.history.length})
+                  </button>
+                  {open[row.cert.id] && <History row={row} />}
+                </div>
+              )}
             </div>
           ))}
         </div>
       )}
     </div>
+  );
+}
+
+/** Immutable timeline of this certification: initial issue + every renewal
+ * event (approved / pending / rejected), newest first. Nothing is ever removed. */
+function History({ row }: { row: Row }) {
+  return (
+    <ol className="mt-2 space-y-2 border-r-2 border-slate-100 pr-3">
+      {row.history.map((r) => (
+        <li key={r.id} className="relative">
+          <span className={`absolute -right-[18px] top-1 h-2.5 w-2.5 rounded-full ring-2 ring-white ${
+            r.status === 'approved' ? 'bg-ok-500' : r.status === 'rejected' ? 'bg-fault-500' : 'bg-brand-500'
+          }`} />
+          <div className="flex flex-wrap items-baseline gap-x-2 text-[12.5px]">
+            <span className="font-semibold text-ink-800">
+              {r.status === 'approved' ? 'חידוש אושר' : r.status === 'rejected' ? 'רענון נדחה' : 'מבחן רענון · ממתין לאישור'}
+            </span>
+            <span className="text-ink-400">·</span>
+            <span className="text-ink-500">{fmt(r.approved_at ?? r.submitted_at)}</span>
+            <span className="nums text-ink-500">· ציון {r.score}</span>
+          </div>
+          <div className="text-[11.5px] text-ink-500">
+            {r.status === 'approved' && (
+              <>אישר: {r.approved_by_name ?? '—'}
+                {r.new_expires_at && <> · תוקף חדש עד {fmt(r.new_expires_at)}</>}
+              </>
+            )}
+            {r.status === 'rejected' && <>נדחה ע״י {r.approved_by_name ?? '—'}{r.reject_reason ? ` · ${r.reject_reason}` : ''}</>}
+            {r.status === 'pending_approval' && <>ממתין לאישור מאשר מורשה</>}
+          </div>
+        </li>
+      ))}
+      <li className="relative">
+        <span className="absolute -right-[18px] top-1 h-2.5 w-2.5 rounded-full bg-ink-300 ring-2 ring-white" />
+        <div className="text-[12.5px] font-semibold text-ink-700">הנפקה ראשונית</div>
+        <div className="text-[11.5px] text-ink-500">{fmt(row.cert.issued_at ?? row.cert.created_at)}</div>
+      </li>
+    </ol>
   );
 }
 
