@@ -21,6 +21,8 @@ import DashboardPage from './pages/admin/DashboardPage';
 import UsersPage from './pages/admin/UsersPage';
 import CertificationsPage from './pages/admin/CertificationsPage';
 import DevicesPage from './pages/admin/DevicesPage';
+import ExamsPage from './pages/admin/ExamsPage';
+import ExamEditorPage from './pages/admin/ExamEditorPage';
 import SystemsPage from './pages/admin/SystemsPage';
 import UnitsPage from './pages/admin/UnitsPage';
 import RanksPage from './pages/admin/RanksPage';
@@ -133,6 +135,8 @@ function AppRoutes() {
         <Route path="ranks" element={<RanksPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="certifications" element={<CertificationsPage />} />
+        <Route path="exams" element={<ExamsPage />} />
+        <Route path="exams/:id" element={<ExamEditorPage />} />
         <Route path="devices" element={<DevicesPage />} />
         <Route path="templates" element={<TemplatesPage />} />
         <Route path="templates/:id" element={<TemplateEditorPage />} />
