@@ -217,9 +217,9 @@ export default function HomePage() {
             icon="history"
           />
           <ActionRow
-            to="/exams"
+            to={isAdmin(user) ? '/admin/exams' : '/exams'}
             title="מבחני הסמכה"
-            desc="מבחנים זמינים והניסיונות שלי"
+            desc={isAdmin(user) ? 'יצירה, עריכה ופרסום מבחנים' : 'מבחנים זמינים והניסיונות שלי'}
             icon="clipboard-check"
           />
           {isAdmin(user) && (
