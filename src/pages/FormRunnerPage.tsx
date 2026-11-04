@@ -21,6 +21,7 @@ import {
   setTaskComment,
   setTaskFaultImage,
   setTaskResult,
+  setFormPhase,
   submitForApproval,
   updateFormMeta,
   validateForSubmit,
@@ -469,18 +470,48 @@ export default function FormRunnerPage() {
         </div>
       </section>
 
+      {/* שלב הבד״ח — single-select classification (e.g. לפני הכנה / אחרי הכנה).
+          One choice; the בד״ח is filled once. Required before submit. */}
+      {form.template_snapshot.uses_stages && (form.template_snapshot.stages?.length ?? 0) > 0 && (
+        <section className="card">
+          <div className="panel-head">
+            <span className="panel-title">שלב הבד״ח {!form.phase_id && <span className="text-fault-600">*</span>}</span>
+          </div>
+          <div className="flex flex-wrap gap-2.5 px-5 py-4">
+            {(form.template_snapshot.stages ?? []).map((s) => {
+              const sel = form.phase_id === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  disabled={!editable}
+                  onClick={async () => { try { await setFormPhase(form.id, user.id, s.id); await load(); } catch (e) { notify((e as Error).message, 'error'); } }}
+                  className={`flex items-center gap-2.5 rounded-xl border px-4 py-3 text-[15px] font-semibold transition-colors ${
+                    sel ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-slate-200 bg-white text-ink-600 hover:bg-slate-50'
+                  } ${editable ? '' : 'opacity-70'}`}
+                >
+                  <span className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${sel ? 'border-brand-500' : 'border-slate-300'}`}>
+                    {sel && <span className="h-2.5 w-2.5 rounded-full bg-brand-500" />}
+                  </span>
+                  {s.name}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {/* Unified בד״ח content — checks, sections, instructions, images,
           equipment and measurement tables, in the exact order the admin
           designed. Consecutive check rows are grouped into one table. */}
       {(() => {
         type Item =
-          | { sort: number; stageId: string | null; stageName: string; kind: 'check'; task: CompletedTask }
-          | { sort: number; stageId: string | null; stageName: string; kind: 'block'; block: CompletedBlock };
+          | { sort: number; kind: 'check'; task: CompletedTask }
+          | { sort: number; kind: 'block'; block: CompletedBlock };
         const items: Item[] = [
-          ...tasks.map((t) => ({ sort: t.sort_order, stageId: t.stage_id ?? null, stageName: t.stage_name_snapshot ?? '', kind: 'check' as const, task: t })),
-          ...blocks.map((b) => ({ sort: b.sort_order, stageId: b.stage_id ?? null, stageName: b.stage_name_snapshot ?? '', kind: 'block' as const, block: b })),
+          ...tasks.map((t) => ({ sort: t.sort_order, kind: 'check' as const, task: t })),
+          ...blocks.map((b) => ({ sort: b.sort_order, kind: 'block' as const, block: b })),
         ].sort((a, b) => a.sort - b.sort);
-        let lastStage: string | null | undefined = undefined;
 
         const nodes: React.ReactNode[] = [];
         let buf: CompletedTask[] = [];
@@ -523,19 +554,6 @@ export default function FormRunnerPage() {
         };
 
         items.forEach((it, i) => {
-          // Insert a stage header whenever the work stage changes to a real one.
-          if (it.stageId !== lastStage) {
-            flush(`stg${i}`);
-            if (it.stageId) {
-              nodes.push(
-                <div key={`stage-${it.stageId}-${i}`} className="flex items-center gap-2 pt-2">
-                  <span className="rounded-md bg-navy-900 px-3 py-1.5 text-[14px] font-bold text-white">{it.stageName || 'שלב'}</span>
-                  <span className="h-px flex-1 bg-slate-200" />
-                </div>
-              );
-            }
-            lastStage = it.stageId;
-          }
           if (it.kind === 'check') {
             buf.push(it.task);
           } else {

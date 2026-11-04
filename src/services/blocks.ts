@@ -245,7 +245,6 @@ export async function duplicateBlock(blockId: string): Promise<TemplateBlock> {
     config,
     created_at: now,
     updated_at: now,
-    stage_ids: block.stage_ids ? [...block.stage_ids] : undefined,
   };
   await db.template_blocks.add(dup);
   // Re-pack to integers preserving order.

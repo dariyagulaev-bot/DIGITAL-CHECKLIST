@@ -90,27 +90,13 @@ export async function setStageActive(templateId: string, stageId: string, active
 }
 
 /**
- * Remove a stage. Its id is also stripped from every block's `stage_ids`, so no
- * block is left pointing at a stage that no longer exists. Historical forms are
- * untouched (they carry their own frozen stage snapshot).
+ * Remove a phase option. Historical/archived forms are untouched — each carries
+ * its own frozen phase name snapshot.
  */
 export async function removeStage(templateId: string, stageId: string): Promise<void> {
   const stages = (await getStages(templateId)).filter((s) => s.id !== stageId);
-  // Re-pack sort_order so it stays 0..n-1.
-  stages.forEach((s, i) => (s.sort_order = i));
+  stages.forEach((s, i) => (s.sort_order = i)); // re-pack 0..n-1
   await db.templates.update(templateId, { stages, updated_at: nowIso() });
-  // Strip the removed stage from all blocks of this template.
-  const blocks = await db.template_blocks.where('template_id').equals(templateId).toArray();
-  await Promise.all(
-    blocks
-      .filter((b) => b.stage_ids?.includes(stageId))
-      .map((b) =>
-        db.template_blocks.update(b.id, {
-          stage_ids: (b.stage_ids ?? []).filter((id) => id !== stageId),
-          updated_at: nowIso(),
-        })
-      )
-  );
   await markTemplateDirty(templateId);
 }
 
@@ -126,12 +112,4 @@ export async function reorderStages(templateId: string, orderedIds: string[]): P
   // Keep any stage not listed (defensive) at the end.
   stages.filter((s) => !orderedIds.includes(s.id)).forEach((s) => next.push({ ...s, sort_order: next.length }));
   await saveStages(templateId, next);
-}
-
-/** Set which stages a block appears in (empty = general / un-staged). */
-export async function setBlockStages(blockId: string, stageIds: string[]): Promise<void> {
-  const block = await db.template_blocks.get(blockId);
-  if (!block) return;
-  await db.template_blocks.update(blockId, { stage_ids: [...new Set(stageIds)], updated_at: nowIso() });
-  await markTemplateDirty(block.template_id);
 }

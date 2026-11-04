@@ -29,7 +29,6 @@ import {
   setStageActive,
   removeStage,
   reorderStages,
-  setBlockStages,
 } from '@/services/stages';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
@@ -132,7 +131,6 @@ export default function TemplateEditorPage() {
     await reorderStages(template.id, ids);
     load();
   };
-  const setBlockStagesH = async (blockId: string, stageIds: string[]) => { await setBlockStages(blockId, stageIds); load(); };
   const move = async (blockId: string, dir: 'up' | 'down') => {
     await moveBlock(blockId, dir);
     load();
@@ -259,17 +257,17 @@ export default function TemplateEditorPage() {
         </label>
       </section>
 
-      {/* Work stages (לפני / אחרי …) */}
+      {/* בד״ח phase (שלב הבד״ח) — single-select classification */}
       <section className="card p-5">
         <div className="mb-1 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-700">שלבי הבדיקה</h2>
+          <h2 className="text-lg font-bold text-slate-700">שלב הבד״ח</h2>
           <label className="flex cursor-pointer items-center gap-2">
             <input type="checkbox" className="h-5 w-5" checked={!!template.uses_stages} onChange={(e) => toggleStages(e.target.checked)} />
-            <span className="text-sm font-medium text-slate-600">חלוקה לשלבים</span>
+            <span className="text-sm font-medium text-slate-600">הפעל בחירת שלב</span>
           </label>
         </div>
         <p className="mb-3 text-[13px] text-ink-500">
-          מחלקים את הבד״ח לשלבי עבודה (למשל "לפני הכנה" / "אחרי הכנה"). השמות ניתנים לעריכה, וכל סעיף אפשר לשייך לשלב אחד או יותר — לכל שלב תוצאה נפרדת.
+          מוסיף בראש הבד״ח בחירה יחידה (Radio) — המבצע בוחר אפשרות אחת (למשל "לפני הכנה" / "אחרי הכנה") וממלא בד״ח <b>אחד רגיל</b>. זהו סיווג של הבד״ח ולא חלוקה לשתי בדיקות. השמות ניתנים לעריכה; השם נשמר בארכיון, ב-PDF וב-Excel.
         </p>
         {template.uses_stages && (
           <div className="space-y-2">
@@ -342,8 +340,6 @@ export default function TemplateEditorPage() {
                 onDuplicate={() => duplicate(b)}
                 onRemove={() => remove(b)}
                 onImage={(src) => setLightbox(src)}
-                stages={template.uses_stages ? (template.stages ?? []).slice().sort((a, c) => a.sort_order - c.sort_order) : null}
-                onSetStages={(ids) => setBlockStagesH(b.id, ids)}
               />
             );
           })}
@@ -480,26 +476,24 @@ function PreviewModal({ blocks, stages, onClose }: { blocks: PublishedBlock[]; s
     return nodes;
   };
 
-  const activeIds = new Set(stages.map((s) => s.id));
   const nodes: React.ReactNode[] = [];
-  if (stages.length === 0) {
-    nodes.push(...renderGroup(blocks, 'all'));
-  } else {
-    // General (un-staged) blocks first, then one section per active stage.
-    const general = blocks.filter((b) => !(b.stage_ids ?? []).some((id) => activeIds.has(id)));
-    if (general.length) nodes.push(...renderGroup(general, 'gen'));
-    for (const st of stages) {
-      const list = blocks.filter((b) => (b.stage_ids ?? []).includes(st.id));
-      if (!list.length) continue;
-      nodes.push(
-        <div key={`h-${st.id}`} className="flex items-center gap-2 pt-1">
-          <span className="rounded-md bg-navy-900 px-3 py-1.5 text-[14px] font-bold text-white">{st.name}</span>
-          <span className="h-px flex-1 bg-slate-200" />
+  // Phase selector (single-select) at the top — read-only in preview.
+  if (stages.length > 0) {
+    nodes.push(
+      <div key="phase" className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <div className="mb-2 text-[14px] font-bold text-ink-700">שלב הבד״ח <span className="font-normal text-fault-600">*</span></div>
+        <div className="flex flex-wrap gap-2">
+          {stages.map((s) => (
+            <span key={s.id} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[14px] text-ink-600">
+              <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-300" /> {s.name}
+            </span>
+          ))}
         </div>
-      );
-      nodes.push(...renderGroup(list, st.id));
-    }
+        <p className="mt-1.5 text-[12px] text-ink-400">המבצע בוחר אפשרות אחת בלבד; הבד״ח ממולא פעם אחת.</p>
+      </div>
+    );
   }
+  nodes.push(...renderGroup(blocks, 'all'));
   return (
     <Modal open onClose={onClose} title="תצוגה מקדימה — כפי שהמבצע יראה" maxWidth="max-w-3xl">
       <div className="space-y-3">{nodes}</div>
@@ -605,8 +599,6 @@ function BlockRow({
   onDuplicate,
   onRemove,
   onImage,
-  stages,
-  onSetStages,
 }: {
   block: TemplateBlock;
   index: number;
@@ -620,65 +612,33 @@ function BlockRow({
   onDuplicate: () => void;
   onRemove: () => void;
   onImage: (src: string) => void;
-  stages?: Stage[] | null;
-  onSetStages?: (ids: string[]) => void;
 }) {
   const meta = BLOCK_META[block.type];
   const editable = block.type !== 'divider';
-  const assigned = new Set(block.stage_ids ?? []);
-  const toggleStage = (id: string) => {
-    if (!onSetStages) return;
-    const next = new Set(assigned);
-    next.has(id) ? next.delete(id) : next.add(id);
-    onSetStages([...next]);
-  };
-  const showStages = !!stages && stages.length > 0 && block.type !== 'divider';
   return (
     <div
       draggable
       onDragStart={onDragStart}
       onDragOver={(e) => e.preventDefault()}
       onDrop={onDropOn}
-      className={`flex flex-col gap-2 rounded-xl border p-3 ${
+      className={`flex items-center gap-3 rounded-xl border p-3 ${
         block.type === 'section' ? 'border-brand-200 bg-brand-50/50' : 'border-slate-200 bg-white'
       }`}
     >
-      <div className="flex items-center gap-3">
-        <span className="cursor-grab text-slate-400" title="גרור לשינוי סדר">⠿</span>
-        <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-slate-100 px-1.5 text-xs font-bold text-slate-600">
-          {checkNo ?? <Icon name={meta.icon} size={14} />}
-        </span>
-        <div className="min-w-0 flex-1">
-          <BlockSummary block={block} task={task} onImage={onImage} />
-        </div>
-        <div className="flex items-center gap-1">
-          <button className="btn-ghost !p-2 text-sm" onClick={() => onMove('up')} disabled={index === 0} title="העלה">▲</button>
-          <button className="btn-ghost !p-2 text-sm" onClick={() => onMove('down')} disabled={index === total - 1} title="הורד">▼</button>
-          <button className="btn-ghost !p-2" onClick={onDuplicate} title="שכפל"><Icon name="layers" size={15} /></button>
-          {editable && <button className="link" onClick={onEdit}>ערוך</button>}
-          <button className="link text-fault-700" onClick={onRemove}>מחק</button>
-        </div>
+      <span className="cursor-grab text-slate-400" title="גרור לשינוי סדר">⠿</span>
+      <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-slate-100 px-1.5 text-xs font-bold text-slate-600">
+        {checkNo ?? <Icon name={meta.icon} size={14} />}
+      </span>
+      <div className="min-w-0 flex-1">
+        <BlockSummary block={block} task={task} onImage={onImage} />
       </div>
-      {showStages && (
-        <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-100 pr-9 pt-2">
-          <span className="text-[12px] text-ink-400">מופיע ב:</span>
-          {stages!.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => toggleStage(s.id)}
-              className={`rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors ${
-                assigned.has(s.id)
-                  ? 'border-brand-300 bg-brand-100 text-brand-700'
-                  : 'border-slate-200 bg-white text-ink-400 hover:bg-slate-50'
-              } ${s.active ? '' : 'opacity-50'}`}
-            >
-              {assigned.has(s.id) ? '✓ ' : ''}{s.name}{s.active ? '' : ' (מושבת)'}
-            </button>
-          ))}
-          {assigned.size === 0 && <span className="text-[12px] text-ink-400">— כללי (כל הבד״ח)</span>}
-        </div>
-      )}
+      <div className="flex items-center gap-1">
+        <button className="btn-ghost !p-2 text-sm" onClick={() => onMove('up')} disabled={index === 0} title="העלה">▲</button>
+        <button className="btn-ghost !p-2 text-sm" onClick={() => onMove('down')} disabled={index === total - 1} title="הורד">▼</button>
+        <button className="btn-ghost !p-2" onClick={onDuplicate} title="שכפל"><Icon name="layers" size={15} /></button>
+        {editable && <button className="link" onClick={onEdit}>ערוך</button>}
+        <button className="link text-fault-700" onClick={onRemove}>מחק</button>
+      </div>
     </div>
   );
 }

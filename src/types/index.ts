@@ -120,11 +120,12 @@ export interface PublishedCheckConfig {
 }
 
 /**
- * A WORK STAGE of a בד״ח (e.g. "לפני הכנה" / "אחרי הכנה"). The display `name`
- * is admin-editable; the `id` is a STABLE technical key (stage_1, stage_2, …) so
- * renaming a stage never breaks existing data. A template may define 2+ stages,
- * or none at all (uses_stages = false → the classic flat בד״ח). The same check
- * can belong to several stages and each stage keeps its OWN separate result.
+ * A בד״ח PHASE option (e.g. "לפני הכנה" / "אחרי הכנה"). This is a SINGLE-SELECT
+ * classification of the whole בד״ח — the performer picks exactly one at the top
+ * and fills ONE normal table once; it is NOT a structural split into several
+ * tables. The display `name` is admin-editable; the `id` is a STABLE technical
+ * key (stage_1, stage_2, …) so renaming never breaks existing/archived data.
+ * A template may define 2+ options, or none (uses_stages = false → no phase).
  */
 export interface Stage {
   id: string; // stable key, e.g. "stage_1" — never the display name
@@ -133,7 +134,7 @@ export interface Stage {
   sort_order: number;
 }
 
-/** Default two-stage split. The words are DEFAULTS only, fully editable. */
+/** Default two options. The words are DEFAULTS only, fully editable. */
 export function defaultStages(): Stage[] {
   return [
     { id: 'stage_1', name: 'לפני', active: true, sort_order: 0 },
@@ -146,9 +147,6 @@ export interface PublishedBlock {
   type: BlockType;
   sort_order: number;
   config: PublishedCheckConfig | BlockConfig;
-  /** Stages this block appears in (stage ids). Empty/undefined = not staged
-   *  (shown once, in the general area). Ignored when the template has no stages. */
-  stage_ids?: string[];
 }
 
 /** One entry in a template's version history. */
@@ -380,8 +378,6 @@ export interface TemplateBlock {
   config: BlockConfig;
   created_at: string;
   updated_at: string;
-  /** Stages this block appears in. Empty/undefined = general (not staged). */
-  stage_ids?: string[];
 }
 
 /** Frozen copy of a block stored on a form (non-check blocks). */
@@ -390,9 +386,6 @@ export interface BlockSnapshot {
   type: BlockType;
   sort_order: number;
   config: BlockConfig;
-  /** The stage this materialized instance belongs to (null = general). */
-  stage_id?: string | null;
-  stage_name_snapshot?: string; // frozen stage display name
 }
 
 /** Computed outcome of a measurement rule at execution time. */
@@ -441,10 +434,6 @@ export interface CompletedBlock {
   sort_order: number;
   config_snapshot: BlockConfig; // frozen config at creation
   data?: TableData; // user input (tables); other types are display-only
-  /** Work-stage instance (null = general). Same table in two stages = two
-   *  CompletedBlock rows, each keeping its own entered data. */
-  stage_id?: string | null;
-  stage_name_snapshot?: string; // frozen stage display name at creation
 }
 
 /** Immutable snapshot of the whole template at the moment the form started. */
@@ -478,6 +467,10 @@ export interface CompletedForm {
   name: string;
   number: string;
   classification?: Classification; // סיווג — chosen by the performer, frozen on the form
+  // ---- בד״ח phase (שלב הבד״ח) — single-select classification, admin-defined ----
+  // The performer picks ONE option at the top; the whole בד״ח is filled once.
+  phase_id?: string | null; // chosen option id (stable), null until selected
+  phase_name_snapshot?: string; // the option's display name, frozen at selection
 
   performer_user_id: string; // performer 1 (the logged-in user)
   performer_name: string; // performer 1 full-name snapshot
@@ -545,10 +538,6 @@ export interface CompletedTask {
   comment: string; // fault detail (original description of the fault)
   fault_image: string | null; // data URL of fault photo (before)
   sort_order: number;
-  /** Work-stage instance (null = general / un-staged). The same check in two
-   *  stages produces two CompletedTask rows, each with its own result. */
-  stage_id?: string | null;
-  stage_name_snapshot?: string; // frozen stage display name at creation
 
   // ---- Fault-handling lifecycle (all optional; only set for faulty items) ----
   // Discovery — who found the fault and exactly when (kept forever).

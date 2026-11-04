@@ -187,6 +187,12 @@ export default function FormViewPage() {
               <span className="font-semibold">סיווג: </span>
               <span className="font-bold text-slate-900">{form.classification ?? 'בלמ״ס'}</span>
             </div>
+            {form.phase_name_snapshot && (
+              <div>
+                <span className="font-semibold">שלב: </span>
+                <span className="font-bold text-slate-900">{form.phase_name_snapshot}</span>
+              </div>
+            )}
             <div>
               <span className="font-semibold">תאריך: </span>
               {formatDate(form.date)}
@@ -212,15 +218,14 @@ export default function FormViewPage() {
             in the admin-designed order. Read-only; prints full. */}
         {(() => {
           type Item =
-            | { sort: number; stageId: string | null; stageName: string; kind: 'check'; task: (typeof tasks)[number] }
-            | { sort: number; stageId: string | null; stageName: string; kind: 'block'; block: (typeof blocks)[number] };
+            | { sort: number; kind: 'check'; task: (typeof tasks)[number] }
+            | { sort: number; kind: 'block'; block: (typeof blocks)[number] };
           const items: Item[] = [
-            ...tasks.map((t) => ({ sort: t.sort_order, stageId: t.stage_id ?? null, stageName: t.stage_name_snapshot ?? '', kind: 'check' as const, task: t })),
-            ...blocks.map((b) => ({ sort: b.sort_order, stageId: b.stage_id ?? null, stageName: b.stage_name_snapshot ?? '', kind: 'block' as const, block: b })),
+            ...tasks.map((t) => ({ sort: t.sort_order, kind: 'check' as const, task: t })),
+            ...blocks.map((b) => ({ sort: b.sort_order, kind: 'block' as const, block: b })),
           ].sort((a, b) => a.sort - b.sort);
           const nodes: React.ReactNode[] = [];
           let buf: typeof tasks = [];
-          let lastStage: string | null | undefined = undefined;
           const flush = (keyId: string) => {
             if (!buf.length) return;
             const group = buf;
@@ -260,17 +265,6 @@ export default function FormViewPage() {
             );
           };
           items.forEach((it, i) => {
-            if (it.stageId !== lastStage) {
-              flush(`stg${i}`);
-              if (it.stageId) {
-                nodes.push(
-                  <div key={`stage-${it.stageId}-${i}`} className="avoid-break mt-2 border-b-2 border-slate-800 pb-1 text-[15px] font-bold text-slate-800">
-                    {it.stageName || 'שלב'}
-                  </div>
-                );
-              }
-              lastStage = it.stageId;
-            }
             if (it.kind === 'check') buf.push(it.task);
             else {
               flush(`b${i}`);

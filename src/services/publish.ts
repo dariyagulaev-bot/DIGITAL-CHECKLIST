@@ -27,7 +27,6 @@ export async function buildDraftContent(templateId: string): Promise<PublishedBl
   const taskMap = new Map(tasks.map((t) => [t.id, t]));
   const out: PublishedBlock[] = [];
   blocks.forEach((b, i) => {
-    const stage_ids = b.stage_ids?.length ? [...b.stage_ids] : undefined;
     if (b.type === 'check') {
       const t = taskMap.get((b.config as CheckRefConfig).task_id);
       if (!t) return;
@@ -38,9 +37,9 @@ export async function buildDraftContent(templateId: string): Promise<PublishedBl
         equipment_items: equipmentItemsOf(t.equipment_items, t.equipment),
         image_data: t.image_data,
       };
-      out.push({ type: 'check', sort_order: i, config: cfg, stage_ids });
+      out.push({ type: 'check', sort_order: i, config: cfg });
     } else {
-      out.push({ type: b.type, sort_order: i, config: JSON.parse(JSON.stringify(b.config)), stage_ids });
+      out.push({ type: b.type, sort_order: i, config: JSON.parse(JSON.stringify(b.config)) });
     }
   });
   return out;

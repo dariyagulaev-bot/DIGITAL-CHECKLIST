@@ -22,6 +22,7 @@ export default function HistoryPage() {
 
   const [q, setQ] = useState('');
   const [status, setStatus] = useState<string>('ALL');
+  const [phase, setPhase] = useState<string>('ALL');
   const [faultsOnly, setFaultsOnly] = useState(false);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -40,21 +41,28 @@ export default function HistoryPage() {
       .catch(() => setRows([]));
   }, [user]);
 
+  // Distinct phase names present (admin's wording), for the שלב filter.
+  const phaseOptions = useMemo(
+    () => [...new Set((rows ?? []).map((r) => r.phase_name_snapshot).filter((n): n is string => !!n))].sort((a, b) => a.localeCompare(b, 'he')),
+    [rows]
+  );
+
   const filtered = useMemo(() => {
     if (!rows) return [];
     const needle = q.trim().toLowerCase();
     return rows.filter((r) => {
       if (needle) {
-        const hay = `${r.name} ${r.number} ${r.performer_name} ${r.performer2_name ?? ''} ${r.approver_name ?? ''}`.toLowerCase();
+        const hay = `${r.name} ${r.number} ${r.performer_name} ${r.performer2_name ?? ''} ${r.approver_name ?? ''} ${r.phase_name_snapshot ?? ''}`.toLowerCase();
         if (!hay.includes(needle)) return false;
       }
       if (status !== 'ALL' && r.status !== status) return false;
+      if (phase !== 'ALL' && (r.phase_name_snapshot ?? '') !== phase) return false;
       if (faultsOnly && r.faultCount === 0) return false;
       if (from && r.date < from) return false;
       if (to && r.date > to) return false;
       return true;
     });
-  }, [rows, q, status, faultsOnly, from, to]);
+  }, [rows, q, status, phase, faultsOnly, from, to]);
 
   const excel = async (id: string) => {
     try {
@@ -94,6 +102,17 @@ export default function HistoryPage() {
               ))}
             </select>
           </div>
+          {phaseOptions.length > 0 && (
+            <div>
+              <label className="label">שלב בד״ח</label>
+              <select className="input" value={phase} onChange={(e) => setPhase(e.target.value)}>
+                <option value="ALL">הכל</option>
+                {phaseOptions.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="flex items-end">
             <label className="flex cursor-pointer items-center gap-2 py-3">
               <input
@@ -128,6 +147,7 @@ export default function HistoryPage() {
                 <th className="p-3 font-semibold">תאריך</th>
                 <th className="p-3 font-semibold">שם בד״ח</th>
                 <th className="p-3 font-semibold">מספר</th>
+                {phaseOptions.length > 0 && <th className="p-3 font-semibold">שלב</th>}
                 <th className="p-3 font-semibold">מבצעים</th>
                 <th className="p-3 font-semibold">מאשר</th>
                 <th className="p-3 font-semibold">בדיקות</th>
@@ -142,6 +162,15 @@ export default function HistoryPage() {
                   <td className="p-3 whitespace-nowrap">{formatDate(r.date)}</td>
                   <td className="p-3 font-medium text-slate-800">{r.name}</td>
                   <td className="p-3">{r.number || '—'}</td>
+                  {phaseOptions.length > 0 && (
+                    <td className="p-3 whitespace-nowrap">
+                      {r.phase_name_snapshot ? (
+                        <span className="rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-[12px] font-medium text-brand-700">{r.phase_name_snapshot}</span>
+                      ) : (
+                        <span className="text-ink-300">—</span>
+                      )}
+                    </td>
+                  )}
                   <td className="p-3">
                     {r.performer_name}
                     {r.performer2_name ? `, ${r.performer2_name}` : ''}
