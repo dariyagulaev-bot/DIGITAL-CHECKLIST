@@ -121,13 +121,13 @@ export async function createDraftForm(params: {
   // Source of truth for a NEW form: the PUBLISHED snapshot when the template has
   // one, else the live draft (legacy templates never published via the new flow
   // keep working as before). Published check blocks carry their content inline.
-  type Norm = { refId: string; type: string; check?: PublishedCheckConfig; config?: unknown };
+  type Norm = { refId: string; type: string; check?: PublishedCheckConfig; config?: unknown; stageIds?: string[] };
   let normalized: Norm[];
   if (template.published) {
     normalized = template.published.blocks.map((pb, i) =>
       pb.type === 'check'
-        ? { refId: `pub-${i}`, type: 'check', check: pb.config as PublishedCheckConfig }
-        : { refId: `pub-${i}`, type: pb.type, config: JSON.parse(JSON.stringify(pb.config)) }
+        ? { refId: `pub-${i}`, type: 'check', check: pb.config as PublishedCheckConfig, stageIds: pb.stage_ids }
+        : { refId: `pub-${i}`, type: pb.type, config: JSON.parse(JSON.stringify(pb.config)), stageIds: pb.stage_ids }
     );
   } else {
     const effBlocks = await getEffectiveBlocks(params.templateId);
@@ -139,6 +139,7 @@ export async function createDraftForm(params: {
         return {
           refId: b.id,
           type: 'check',
+          stageIds: b.stage_ids,
           check: t
             ? {
                 part_name: t.part_name,
@@ -150,9 +151,25 @@ export async function createDraftForm(params: {
             : undefined,
         };
       }
-      return { refId: b.id, type: b.type, config: JSON.parse(JSON.stringify(b.config)) };
+      return { refId: b.id, type: b.type, config: JSON.parse(JSON.stringify(b.config)), stageIds: b.stage_ids };
     });
   }
+
+  // ---- Work stages: expand each staged block into one instance per stage ----
+  // Source of truth for stages: the published snapshot when present, else the
+  // live draft. A template with no stages behaves exactly as before (flat).
+  const usesStages = !!(template.published ? template.published.uses_stages : template.uses_stages);
+  const allStages = (template.published ? template.published.stages : template.stages) ?? [];
+  const activeStages = usesStages ? allStages.filter((s) => s.active).sort((a, b) => a.sort_order - b.sort_order) : [];
+  const activeStageIdSet = new Set(activeStages.map((s) => s.id));
+  /** The (stage_id, stage_name) instances a block materializes into. */
+  const stageTargetsFor = (n: Norm): Array<{ id: string | null; name: string }> => {
+    if (!usesStages || activeStages.length === 0) return [{ id: null, name: '' }];
+    const ids = (n.stageIds ?? []).filter((id) => activeStageIdSet.has(id));
+    if (ids.length === 0) return [{ id: null, name: '' }]; // general / un-staged
+    // Preserve stage order.
+    return activeStages.filter((s) => ids.includes(s.id)).map((s) => ({ id: s.id, name: s.name }));
+  };
 
   // Resolve the system+rank default minimum measurement duration ONCE and bake
   // it into each table snapshot that uses the default — so a later change to the
@@ -166,7 +183,11 @@ export async function createDraftForm(params: {
   const draftBlocks: CompletedBlock[] = [];
   const formId = newId();
 
-  normalized.forEach((n, i) => {
+  // Materialize one instance of a block for a given stage (null = general). The
+  // same block emitted for two stages yields two independent rows (own results).
+  let ord = 0;
+  const emit = (n: Norm, stageId: string | null, stgName: string) => {
+    const i = ord++;
     if (n.type === 'check') {
       const c = n.check;
       if (!c) return;
@@ -179,7 +200,7 @@ export async function createDraftForm(params: {
         image_data: c.image_data,
         sort_order: i,
       });
-      blockSnaps.push({ template_block_id: n.refId, type: 'check', sort_order: i, config: { task_id: n.refId } });
+      blockSnaps.push({ template_block_id: n.refId, type: 'check', sort_order: i, config: { task_id: n.refId }, stage_id: stageId, stage_name_snapshot: stgName });
       draftTasks.push({
         id: newId(),
         completed_form_id: formId,
@@ -192,6 +213,8 @@ export async function createDraftForm(params: {
         comment: '',
         fault_image: null,
         sort_order: i,
+        stage_id: stageId,
+        stage_name_snapshot: stgName,
       });
     } else {
       const cfg = JSON.parse(JSON.stringify(n.config)) as Record<string, unknown> & {
@@ -202,7 +225,7 @@ export async function createDraftForm(params: {
         if (cfg.duration.use_default) cfg.duration.min_minutes = durationDefault ?? undefined;
         cfg.duration.use_default = false;
       }
-      blockSnaps.push({ template_block_id: n.refId, type: n.type as BlockSnapshot['type'], sort_order: i, config: cfg as BlockSnapshot['config'] });
+      blockSnaps.push({ template_block_id: n.refId, type: n.type as BlockSnapshot['type'], sort_order: i, config: cfg as BlockSnapshot['config'], stage_id: stageId, stage_name_snapshot: stgName });
       draftBlocks.push({
         id: newId(),
         completed_form_id: formId,
@@ -211,9 +234,23 @@ export async function createDraftForm(params: {
         sort_order: i,
         config_snapshot: cfg as CompletedBlock['config_snapshot'],
         data: n.type === 'table' ? { cells: {}, results: [] } : undefined,
+        stage_id: stageId,
+        stage_name_snapshot: stgName,
       });
     }
-  });
+  };
+
+  if (!usesStages || activeStages.length === 0) {
+    normalized.forEach((n) => emit(n, null, ''));
+  } else {
+    // General (un-staged) blocks first, then one group per active stage in order.
+    normalized.filter((n) => stageTargetsFor(n).some((t) => t.id === null)).forEach((n) => emit(n, null, ''));
+    for (const stage of activeStages) {
+      normalized
+        .filter((n) => stageTargetsFor(n).some((t) => t.id === stage.id))
+        .forEach((n) => emit(n, stage.id, stage.name));
+    }
+  }
 
   const snapshot: TemplateSnapshot = {
     template_id: template.id,
@@ -222,6 +259,8 @@ export async function createDraftForm(params: {
     snapshot_at: nowIso(),
     tasks: taskSnaps,
     blocks: blockSnaps,
+    uses_stages: usesStages && activeStages.length > 0,
+    stages: usesStages && activeStages.length > 0 ? activeStages.map((s) => ({ ...s })) : undefined,
   };
 
   const form: CompletedForm = {

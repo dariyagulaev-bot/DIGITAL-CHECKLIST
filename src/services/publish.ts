@@ -27,6 +27,7 @@ export async function buildDraftContent(templateId: string): Promise<PublishedBl
   const taskMap = new Map(tasks.map((t) => [t.id, t]));
   const out: PublishedBlock[] = [];
   blocks.forEach((b, i) => {
+    const stage_ids = b.stage_ids?.length ? [...b.stage_ids] : undefined;
     if (b.type === 'check') {
       const t = taskMap.get((b.config as CheckRefConfig).task_id);
       if (!t) return;
@@ -37,9 +38,9 @@ export async function buildDraftContent(templateId: string): Promise<PublishedBl
         equipment_items: equipmentItemsOf(t.equipment_items, t.equipment),
         image_data: t.image_data,
       };
-      out.push({ type: 'check', sort_order: i, config: cfg });
+      out.push({ type: 'check', sort_order: i, config: cfg, stage_ids });
     } else {
-      out.push({ type: b.type, sort_order: i, config: JSON.parse(JSON.stringify(b.config)) });
+      out.push({ type: b.type, sort_order: i, config: JSON.parse(JSON.stringify(b.config)), stage_ids });
     }
   });
   return out;
@@ -135,8 +136,14 @@ export async function publishTemplate(
     published_by_name: admin.full_name,
     change_summary: opts.summary?.trim() || undefined,
   };
+  // Freeze the work-stage definition (admin names + order) into this version so
+  // a later rename creates a new version and never alters published/old forms.
+  const usesStages = !!t.uses_stages && !!t.stages?.length;
+  const stages = usesStages
+    ? (t.stages ?? []).filter((s) => s.active).map((s) => ({ ...s }))
+    : undefined;
   await db.templates.update(templateId, {
-    published: { ...entry, blocks },
+    published: { ...entry, blocks, uses_stages: usesStages, stages },
     ever_published: true,
     has_unpublished_changes: false,
     version_history: [...(t.version_history ?? []), entry],

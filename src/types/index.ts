@@ -119,11 +119,36 @@ export interface PublishedCheckConfig {
   image_data: string | null;
 }
 
+/**
+ * A WORK STAGE of a בד״ח (e.g. "לפני הכנה" / "אחרי הכנה"). The display `name`
+ * is admin-editable; the `id` is a STABLE technical key (stage_1, stage_2, …) so
+ * renaming a stage never breaks existing data. A template may define 2+ stages,
+ * or none at all (uses_stages = false → the classic flat בד״ח). The same check
+ * can belong to several stages and each stage keeps its OWN separate result.
+ */
+export interface Stage {
+  id: string; // stable key, e.g. "stage_1" — never the display name
+  name: string; // admin display name, e.g. "לפני הכנה"
+  active: boolean;
+  sort_order: number;
+}
+
+/** Default two-stage split. The words are DEFAULTS only, fully editable. */
+export function defaultStages(): Stage[] {
+  return [
+    { id: 'stage_1', name: 'לפני', active: true, sort_order: 0 },
+    { id: 'stage_2', name: 'אחרי', active: true, sort_order: 1 },
+  ];
+}
+
 /** One block inside a published template version (self-contained, no DB refs). */
 export interface PublishedBlock {
   type: BlockType;
   sort_order: number;
   config: PublishedCheckConfig | BlockConfig;
+  /** Stages this block appears in (stage ids). Empty/undefined = not staged
+   *  (shown once, in the general area). Ignored when the template has no stages. */
+  stage_ids?: string[];
 }
 
 /** One entry in a template's version history. */
@@ -143,6 +168,9 @@ export interface PublishedContent {
   published_by_name: string;
   change_summary?: string;
   blocks: PublishedBlock[];
+  /** Work stages frozen into this version (empty/undefined = flat בד״ח). */
+  stages?: Stage[];
+  uses_stages?: boolean; // whether this version splits the בד״ח into stages
 }
 
 /** A checklist/בד״ח template, associated with a system type + rank. */
@@ -164,6 +192,11 @@ export interface Template {
   ever_published?: boolean; // has it ever been published?
   has_unpublished_changes?: boolean; // draft edits since the last publish
   version_history?: VersionEntry[];
+  // ---- Work stages (לפני / אחרי …) — all optional, additive ----
+  /** Whether this בד״ח is split into work stages. Off/undefined = flat. */
+  uses_stages?: boolean;
+  /** Draft stage list (admin-editable names, stable ids). */
+  stages?: Stage[];
 }
 
 /**
@@ -347,6 +380,8 @@ export interface TemplateBlock {
   config: BlockConfig;
   created_at: string;
   updated_at: string;
+  /** Stages this block appears in. Empty/undefined = general (not staged). */
+  stage_ids?: string[];
 }
 
 /** Frozen copy of a block stored on a form (non-check blocks). */
@@ -355,6 +390,9 @@ export interface BlockSnapshot {
   type: BlockType;
   sort_order: number;
   config: BlockConfig;
+  /** The stage this materialized instance belongs to (null = general). */
+  stage_id?: string | null;
+  stage_name_snapshot?: string; // frozen stage display name
 }
 
 /** Computed outcome of a measurement rule at execution time. */
@@ -403,6 +441,10 @@ export interface CompletedBlock {
   sort_order: number;
   config_snapshot: BlockConfig; // frozen config at creation
   data?: TableData; // user input (tables); other types are display-only
+  /** Work-stage instance (null = general). Same table in two stages = two
+   *  CompletedBlock rows, each keeping its own entered data. */
+  stage_id?: string | null;
+  stage_name_snapshot?: string; // frozen stage display name at creation
 }
 
 /** Immutable snapshot of the whole template at the moment the form started. */
@@ -413,6 +455,9 @@ export interface TemplateSnapshot {
   tasks: TaskSnapshot[];
   blocks?: BlockSnapshot[]; // full ordered block snapshot (incl. non-check)
   snapshot_at: string;
+  /** Frozen work stages (admin names at creation). Undefined = flat בד״ח. */
+  stages?: Stage[];
+  uses_stages?: boolean;
 }
 
 export interface CompletedForm {
@@ -500,6 +545,10 @@ export interface CompletedTask {
   comment: string; // fault detail (original description of the fault)
   fault_image: string | null; // data URL of fault photo (before)
   sort_order: number;
+  /** Work-stage instance (null = general / un-staged). The same check in two
+   *  stages produces two CompletedTask rows, each with its own result. */
+  stage_id?: string | null;
+  stage_name_snapshot?: string; // frozen stage display name at creation
 
   // ---- Fault-handling lifecycle (all optional; only set for faulty items) ----
   // Discovery — who found the fault and exactly when (kept forever).

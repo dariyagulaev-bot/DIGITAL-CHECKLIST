@@ -159,6 +159,7 @@ export async function duplicateTemplate(id: string): Promise<Template> {
         config,
         created_at: nowIso(),
         updated_at: nowIso(),
+        stage_ids: b.stage_ids ? [...b.stage_ids] : undefined,
       };
     });
     await db.template_blocks.bulkAdd(blockCopies);
