@@ -106,7 +106,23 @@ export async function exportFormToExcel(formId: string): Promise<void> {
 
   let okCount = 0;
   let faultCount = 0;
+  let lastStage: string | null | undefined = undefined;
   for (const t of tasks) {
+    // Work-stage header row (merged across the 5 columns) when the stage changes.
+    const stg = t.stage_id ?? null;
+    if (stg !== lastStage) {
+      if (stg) {
+        const hr = ws.getRow(r);
+        ws.mergeCells(`A${r}:E${r}`);
+        hr.getCell(1).value = t.stage_name_snapshot || 'שלב';
+        hr.getCell(1).font = { bold: true, color: { argb: HEADER_TEXT } };
+        hr.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_BG } };
+        hr.getCell(1).alignment = { horizontal: 'right', vertical: 'middle' };
+        hr.getCell(1).border = allBorders();
+        r++;
+      }
+      lastStage = stg;
+    }
     // Current status: a resolved fault (repaired + verified) reads תקין; the
     // fault-detail section below still lists the original findings.
     const cur = currentResult(t);

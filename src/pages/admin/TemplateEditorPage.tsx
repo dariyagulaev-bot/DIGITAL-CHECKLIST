@@ -22,6 +22,15 @@ import { fileToManagedDataUrl } from '@/services/images';
 import { listSystems } from '@/services/systems';
 import { listRanks } from '@/services/ranks';
 import { publishTemplate, validateTemplate, buildDraftContent } from '@/services/publish';
+import {
+  setUsesStages,
+  addStage,
+  renameStage,
+  setStageActive,
+  removeStage,
+  reorderStages,
+  setBlockStages,
+} from '@/services/stages';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { Modal, Spinner } from '@/components/ui';
@@ -36,6 +45,7 @@ import type {
   ImageConfig,
   Rank,
   SectionConfig,
+  Stage,
   System,
   TableConfig,
   Template,
@@ -107,6 +117,22 @@ export default function TemplateEditorPage() {
     await updateTemplate(template.id, patch);
     load();
   };
+  // ---- Work-stage handlers (לפני / אחרי …) ----
+  const toggleStages = async (on: boolean) => { await setUsesStages(template.id, on); load(); };
+  const addStageH = async () => { await addStage(template.id); load(); };
+  const renameStageH = async (stageId: string, name: string) => { await renameStage(template.id, stageId, name); load(); };
+  const toggleStageActive = async (stageId: string, active: boolean) => { await setStageActive(template.id, stageId, active); load(); };
+  const removeStageH = async (stageId: string) => { if (!confirm('למחוק שלב זה? הוא יוסר מכל הסעיפים.')) return; await removeStage(template.id, stageId); load(); };
+  const moveStageH = async (stageId: string, dir: 'up' | 'down') => {
+    const ids = (template.stages ?? []).slice().sort((a, b) => a.sort_order - b.sort_order).map((s) => s.id);
+    const i = ids.indexOf(stageId);
+    const j = dir === 'up' ? i - 1 : i + 1;
+    if (i < 0 || j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    await reorderStages(template.id, ids);
+    load();
+  };
+  const setBlockStagesH = async (blockId: string, stageIds: string[]) => { await setBlockStages(blockId, stageIds); load(); };
   const move = async (blockId: string, dir: 'up' | 'down') => {
     await moveBlock(blockId, dir);
     load();
@@ -233,6 +259,43 @@ export default function TemplateEditorPage() {
         </label>
       </section>
 
+      {/* Work stages (לפני / אחרי …) */}
+      <section className="card p-5">
+        <div className="mb-1 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-slate-700">שלבי הבדיקה</h2>
+          <label className="flex cursor-pointer items-center gap-2">
+            <input type="checkbox" className="h-5 w-5" checked={!!template.uses_stages} onChange={(e) => toggleStages(e.target.checked)} />
+            <span className="text-sm font-medium text-slate-600">חלוקה לשלבים</span>
+          </label>
+        </div>
+        <p className="mb-3 text-[13px] text-ink-500">
+          מחלקים את הבד״ח לשלבי עבודה (למשל "לפני הכנה" / "אחרי הכנה"). השמות ניתנים לעריכה, וכל סעיף אפשר לשייך לשלב אחד או יותר — לכל שלב תוצאה נפרדת.
+        </p>
+        {template.uses_stages && (
+          <div className="space-y-2">
+            {(template.stages ?? []).slice().sort((a, b) => a.sort_order - b.sort_order).map((s, i, arr) => (
+              <div key={s.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <span className="badge border-slate-200 bg-white text-slate-500">שלב {i + 1}</span>
+                <input
+                  className="input !min-h-0 flex-1 !py-1.5 text-[14px]"
+                  defaultValue={s.name}
+                  key={s.name}
+                  onBlur={(e) => e.target.value.trim() && e.target.value !== s.name && renameStageH(s.id, e.target.value.trim())}
+                  placeholder="שם השלב"
+                />
+                <label className="flex items-center gap-1.5 text-[12.5px] text-ink-600">
+                  <input type="checkbox" className="h-4 w-4" checked={s.active} onChange={(e) => toggleStageActive(s.id, e.target.checked)} /> פעיל
+                </label>
+                <button className="btn-ghost !p-2" title="העלה" disabled={i === 0} onClick={() => moveStageH(s.id, 'up')}><Icon name="up" size={15} /></button>
+                <button className="btn-ghost !p-2" title="הורד" disabled={i === arr.length - 1} onClick={() => moveStageH(s.id, 'down')}><Icon name="down" size={15} /></button>
+                <button className="btn-ghost !p-2 text-fault-600" title="מחק" onClick={() => removeStageH(s.id)}><Icon name="trash" size={15} /></button>
+              </div>
+            ))}
+            <button className="btn-secondary btn-sm gap-1.5" onClick={addStageH}><Icon name="plus" size={14} /> הוסף שלב</button>
+          </div>
+        )}
+      </section>
+
       {/* Blocks */}
       <section className="card p-5">
         <div className="mb-4 flex items-center justify-between">
@@ -279,6 +342,8 @@ export default function TemplateEditorPage() {
                 onDuplicate={() => duplicate(b)}
                 onRemove={() => remove(b)}
                 onImage={(src) => setLightbox(src)}
+                stages={template.uses_stages ? (template.stages ?? []).slice().sort((a, c) => a.sort_order - c.sort_order) : null}
+                onSetStages={(ids) => setBlockStagesH(b.id, ids)}
               />
             );
           })}
@@ -337,7 +402,11 @@ export default function TemplateEditorPage() {
       )}
 
       {preview && (
-        <PreviewModal blocks={preview} onClose={() => setPreview(null)} />
+        <PreviewModal
+          blocks={preview}
+          stages={template.uses_stages ? (template.stages ?? []).filter((s) => s.active).slice().sort((a, b) => a.sort_order - b.sort_order) : []}
+          onClose={() => setPreview(null)}
+        />
       )}
       {publishOpen && admin && (
         <PublishDialog
@@ -358,55 +427,79 @@ export default function TemplateEditorPage() {
 }
 
 /** Preview the draft as the performer would see it (read-only, no real form). */
-function PreviewModal({ blocks, onClose }: { blocks: PublishedBlock[]; onClose: () => void }) {
-  // Build read-only pseudo blocks for the shared renderer.
-  const nodes: React.ReactNode[] = [];
-  let checks: PublishedCheckConfig[] = [];
-  const flush = (k: string) => {
-    if (!checks.length) return;
-    const group = checks;
-    checks = [];
-    nodes.push(
-      <div key={`c${k}`} className="overflow-x-auto">
-        <table className="w-full min-w-[480px] border-collapse text-right text-sm">
-          <thead>
-            <tr className="bg-slate-800 text-white">
-              <th className="border border-slate-300 p-2">שם האזור</th>
-              <th className="border border-slate-300 p-2">פעולה</th>
-              <th className="border border-slate-300 p-2">ציוד נדרש</th>
-              <th className="border border-slate-300 p-2 text-center">תוצאה</th>
-            </tr>
-          </thead>
-          <tbody>
-            {group.map((c, i) => (
-              <tr key={i}>
-                <td className="border border-slate-300 p-2 font-medium">{c.part_name}</td>
-                <td className="border border-slate-300 p-2">{c.action}</td>
-                <td className="border border-slate-300 p-2">{(c.equipment_items ?? []).join(', ') || c.equipment || 'ללא'}</td>
-                <td className="border border-slate-300 p-2 text-center text-ink-300">תקין / לא תקין</td>
+function PreviewModal({ blocks, stages, onClose }: { blocks: PublishedBlock[]; stages: Stage[]; onClose: () => void }) {
+  // Render one list of blocks (checks grouped into a table), reused per stage.
+  const renderGroup = (list: PublishedBlock[], keyPrefix: string): React.ReactNode[] => {
+    const nodes: React.ReactNode[] = [];
+    let checks: PublishedCheckConfig[] = [];
+    const flush = (k: string) => {
+      if (!checks.length) return;
+      const group = checks;
+      checks = [];
+      nodes.push(
+        <div key={`${keyPrefix}-c${k}`} className="overflow-x-auto">
+          <table className="w-full min-w-[480px] border-collapse text-right text-sm">
+            <thead>
+              <tr className="bg-slate-800 text-white">
+                <th className="border border-slate-300 p-2">שם האזור</th>
+                <th className="border border-slate-300 p-2">פעולה</th>
+                <th className="border border-slate-300 p-2">ציוד נדרש</th>
+                <th className="border border-slate-300 p-2 text-center">תוצאה</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
+            </thead>
+            <tbody>
+              {group.map((c, i) => (
+                <tr key={i}>
+                  <td className="border border-slate-300 p-2 font-medium">{c.part_name}</td>
+                  <td className="border border-slate-300 p-2">{c.action}</td>
+                  <td className="border border-slate-300 p-2">{(c.equipment_items ?? []).join(', ') || c.equipment || 'ללא'}</td>
+                  <td className="border border-slate-300 p-2 text-center text-ink-300">תקין / לא תקין</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    };
+    list.forEach((b, i) => {
+      if (b.type === 'check') checks.push(b.config as PublishedCheckConfig);
+      else {
+        flush(`b${i}`);
+        const pseudo = {
+          id: `${keyPrefix}-prev-${i}`,
+          completed_form_id: 'preview',
+          template_block_id: `${keyPrefix}-prev-${i}`,
+          type: b.type,
+          sort_order: i,
+          config_snapshot: b.config,
+        } as CompletedBlock;
+        nodes.push(<BlockContent key={`${keyPrefix}-${i}`} block={pseudo} context="execution" editable={false} />);
+      }
+    });
+    flush('end');
+    return nodes;
   };
-  blocks.forEach((b, i) => {
-    if (b.type === 'check') checks.push(b.config as PublishedCheckConfig);
-    else {
-      flush(`b${i}`);
-      const pseudo = {
-        id: `prev-${i}`,
-        completed_form_id: 'preview',
-        template_block_id: `prev-${i}`,
-        type: b.type,
-        sort_order: i,
-        config_snapshot: b.config,
-      } as CompletedBlock;
-      nodes.push(<BlockContent key={i} block={pseudo} context="execution" editable={false} />);
+
+  const activeIds = new Set(stages.map((s) => s.id));
+  const nodes: React.ReactNode[] = [];
+  if (stages.length === 0) {
+    nodes.push(...renderGroup(blocks, 'all'));
+  } else {
+    // General (un-staged) blocks first, then one section per active stage.
+    const general = blocks.filter((b) => !(b.stage_ids ?? []).some((id) => activeIds.has(id)));
+    if (general.length) nodes.push(...renderGroup(general, 'gen'));
+    for (const st of stages) {
+      const list = blocks.filter((b) => (b.stage_ids ?? []).includes(st.id));
+      if (!list.length) continue;
+      nodes.push(
+        <div key={`h-${st.id}`} className="flex items-center gap-2 pt-1">
+          <span className="rounded-md bg-navy-900 px-3 py-1.5 text-[14px] font-bold text-white">{st.name}</span>
+          <span className="h-px flex-1 bg-slate-200" />
+        </div>
+      );
+      nodes.push(...renderGroup(list, st.id));
     }
-  });
-  flush('end');
+  }
   return (
     <Modal open onClose={onClose} title="תצוגה מקדימה — כפי שהמבצע יראה" maxWidth="max-w-3xl">
       <div className="space-y-3">{nodes}</div>
@@ -512,6 +605,8 @@ function BlockRow({
   onDuplicate,
   onRemove,
   onImage,
+  stages,
+  onSetStages,
 }: {
   block: TemplateBlock;
   index: number;
@@ -525,33 +620,65 @@ function BlockRow({
   onDuplicate: () => void;
   onRemove: () => void;
   onImage: (src: string) => void;
+  stages?: Stage[] | null;
+  onSetStages?: (ids: string[]) => void;
 }) {
   const meta = BLOCK_META[block.type];
   const editable = block.type !== 'divider';
+  const assigned = new Set(block.stage_ids ?? []);
+  const toggleStage = (id: string) => {
+    if (!onSetStages) return;
+    const next = new Set(assigned);
+    next.has(id) ? next.delete(id) : next.add(id);
+    onSetStages([...next]);
+  };
+  const showStages = !!stages && stages.length > 0 && block.type !== 'divider';
   return (
     <div
       draggable
       onDragStart={onDragStart}
       onDragOver={(e) => e.preventDefault()}
       onDrop={onDropOn}
-      className={`flex items-center gap-3 rounded-xl border p-3 ${
+      className={`flex flex-col gap-2 rounded-xl border p-3 ${
         block.type === 'section' ? 'border-brand-200 bg-brand-50/50' : 'border-slate-200 bg-white'
       }`}
     >
-      <span className="cursor-grab text-slate-400" title="גרור לשינוי סדר">⠿</span>
-      <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-slate-100 px-1.5 text-xs font-bold text-slate-600">
-        {checkNo ?? <Icon name={meta.icon} size={14} />}
-      </span>
-      <div className="min-w-0 flex-1">
-        <BlockSummary block={block} task={task} onImage={onImage} />
+      <div className="flex items-center gap-3">
+        <span className="cursor-grab text-slate-400" title="גרור לשינוי סדר">⠿</span>
+        <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-slate-100 px-1.5 text-xs font-bold text-slate-600">
+          {checkNo ?? <Icon name={meta.icon} size={14} />}
+        </span>
+        <div className="min-w-0 flex-1">
+          <BlockSummary block={block} task={task} onImage={onImage} />
+        </div>
+        <div className="flex items-center gap-1">
+          <button className="btn-ghost !p-2 text-sm" onClick={() => onMove('up')} disabled={index === 0} title="העלה">▲</button>
+          <button className="btn-ghost !p-2 text-sm" onClick={() => onMove('down')} disabled={index === total - 1} title="הורד">▼</button>
+          <button className="btn-ghost !p-2" onClick={onDuplicate} title="שכפל"><Icon name="layers" size={15} /></button>
+          {editable && <button className="link" onClick={onEdit}>ערוך</button>}
+          <button className="link text-fault-700" onClick={onRemove}>מחק</button>
+        </div>
       </div>
-      <div className="flex items-center gap-1">
-        <button className="btn-ghost !p-2 text-sm" onClick={() => onMove('up')} disabled={index === 0} title="העלה">▲</button>
-        <button className="btn-ghost !p-2 text-sm" onClick={() => onMove('down')} disabled={index === total - 1} title="הורד">▼</button>
-        <button className="btn-ghost !p-2" onClick={onDuplicate} title="שכפל"><Icon name="layers" size={15} /></button>
-        {editable && <button className="link" onClick={onEdit}>ערוך</button>}
-        <button className="link text-fault-700" onClick={onRemove}>מחק</button>
-      </div>
+      {showStages && (
+        <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-100 pr-9 pt-2">
+          <span className="text-[12px] text-ink-400">מופיע ב:</span>
+          {stages!.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => toggleStage(s.id)}
+              className={`rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors ${
+                assigned.has(s.id)
+                  ? 'border-brand-300 bg-brand-100 text-brand-700'
+                  : 'border-slate-200 bg-white text-ink-400 hover:bg-slate-50'
+              } ${s.active ? '' : 'opacity-50'}`}
+            >
+              {assigned.has(s.id) ? '✓ ' : ''}{s.name}{s.active ? '' : ' (מושבת)'}
+            </button>
+          ))}
+          {assigned.size === 0 && <span className="text-[12px] text-ink-400">— כללי (כל הבד״ח)</span>}
+        </div>
+      )}
     </div>
   );
 }
