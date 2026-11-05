@@ -147,6 +147,26 @@ export default function FormViewPage() {
           {approved ? ' — נעול' : ' — טרם אושר'}
         </div>
 
+        {/* Tracking faults active AT execution (frozen snapshot) — kept in the
+            official document even after the tracking is later closed. */}
+        {(form.tracking_faults_snapshot?.length ?? 0) > 0 && (
+          <div className="avoid-break mb-4 rounded-md border border-pending-300 bg-pending-50 p-3">
+            <div className="mb-1.5 text-[14px] font-bold text-pending-800">
+              ⚠️ תקלות במעקב בזמן ביצוע הבד״ח: {form.tracking_faults_snapshot!.length}
+            </div>
+            <ul className="space-y-1 text-[13px] text-slate-700">
+              {form.tracking_faults_snapshot!.map((t) => (
+                <li key={t.id}>
+                  <span className="font-semibold">{t.description}</span>
+                  {' · '}בד״ח מקור <bdi>{t.source_form_number}</bdi>
+                  {' · '}{t.source_rank_name}
+                  {' · '}{t.repair_status === 'not_repaired' ? 'טרם תוקנה' : t.repair_status === 'repair_approved' ? 'תוקנה ואושרה' : 'תוקנה'} · במעקב
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Header */}
         <div className="mb-4 border-b-2 border-slate-800 pb-3">
           <div className="text-sm font-bold text-brand-700">{formDocumentTitle(form)}</div>

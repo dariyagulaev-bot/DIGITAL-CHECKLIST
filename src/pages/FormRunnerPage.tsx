@@ -338,6 +338,36 @@ export default function FormRunnerPage() {
         </div>
       </section>
 
+      {/* Tracking faults (תקלה במעקב) — a persistent, gentle banner shown ONLY
+          when this unit had active tracking faults at creation (from the frozen
+          snapshot). Click to expand details; never a popup. */}
+      {(form.tracking_faults_snapshot?.length ?? 0) > 0 && (
+        <details className="card border-r-2 border-r-pending-500 bg-pending-50/60 p-0 open:pb-3">
+          <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-[14px] font-bold text-pending-800">
+            <Icon name="alert" size={17} className="text-pending-600" />
+            {form.tracking_faults_snapshot!.length === 1
+              ? 'קיימת תקלה במעקב למערכת זו'
+              : `מעקב תקלות: ${form.tracking_faults_snapshot!.length}`}
+            <span className="mr-auto text-[12.5px] font-medium text-pending-600">הצג פרטים</span>
+          </summary>
+          <div className="space-y-2 px-4">
+            {form.tracking_faults_snapshot!.map((t) => (
+              <div key={t.id} className="rounded-lg border border-pending-200 bg-white px-3 py-2 text-[13px]">
+                <div className="font-semibold text-ink-800">{t.description}</div>
+                <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[12px] text-ink-500">
+                  <span>בד״ח מקור: <bdi>{t.source_form_number}</bdi></span>
+                  <span>מקור: {t.source_rank_name}</span>
+                  <span>נפתחה: {formatDateDots(t.opened_at.slice(0, 10))}</span>
+                  <span className={t.repair_status === 'not_repaired' ? 'font-semibold text-fault-600' : 'font-semibold text-ok-600'}>
+                    {t.repair_status === 'not_repaired' ? '✕ טרם תוקנה' : t.repair_status === 'repair_approved' ? '✓ תוקנה ואושרה' : '✓ תוקנה'} · 🟠 במעקב
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+
       {/* Returned-for-fix banner + approver note (performer must see it clearly) */}
       {returned && (
         <section className="card border-r-2 border-r-fault-500 bg-fault-50/60 p-4 sm:p-5">

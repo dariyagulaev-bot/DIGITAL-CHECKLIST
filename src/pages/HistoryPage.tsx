@@ -24,6 +24,7 @@ export default function HistoryPage() {
   const [status, setStatus] = useState<string>('ALL');
   const [phase, setPhase] = useState<string>('ALL');
   const [faultsOnly, setFaultsOnly] = useState(false);
+  const [trackingOnly, setTrackingOnly] = useState(false);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
 
@@ -58,11 +59,18 @@ export default function HistoryPage() {
       if (status !== 'ALL' && r.status !== status) return false;
       if (phase !== 'ALL' && (r.phase_name_snapshot ?? '') !== phase) return false;
       if (faultsOnly && r.faultCount === 0) return false;
+      if (trackingOnly && (r.tracking_faults_snapshot?.length ?? 0) === 0) return false;
       if (from && r.date < from) return false;
       if (to && r.date > to) return false;
       return true;
     });
-  }, [rows, q, status, phase, faultsOnly, from, to]);
+  }, [rows, q, status, phase, faultsOnly, trackingOnly, from, to]);
+
+  // Whether any form in scope carried tracking faults — gates the filter + column.
+  const anyTracking = useMemo(
+    () => (rows ?? []).some((r) => (r.tracking_faults_snapshot?.length ?? 0) > 0),
+    [rows]
+  );
 
   const excel = async (id: string) => {
     try {
@@ -124,6 +132,19 @@ export default function HistoryPage() {
               <span className="text-sm font-medium text-slate-600">עם תקלות בלבד</span>
             </label>
           </div>
+          {anyTracking && (
+            <div className="flex items-end">
+              <label className="flex cursor-pointer items-center gap-2 py-3">
+                <input
+                  type="checkbox"
+                  className="h-5 w-5"
+                  checked={trackingOnly}
+                  onChange={(e) => setTrackingOnly(e.target.checked)}
+                />
+                <span className="text-sm font-medium text-slate-600">עם תקלות במעקב בלבד</span>
+              </label>
+            </div>
+          )}
           <div>
             <label className="label">מתאריך</label>
             <input type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -152,6 +173,7 @@ export default function HistoryPage() {
                 <th className="p-3 font-semibold">מאשר</th>
                 <th className="p-3 font-semibold">בדיקות</th>
                 <th className="p-3 font-semibold">תקלות</th>
+                {anyTracking && <th className="p-3 font-semibold">מעקב</th>}
                 <th className="p-3 font-semibold">סטטוס</th>
                 <th className="p-3 font-semibold">פעולות</th>
               </tr>
@@ -180,6 +202,17 @@ export default function HistoryPage() {
                   <td className={`p-3 text-center ${r.faultCount ? 'font-bold text-fault-600' : ''}`}>
                     {r.faultCount}
                   </td>
+                  {anyTracking && (
+                    <td className="p-3 text-center">
+                      {(r.tracking_faults_snapshot?.length ?? 0) > 0 ? (
+                        <span className="nums rounded-full bg-amber-100 px-2 py-0.5 text-[12px] font-bold text-amber-700">
+                          {r.tracking_faults_snapshot!.length} 🟠
+                        </span>
+                      ) : (
+                        <span className="text-ink-300">—</span>
+                      )}
+                    </td>
+                  )}
                   <td className="p-3">
                     <StatusBadge status={r.status} />
                   </td>

@@ -345,6 +345,42 @@ export async function exportFormToExcel(formId: string): Promise<void> {
     }
   }
 
+  // Tracking faults present on this unit at the time of the inspection (snapshot).
+  const trackingSnap = form.tracking_faults_snapshot ?? [];
+  if (trackingSnap.length) {
+    r++; // blank
+    const th = ws.getCell(`A${r}`);
+    th.value = '🟠 תקלות במעקב (בזמן ביצוע הבד״ח)';
+    th.font = { bold: true, color: { argb: 'FFB45309' } };
+    ws.mergeCells(`A${r}:F${r}`);
+    r++;
+    const repairLabel = (s: string) =>
+      s === 'repaired' ? 'תוקן (ממתין לאימות)' : s === 'repair_approved' ? 'תיקון אושר' : 'לא תוקן';
+    const hdr = ws.getRow(r);
+    ['תיאור התקלה', 'בד״ח מקור', 'דרג מקור', 'נפתחה בתאריך', 'מצב תיקון'].forEach((h, i) => {
+      const cell = hdr.getCell(1 + i);
+      cell.value = h;
+      cell.font = { bold: true, color: { argb: HEADER_TEXT } };
+      cell.fill = solid('FFB45309');
+      cell.alignment = { horizontal: i === 0 ? 'right' : 'center', vertical: 'middle', wrapText: true };
+      cell.border = allBorders();
+    });
+    r++;
+    for (const tf of trackingSnap) {
+      const xr = ws.getRow(r);
+      xr.getCell(1).value = tf.description;
+      xr.getCell(2).value = tf.source_form_number || '—';
+      xr.getCell(3).value = tf.source_rank_name || '—';
+      xr.getCell(4).value = tf.opened_at ? tf.opened_at.slice(0, 10) : '—';
+      xr.getCell(5).value = repairLabel(tf.repair_status);
+      for (let c = 1; c <= 5; c++) {
+        xr.getCell(c).border = allBorders();
+        xr.getCell(c).alignment = { horizontal: c === 1 ? 'right' : 'center', vertical: 'middle', wrapText: true };
+      }
+      r++;
+    }
+  }
+
   r++; // blank
   // Totals
   const totals: Array<[string, string | number]> = [

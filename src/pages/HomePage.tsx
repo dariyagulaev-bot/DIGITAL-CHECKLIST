@@ -11,6 +11,7 @@ import {
 } from '@/services/forms';
 import { listAlertsForUser, certificationSummary, type CertDetail } from '@/services/certifications';
 import { listPendingRenewals } from '@/services/certRenewals';
+import { listAllTrackingFaults } from '@/services/trackingFaults';
 import { Icon, type IconName } from '@/components/Icon';
 import { SyncIndicator } from '@/components/SyncIndicator';
 import type { CompletedForm } from '@/types';
@@ -92,6 +93,7 @@ export default function HomePage() {
   const [certAlerts, setCertAlerts] = useState<CertDetail[]>([]);
   const [adminNeedsRenewal, setAdminNeedsRenewal] = useState(0);
   const [renewalsToApprove, setRenewalsToApprove] = useState(0);
+  const [activeTracking, setActiveTracking] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -105,6 +107,9 @@ export default function HomePage() {
       .catch(() => {});
     if (canApprove(user)) {
       listPendingApproval().then((p) => setPendingCount(p.length)).catch(() => {});
+      listAllTrackingFaults()
+        .then((t) => setActiveTracking(t.filter((f) => f.tracking_status === 'active').length))
+        .catch(() => {});
     }
     if (isAdmin(user)) {
       certificationSummary().then((s) => setAdminNeedsRenewal(s.needsRenewal + s.expired)).catch(() => {});
@@ -225,6 +230,15 @@ export default function HomePage() {
               desc="בד״חים הממתינים לחתימת מאשר"
               icon="clock"
               count={pendingCount}
+            />
+          )}
+          {canApprove(user) && (
+            <ActionRow
+              to="/tracking"
+              title="תקלות במעקב"
+              desc="תקלות פתוחות במעקב לפי מערכת"
+              icon="alert"
+              count={activeTracking}
             />
           )}
           <ActionRow

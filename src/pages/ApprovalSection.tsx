@@ -6,6 +6,8 @@ import { finalizeApproval, returnForFix } from '@/services/approval';
 import { transferToTreatmentRank, hasEnoughTreatmentManpower } from '@/services/treatment';
 import { listRanks } from '@/services/ranks';
 import { addSignature, type FormBundle } from '@/services/forms';
+import { defineFromFault, canManageTracking } from '@/services/trackingFaults';
+import { db } from '@/data/db';
 import { FormStatus, SignerType, TaskResult, type Rank } from '@/types';
 import { SignaturePad, type SignaturePadHandle } from '@/components/SignaturePad';
 import { Modal } from '@/components/ui';
@@ -40,9 +42,30 @@ export function ApprovalSection({
   const [transferChecked, setTransferChecked] = useState<Set<string>>(new Set());
   const [ranks, setRanks] = useState<Rank[]>([]);
   const [manpowerOk, setManpowerOk] = useState<boolean | null>(null);
+  const [trackedTaskIds, setTrackedTaskIds] = useState<Set<string>>(new Set());
   const sigRef = useRef<SignaturePadHandle>(null);
 
   const faultTasks = tasks.filter((t) => t.result === TaskResult.FAULT);
+
+  // Which fault sections are already defined as tracking faults (idempotent UI).
+  useEffect(() => {
+    db.tracking_faults.where('source_form_id').equals(form.id).toArray().then((rows) =>
+      setTrackedTaskIds(new Set(rows.map((r) => r.source_task_id).filter((x): x is string => !!x)))
+    );
+  }, [form.id]);
+
+  const canTrack = canManageTracking(user);
+  const defineTracking = async (taskId: string) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task || !user) return;
+    try {
+      await defineFromFault({ form, task, actor: user });
+      setTrackedTaskIds((prev) => new Set(prev).add(taskId));
+      notify('הוגדרה כתקלה במעקב', 'ok');
+    } catch (e) {
+      notify((e as Error).message, 'error');
+    }
+  };
 
   // Treating rank for "העבר לדרג ד׳": the highest rank that is strictly higher
   // than this בד״ח's original inspection rank. The mechanism is generic (any
@@ -275,6 +298,29 @@ export function ApprovalSection({
           </button>
         )}
       </div>
+
+      {/* Define a fault as a TRACKING fault (תקלה במעקב) — approver-only. It stays
+          with the unit and surfaces on its future בד״חים until closed here or in
+          the "תקלות במעקב" screen. Nothing happens automatically. */}
+      {canTrack && faultTasks.length > 0 && (
+        <div className="mt-4 rounded-lg border border-pending-200 bg-pending-50/50 p-3">
+          <div className="mb-2 flex items-center gap-2 text-[14px] font-bold text-pending-800">
+            <Icon name="alert" size={16} /> הגדרת תקלה למעקב
+          </div>
+          <div className="space-y-1.5">
+            {faultTasks.map((t) => (
+              <div key={t.id} className="flex flex-wrap items-center gap-2 rounded-md border border-pending-200 bg-white px-3 py-2 text-[13px]">
+                <span className="min-w-0 flex-1 font-semibold text-ink-800">{t.part_name_snapshot} — <span className="font-normal text-ink-600">{t.comment || t.action_snapshot}</span></span>
+                {trackedTaskIds.has(t.id) ? (
+                  <span className="rounded-full border border-pending-300 bg-pending-100 px-2.5 py-1 text-[12px] font-medium text-pending-700">🟠 במעקב</span>
+                ) : (
+                  <button className="btn-secondary btn-sm gap-1.5" onClick={() => defineTracking(t.id)}><Icon name="plus" size={13} /> הגדר כתקלה במעקב</button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <Modal
         open={returnOpen}

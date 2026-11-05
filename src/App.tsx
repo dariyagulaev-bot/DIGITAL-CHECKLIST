@@ -29,6 +29,7 @@ import ExamTakePage from './pages/ExamTakePage';
 import ExamResultPage from './pages/ExamResultPage';
 import MyCertificationsPage from './pages/MyCertificationsPage';
 import RenewalsApprovalPage from './pages/RenewalsApprovalPage';
+import TrackingFaultsPage from './pages/TrackingFaultsPage';
 import SystemsPage from './pages/admin/SystemsPage';
 import UnitsPage from './pages/admin/UnitsPage';
 import RanksPage from './pages/admin/RanksPage';
@@ -102,6 +103,7 @@ function AppRoutes() {
       <Route path="/exam/result/:attemptId" element={<RequireAuth><Layout><ExamResultPage /></Layout></RequireAuth>} />
       <Route path="/my-certifications" element={<RequireAuth><Layout><MyCertificationsPage /></Layout></RequireAuth>} />
       <Route path="/renewals" element={<RequireAuth><Layout><RenewalsApprovalPage /></Layout></RequireAuth>} />
+      <Route path="/tracking" element={<RequireAuth><Layout><TrackingFaultsPage /></Layout></RequireAuth>} />
       <Route
         path="/pending"
         element={
