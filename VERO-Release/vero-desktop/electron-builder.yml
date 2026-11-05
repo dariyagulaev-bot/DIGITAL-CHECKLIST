@@ -1,11 +1,13 @@
-# electron-builder configuration — produces BOTH distribution options:
-#   • nsis      → VERO-Setup-<version>.exe   (Option 1: installer)
-#   • portable  → VERO-Portable-<version>.exe (Option 2: portable, no install)
+# electron-builder configuration — produces ONE installer file:
 #
-# The build is fully offline at RUNTIME; the BUILD machine needs internet once
-# to download the pinned Electron runtime. Nothing here downloads at runtime.
+#   dist-win/VERO-Setup.exe   (NSIS installer, per-user, no admin required)
+#
+# VERO is fully offline at RUNTIME. The BUILD machine needs the pinned Electron
+# runtime once (already cached here). Nothing is downloaded at runtime: the
+# bundled Chromium ships inside the app, and the whole UI is a single local
+# file (resources/VERO.html). No CDN, no localhost, no cloud, no auto-update.
 
-appId: com.org.vero
+appId: com.vero.app
 productName: VERO
 
 directories:
@@ -24,31 +26,30 @@ publish: null
 
 win:
   target:
-    - nsis
-    - portable
+    - target: nsis
+      arch:
+        - x64
   icon: build/icon.ico
-  # Fill in the real, legal publisher name. When the build is code-signed, this
-  # should match the certificate subject exactly.
-  publisherName: ORG-PUBLISHER-NAME-HERE
-  # --- Code signing (leave commented until IT provides a certificate) ---------
-  # Do NOT invent or self-sign a public-trust certificate. Use the organization's
-  # Authenticode OV/EV code-signing certificate (or Azure Trusted Signing).
+  # Display publisher. NOTE: this does NOT create a trusted digital signature —
+  # Windows will still show "Unknown Publisher" until the organization signs the
+  # file with its own Authenticode certificate (see IT documentation). No fake
+  # or self-signed public-trust certificate is created here.
+  publisherName: VERO
+  # --- Code signing (left OFF — fill in only with the ORG's real certificate) -
   # certificateFile: path\\to\\org-codesign.pfx
   # certificatePassword: ${env.CSC_KEY_PASSWORD}
   # signingHashAlgorithms: [sha256]
   # rfc3161TimeStampServer: http://<org-approved-timestamp-authority>
 
 nsis:
-  oneClick: false
-  perMachine: false # per-user install → NO administrator rights required
+  oneClick: false                       # show a real installer wizard
+  perMachine: false                     # per-user install → NO administrator rights
   allowToChangeInstallationDirectory: true
-  createDesktopShortcut: true
-  createStartMenuShortcut: true
+  createDesktopShortcut: true           # desktop shortcut with the VERO icon
+  createStartMenuShortcut: true         # Start-menu shortcut with the VERO icon
   shortcutName: VERO
-  artifactName: VERO-Setup-${version}.exe
-  # Leave uninstaller enabled so IT can cleanly remove it.
-
-portable:
-  artifactName: VERO-Portable-${version}.exe
-  # The portable exe unpacks to a per-user temp dir at run time; VERO's data
-  # still lives permanently under %APPDATA%\VERO (see IT documentation).
+  installerIcon: build/icon.ico         # the Setup.exe wizard icon
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico   # icon shown in the installer header
+  artifactName: VERO-Setup.exe          # exactly one file, no version suffix
+  # Uninstaller stays enabled so IT can remove it cleanly.

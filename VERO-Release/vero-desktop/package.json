@@ -3,7 +3,7 @@
   "productName": "VERO",
   "version": "1.0.0",
   "description": "VERO — מערכת בקרה דיגיטלית (אופליין). עמדת בד\"ח, חתימות, תמונות, הסמכות ומבחנים — ללא אינטרנט.",
-  "author": "ORG-PUBLISHER-NAME-HERE",
+  "author": "VERO",
   "license": "UNLICENSED",
   "private": true,
   "main": "main.js",
