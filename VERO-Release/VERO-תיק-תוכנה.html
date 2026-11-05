@@ -95,6 +95,19 @@ h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.015em}
 .pcard b{display:block;font-size:14px;font-weight:600;color:var(--ink);margin-bottom:3px}
 .pcard span{display:block;font-size:12.5px;color:var(--muted);line-height:1.5}
 
+/* deep-dive topics (offline / security) */
+.topicsec{padding-block:34px}
+.topicsec+.topicsec{border-top:1px solid var(--line)}
+.topicgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.tcard{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 17px;box-shadow:var(--shadow)}
+.tcard h4{font-size:14.5px;font-weight:600;color:var(--ink);margin:0 0 7px;display:flex;align-items:center;gap:9px;line-height:1.3}
+.tcard h4 .tnum{flex:0 0 auto;display:inline-grid;place-items:center;min-width:24px;height:22px;padding:0 6px;border-radius:6px;background:color-mix(in srgb,var(--blue) 10%,#fff);color:var(--blue2);font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums}
+.tcard p{font-size:12.5px;color:var(--muted);line-height:1.6;margin:0}
+.nobox{grid-column:1/-1;background:#FBEEF0;border:1px solid #E6C9CE;border-radius:10px;padding:15px 17px}
+.nobox b{color:var(--class);font-size:13.5px;font-weight:600}
+.nobox .tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.nobox .tag{font-size:11.5px;font-weight:500;color:var(--class);background:#fff;border:1px solid #E6C9CE;border-radius:6px;padding:5px 11px}
+
 /* spec sheet */
 .specsec{padding-block:34px}
 .spec{border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:var(--shadow)}
@@ -117,10 +130,10 @@ h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.015em}
 @media (max-width:720px){
   .feature,.feature.rev{grid-template-columns:1fr;gap:14px}.feature.rev .frame{order:0}
   .stats{grid-template-columns:repeat(2,1fr)}.capgrid{grid-template-columns:1fr}
-  .toclist,.pgrid,.deploy{grid-template-columns:1fr}.srow{grid-template-columns:1fr}
+  .toclist,.pgrid,.deploy,.topicgrid{grid-template-columns:1fr}.srow{grid-template-columns:1fr}
 }
 @media print{
-  .feature,.stat,.dcard,.frame,.chead,.capcard,.pcard,.tocrow,.spec,.overview .shead,.band .shead,.specsec .shead{break-inside:avoid}
+  .feature,.stat,.dcard,.frame,.chead,.capcard,.pcard,.tocrow,.spec,.tcard,.nobox,.overview .shead,.band .shead,.specsec .shead,.topicsec .shead{break-inside:avoid}
   .cover{break-after:avoid}
   a{color:inherit;text-decoration:none}
 }
@@ -171,7 +184,9 @@ h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.015em}
   <a class="tocrow" href="#ch3"><span class="tn">03</span><span class="tt">תקלות במעקב</span><span class="te">שכבת Tracking</span></a>
   <a class="tocrow" href="#ch4"><span class="tn">04</span><span class="tt">המעקב</span><span class="te">סטטוס ובקרה</span></a>
   <a class="tocrow" href="#ch5"><span class="tn">05</span><span class="tt">ההסמכה</span><span class="te">הסמכות ורענון</span></a>
-  <a class="tocrow" href="#ch6"><span class="tn">06</span><span class="tt">הניהול</span><span class="te">מרכז ניהול</span></a></div>
+  <a class="tocrow" href="#ch6"><span class="tn">06</span><span class="tt">הניהול</span><span class="te">מרכז ניהול</span></a>
+  <a class="tocrow" href="#ch7"><span class="tn">07</span><span class="tt">עבודה אופליין</span><span class="te">ללא תלות ברשת</span></a>
+  <a class="tocrow" href="#ch8"><span class="tn">08</span><span class="tt">אבטחת מידע ובקרה</span><span class="te">זיהוי · הרשאות · עקיבות</span></a></div>
   </section>
 
   
@@ -305,15 +320,24 @@ h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.015em}
   </article></div></section>
 </main>
 
-<section class="band"><div class="wrap">
-  <header class="shead"><span class="eyebrow">עקרונות</span><h2>עקרונות המערכת</h2><p>הבסיס שעליו נבנתה VERO — אבטחה, עקיבות ואמינות, ללא תלות ברשת חיצונית.</p></header>
-  <div class="pgrid">
+<section class="topicsec" id="ch7"><div class="wrap">
+  <header class="shead"><span class="eyebrow">07 — ללא תלות ברשת</span><h2>עבודה אופליין</h2><p>VERO פועלת 100% ללא אינטרנט — מרגע ההתקנה ולאורך כל העבודה. כל יכולת של המערכת זמינה גם ללא כל חיבור לרשת.</p></header>
+  <div class="topicgrid"><div class="tcard"><h4><span class="tnum">01</span>ללא תלות ברשת — כלל</h4><p>VERO רצה על מנוע Chromium מוטמע הארוז בתוך החבילה עצמה. אין טעינה מדפדפן (Edge/Chrome), מאתר אינטרנט או משרת חיצוני — התוכנה כולה פועלת מתוך המכשיר.</p></div><div class="tcard"><h4><span class="tnum">02</span>כל הנתונים נשמרים במכשיר</h4><p>בד״חים, משתמשים, הסמכות, תבניות, מבחנים, תמונות, חתימות, היסטוריה והגדרות — הכול נשמר מקומית על הטאבלט (מסד נתונים מוטמע, IndexedDB). שום נתון אינו עוזב את המכשיר.</p></div><div class="tcard"><h4><span class="tnum">03</span>הנתונים נפרדים מהתוכנה</h4><p>אחסון הנתונים מופרד פיזית מקבצי התוכנה. עדכון גרסה מחליף רק את קבצי התוכנה — בד״חים, משתמשים והסמכות אינם נמחקים.</p></div><div class="tcard"><h4><span class="tnum">04</span>דוחות מופקים מקומית</h4><p>הפקת PDF ו-Excel מתבצעת כולה במכשיר, ללא שירות המרה חיצוני. הדוח נראה זהה בכל מכשיר.</p></div><div class="tcard"><h4><span class="tnum">05</span>סנכרון ללא אינטרנט</h4><p>העברת נתונים בין מכשירים לתחנה מרכזית מתבצעת כחבילות סנכרון ברשת מקומית / בהעברת קובץ. כל מכשיר מאושר מראש ע״י מנהל; קיים גם גיבוי/שחזור מלא כקובץ.</p></div><div class="tcard"><h4><span class="tnum">06</span>הפצה מוכנה להלבנה</h4><p>קובץ התקנה אחד (VERO-Setup.exe), per-user, ללא הרשאות Administrator. כל הרכיבים ארוזים בפנים — אין הורדות בזמן ההתקנה או בזמן הריצה.</p></div><div class="nobox"><b>VERO אינה פונה אל — ואינה תלויה ב:</b><div class="tags"><span class="tag">אינטרנט ציבורי</span><span class="tag">CDN</span><span class="tag">שרתי Cloud</span><span class="tag">localhost חיצוני</span><span class="tag">הורדת Dependencies</span><span class="tag">עדכון אוטומטי</span><span class="tag">טלמטריה / שליחת נתונים</span></div></div></div>
+</div></section>
+
+<section class="topicsec" id="ch8"><div class="wrap">
+  <header class="shead"><span class="eyebrow">08 — זיהוי · הרשאות · עקיבות</span><h2>אבטחת מידע ובקרה</h2><p>כל פעולה ב-VERO מזוהה למשתמש, מורשית לפי תפקיד, חתומה ומתועדת — לצד הקשחה של האפליקציה עצמה. להלן מנגנוני האבטחה, אחד לאחד.</p></header>
+  <div class="topicgrid"><div class="tcard"><h4><span class="tnum">01</span>זיהוי משתמש</h4><p>כניסה עם שם משתמש וסיסמה. הסיסמאות נשמרות מוצפנות בגיבוב חד-כיווני (bcrypt) — לעולם לא בטקסט גלוי. כל פעולה במערכת מזוהה למשתמש.</p></div><div class="tcard"><h4><span class="tnum">02</span>הרשאות לפי תפקיד</h4><p>מודל RBAC: מנהל / מבצע / מאשר. כל משתמש רואה ועושה אך ורק את המותר לתפקידו — מסכי הניהול והאישור חסומים למי שאינו מורשה.</p></div><div class="tcard"><h4><span class="tnum">03</span>הסמכה כתנאי לביצוע</h4><p>מבצע יכול לפתוח ולבצע בד״ח רק למערכת ולדרג שהוא מוסמך להם — וכך גם מבצע שני. המערכת חוסמת ביצוע לא-מורשה כבר באשף.</p></div><div class="tcard"><h4><span class="tnum">04</span>מניעת אישור עצמי</h4><p>מאשר אינו יכול לאשר בד״ח שהוא עצמו ביצע. הבדיקה מתבצעת לפי מזהה המשתמש (לא לפי שם), גם בשלב החתימה וגם בשלב הסיום — הגנה כפולה.</p></div><div class="tcard"><h4><span class="tnum">05</span>חתימות דיגיטליות</h4><p>חתימות המבצע/ים והמאשר נלכדות ונשמרות בבד״ח, ומוטבעות במסמך ה-PDF הרשמי — ראיה חתומה לכל בדיקה.</p></div><div class="tcard"><h4><span class="tnum">06</span>Snapshot בלתי-משתנה</h4><p>בד״ח מוקפא לפי גרסת התבנית שבה בוצע; שינוי תבנית עתידי אינו משנה בד״חים קיימים. גם תקלות במעקב נשמרות כ-snapshot של מצב הביצוע.</p></div><div class="tcard"><h4><span class="tnum">07</span>יומן ביקורת</h4><p>כל פעולה מהותית מתועדת ביומן ביקורת בלתי-משתנה — מי, מה ומתי — לצורכי תחקור, בקרה ועקיבות מלאה.</p></div><div class="tcard"><h4><span class="tnum">08</span>סגירת תקלות מבוקרת</h4><p>תקלה נכנסת למעקב רק בהגדרה מפורשת, ורק מאשר מורשה סוגר אותה — עם הערה וחתימה. אין סגירה "שקטה".</p></div><div class="tcard"><h4><span class="tnum">09</span>הקשחת האפליקציה</h4><p>בידוד הקשר (Context Isolation) והרצה ב-Sandbox, ללא Node בצד התצוגה ועם DevTools כבוי. ניווט לכתובות חיצוניות וחלונות קופצים חסומים; כל בקשות ההרשאה (מצלמה/מיקרופון/מיקום) נדחות — המערכת אינה זקוקה להן.</p></div><div class="tcard"><h4><span class="tnum">10</span>הלבנה ללא עקיפה</h4><p>קובץ Windows תקין להעברה רשמית בהלבנה הארגונית. לא נוצרה חתימה מזויפת ולא עוקפה שום בדיקת אבטחה; ניתן לחתום את הקובץ בתעודת החתימה של הארגון.</p></div></div>
+  <div class="band" style="margin-top:18px;border-radius:10px;border:1px solid var(--line)"><div class="wrap" style="padding:20px 22px">
+    <header class="shead" style="margin-bottom:14px"><span class="eyebrow">תמצית</span><h2 style="font-size:18px">עקרונות המערכת במבט אחד</h2></header>
+    <div class="pgrid">
   <div class="pcard"><span class="pic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8.8A16 16 0 0 1 22 8.8M5 12.9a10 10 0 0 1 14 0M8.5 16.4a5 5 0 0 1 7 0M12 20h.01M2 2l20 20"/></svg></span><div><b>עבודה אופליין מלאה</b><span>ללא אינטרנט, CDN, Cloud או עדכון אוטומטי. כל הרכיבים ארוזים במכשיר.</span></div></div>
   <div class="pcard"><span class="pic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3Z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18Z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg></span><div><b>חתימות וזיהוי</b><span>חתימת מבצע ומאשר לכל בד״ח. מאשר אינו מאשר בד״ח שביצע בעצמו.</span></div></div>
   <div class="pcard"><span class="pic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><div><b>Snapshot בלתי-משתנה</b><span>בד״ח מוקפא לפי גרסת התבנית שבה בוצע — אינו משתנה רטרואקטיבית.</span></div></div>
   <div class="pcard"><span class="pic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2v6h6"/><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M9 13h6M9 17h6"/></svg></span><div><b>יומן ביקורת מלא</b><span>כל פעולה מתועדת — מי, מה ומתי — לתחקור ולעקיבות.</span></div></div>
   <div class="pcard"><span class="pic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg></span><div><b>הרשאות לפי תפקיד</b><span>מנהל / מבצע / מאשר — כל אחד רואה ועושה רק את המותר לו.</span></div></div>
   <div class="pcard"><span class="pic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></span><div><b>סנכרון מאובטח</b><span>דו-כיווני מול תחנה מרכזית ברשת מקומית, עם גיבוי/שחזור כקובץ.</span></div></div></div>
+  </div></div>
 </div></section>
 
 <section class="specsec"><div class="wrap">
