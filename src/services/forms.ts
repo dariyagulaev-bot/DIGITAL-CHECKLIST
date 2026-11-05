@@ -254,6 +254,12 @@ export async function createDraftForm(params: {
     classification: rank?.classification ?? DEFAULT_CLASSIFICATION,
     phase_id: null,
     phase_name_snapshot: '',
+    // Freeze the tracking faults that are ACTIVE for this unit right now, so a
+    // later closure never changes what this historical בד״ח showed.
+    tracking_faults_snapshot: await (async () => {
+      const { snapshotForUnit } = await import('./trackingFaults');
+      return snapshotForUnit(params.unitId ?? null);
+    })(),
     performer_user_id: params.performer.id,
     performer_name: params.performer.full_name,
     performer2_id: null,

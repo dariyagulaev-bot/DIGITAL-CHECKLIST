@@ -495,6 +495,8 @@ export interface CompletedForm {
   // The performer picks ONE option at the top; the whole בד״ח is filled once.
   phase_id?: string | null; // chosen option id (stable), null until selected
   phase_name_snapshot?: string; // the option's display name, frozen at selection
+  // ---- Tracking faults active for this unit AT creation (frozen; PDF/history) ----
+  tracking_faults_snapshot?: TrackingFaultSnapshot[];
 
   performer_user_id: string; // performer 1 (the logged-in user)
   performer_name: string; // performer 1 full-name snapshot
@@ -548,6 +550,90 @@ export interface FaultEvent {
   by_id: string;
   by_name: string;
   note?: string; // approver note / short context
+}
+
+/**
+ * ----------------------------------------------------------------------------
+ * TRACKING FAULTS (תקלה במעקב) — a SEPARATE layer on top of the normal fault /
+ * repair pipeline. A tracking fault is created ONLY by an explicit, authorized
+ * "הגדר כתקלה במעקב" action; it is tied FIRST to the unit (מספר מערכת), so it
+ * keeps surfacing on that unit's future בד״חים (across ranks) until an
+ * authorized approver closes it — even after the fault itself is repaired and
+ * the repair approved. Default for every unit: NO tracking faults.
+ * ----------------------------------------------------------------------------
+ */
+export type TrackingStatus = 'active' | 'closed';
+/** The repair state of the underlying fault, kept in sync on the tracking rec. */
+export type TrackingRepairStatus = 'not_repaired' | 'repaired' | 'repair_approved';
+
+export type TrackingEventKind =
+  | 'opened' // the underlying fault was discovered
+  | 'defined' // explicitly set as a tracking fault
+  | 'repair_reported' // a repair was documented
+  | 'repair_approved' // the repair was approved
+  | 'rechecked' // re-examined on a later בד״ח
+  | 'kept' // approver decided to keep tracking
+  | 'note' // free note
+  | 'closed'; // approver closed the tracking
+
+export interface TrackingEvent {
+  id: string;
+  at: string; // ISO timestamp WITH seconds — never overwritten/removed
+  kind: TrackingEventKind;
+  actor_id: string;
+  actor_name: string;
+  actor_role?: string;
+  note?: string;
+}
+
+export interface TrackingFault {
+  id: string;
+  device_id: string; // originating device (sync)
+  // ---- Association: the unit (מספר מערכת) comes FIRST ----
+  system_id: string | null;
+  system_name: string;
+  unit_id: string | null; // מספר מערכת — the primary key the tracking follows
+  unit_name: string;
+  // ---- Origin (snapshot of where it was discovered) ----
+  source_form_id: string;
+  source_form_number: string;
+  source_rank_id: string | null;
+  source_rank_name: string; // the rank it was discovered in (e.g. דרג א׳)
+  source_task_id?: string; // the original check item, when it came from one
+  // ---- Content ----
+  description: string;
+  notes?: string;
+  images?: string[]; // data URLs
+  reported_by_id?: string;
+  reported_by_name?: string;
+  defined_by_id: string; // who set it as a tracking fault
+  defined_by_name: string;
+  opened_at: string; // tracking open time
+  // ---- State: three independent dimensions ----
+  repair_status: TrackingRepairStatus; // fault repaired? approved?
+  tracking_status: TrackingStatus; // active / closed — NEVER auto-closed by a repair
+  // ---- Closure (authorized approver only) ----
+  closed_by_id?: string;
+  closed_by_name?: string;
+  closed_by_role?: string;
+  closed_at?: string;
+  close_note?: string;
+  close_signature?: string | null;
+  // ---- Immutable history ----
+  events: TrackingEvent[];
+  created_at: string;
+  updated_at: string; // bumped on every change (sync/version)
+}
+
+/** Frozen summary of the tracking faults that were ACTIVE when a בד״ח started.
+ * Stored on the form so a historical PDF always shows the state AT execution. */
+export interface TrackingFaultSnapshot {
+  id: string;
+  description: string;
+  source_form_number: string;
+  source_rank_name: string;
+  opened_at: string;
+  repair_status: TrackingRepairStatus;
 }
 
 export interface CompletedTask {

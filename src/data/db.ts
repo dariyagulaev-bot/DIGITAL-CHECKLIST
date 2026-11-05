@@ -26,6 +26,7 @@ import type {
   ExamAttempt,
   CertRenewal,
   RenewalApprover,
+  TrackingFault,
 } from '@/types';
 
 /**
@@ -60,6 +61,7 @@ export class ChecklistDB extends Dexie {
   exam_attempts!: Table<ExamAttempt, string>;
   cert_renewals!: Table<CertRenewal, string>;
   renewal_approvers!: Table<RenewalApprover, string>;
+  tracking_faults!: Table<TrackingFault, string>;
 
   constructor(name = 'digital_checklist') {
     super(name);
@@ -374,6 +376,12 @@ export class ChecklistDB extends Dexie {
     this.version(14).stores({
       cert_renewals: 'id, user_id, system_id, cert_id, attempt_id, status',
       renewal_approvers: 'id, user_id, system_id, rank_id',
+    });
+    // v15: Tracking faults (תקלה במעקב) — a separate tracking layer tied to the
+    // unit (מספר מערכת). Indexed by unit + status so the "active for this unit"
+    // lookup on every new בד״ח is fast and offline.
+    this.version(15).stores({
+      tracking_faults: 'id, unit_id, system_id, tracking_status, source_form_id',
     });
   }
 }
