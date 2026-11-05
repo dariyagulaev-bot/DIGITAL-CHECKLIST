@@ -6,6 +6,7 @@ import type {
   BlockType,
   CheckRefConfig,
   EquipmentConfig,
+  FieldsConfig,
   ImageConfig,
   SectionConfig,
   TableColumn,
@@ -105,6 +106,12 @@ function defaultConfig(type: BlockType): BlockConfig {
       return { text: '' } as TextConfig;
     case 'table':
       return defaultTableConfig();
+    case 'fields':
+      return {
+        title: 'תת־מערכת',
+        description: '',
+        fields: [{ id: newId(), label: 'מספר סידורי', field_type: 'short_text', required: true }],
+      } as FieldsConfig;
     case 'image':
       return { image_data: null, title: '', description: '', show_in_execution: true, show_in_pdf: true } as ImageConfig;
     case 'equipment':

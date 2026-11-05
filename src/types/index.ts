@@ -242,6 +242,7 @@ export type BlockType =
   | 'section' // כותרת / Section
   | 'text' // טקסט / הוראה
   | 'table' // טבלת נתונים / מדידה
+  | 'fields' // קבוצת שדות מותאמים (תת־מערכת: מספר סידורי, דגם, מק״ט …)
   | 'image' // תמונה
   | 'equipment' // ציוד נדרש (standalone)
   | 'divider'; // מפריד
@@ -338,6 +339,28 @@ export interface TableConfig {
   show_in_pdf?: boolean; // default true
 }
 
+/**
+ * An admin-defined custom field (for a תת־מערכת / identifier group). The TYPE is
+ * chosen from a small set so the admin can add fields (serial number, model,
+ * מק״ט, location, note …) WITHOUT any code change. The `id` is stable; the
+ * `label` is the display name the performer sees.
+ */
+export interface CustomField {
+  id: string;
+  label: string;
+  field_type: 'short_text' | 'long_text' | 'number' | 'decimal' | 'date' | 'time' | 'bool' | 'select';
+  required?: boolean;
+  options?: string[]; // for 'select'
+  unit?: string; // optional display unit for numeric fields
+}
+
+/** A named group of custom fields — the heart of a תת־מערכת identifier block. */
+export interface FieldsConfig {
+  title?: string; // group name, e.g. "תת־מערכת: משאבה A"
+  description?: string;
+  fields: CustomField[];
+}
+
 export interface CheckRefConfig {
   task_id: string; // points to a template_tasks row (classic check content)
 }
@@ -366,6 +389,7 @@ export type BlockConfig =
   | SectionConfig
   | TextConfig
   | TableConfig
+  | FieldsConfig
   | ImageConfig
   | EquipmentConfig
   | DividerConfig;

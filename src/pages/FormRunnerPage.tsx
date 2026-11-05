@@ -559,7 +559,7 @@ export default function FormRunnerPage() {
           } else {
             flush(`b${i}`);
             const blk =
-              it.block.type === 'table'
+              it.block.type === 'table' || it.block.type === 'fields'
                 ? { ...it.block, data: { ...it.block.data, cells: tableCells[it.block.id] ?? it.block.data?.cells ?? {} } }
                 : it.block;
             nodes.push(

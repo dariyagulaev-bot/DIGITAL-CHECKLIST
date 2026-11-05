@@ -18,6 +18,7 @@ import {
   updateBlockConfig,
   checkTaskId,
 } from '@/services/blocks';
+import { newId } from '@/services/ids';
 import { fileToManagedDataUrl } from '@/services/images';
 import { listSystems } from '@/services/systems';
 import { listRanks } from '@/services/ranks';
@@ -41,6 +42,8 @@ import type { CompletedBlock, PublishedBlock, PublishedCheckConfig } from '@/typ
 import type {
   BlockType,
   EquipmentConfig,
+  CustomField,
+  FieldsConfig,
   ImageConfig,
   Rank,
   SectionConfig,
@@ -59,11 +62,12 @@ const BLOCK_META: Record<BlockType, { label: string; icon: IconName }> = {
   section: { label: 'כותרת / Section', icon: 'file' },
   text: { label: 'טקסט / הוראה', icon: 'pen' },
   table: { label: 'טבלת מדידה', icon: 'layers' },
+  fields: { label: 'תת־מערכת / שדות', icon: 'database' },
   image: { label: 'תמונה', icon: 'image' },
   equipment: { label: 'ציוד נדרש', icon: 'settings' },
   divider: { label: 'מפריד', icon: 'grip' },
 };
-const ADDABLE: BlockType[] = ['check', 'section', 'text', 'table', 'image', 'equipment', 'divider'];
+const ADDABLE: BlockType[] = ['check', 'section', 'text', 'table', 'fields', 'image', 'equipment', 'divider'];
 
 type Editing =
   | { kind: 'new-check' }
@@ -383,6 +387,9 @@ export default function TemplateEditorPage() {
       {editing?.kind === 'block' && editing.block.type === 'equipment' && (
         <EquipmentEditor block={editing.block} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />
       )}
+      {editing?.kind === 'block' && editing.block.type === 'fields' && (
+        <FieldsEditor block={editing.block} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />
+      )}
       {editing?.kind === 'block' && editing.block.type === 'image' && (
         <ImageEditor block={editing.block} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} notify={notify} />
       )}
@@ -679,6 +686,17 @@ function BlockSummary({ block, task, onImage }: { block: TemplateBlock; task?: T
         </div>
       );
     }
+    case 'fields': {
+      const c = block.config as FieldsConfig;
+      return (
+        <div>
+          <div className="font-semibold text-slate-800">{c.title || 'תת־מערכת / שדות'}</div>
+          <div className="truncate text-sm text-slate-500">
+            {c.fields.length ? c.fields.map((f) => f.label).join(' · ') : 'ללא שדות'}
+          </div>
+        </div>
+      );
+    }
     case 'image': {
       const c = block.config as ImageConfig;
       return (
@@ -926,6 +944,85 @@ function EquipmentEditor({ block, onClose, onSaved }: { block: TemplateBlock; on
               </div>
             ))}
             <button type="button" className="btn-secondary btn-sm gap-1.5" onClick={add}><Icon name="plus" size={15} /> הוסף פריט</button>
+          </div>
+        </div>
+      </div>
+    </EditorModal>
+  );
+}
+
+const FIELD_TYPES: { v: CustomField['field_type']; label: string }[] = [
+  { v: 'short_text', label: 'טקסט' },
+  { v: 'long_text', label: 'טקסט ארוך' },
+  { v: 'number', label: 'מספר' },
+  { v: 'decimal', label: 'מספר עשרוני' },
+  { v: 'date', label: 'תאריך' },
+  { v: 'time', label: 'שעה' },
+  { v: 'bool', label: 'כן / לא' },
+  { v: 'select', label: 'רשימת בחירה' },
+];
+
+/** Editor for a custom-field group (תת־מערכת): the admin defines its own fields
+ *  (name + type + required) — serial number, model, מק״ט … — with no code change. */
+function FieldsEditor({ block, onClose, onSaved }: { block: TemplateBlock; onClose: () => void; onSaved: () => void }) {
+  const cfg = block.config as FieldsConfig;
+  const [title, setTitle] = useState(cfg.title ?? 'תת־מערכת');
+  const [description, setDescription] = useState(cfg.description ?? '');
+  const [fields, setFields] = useState<CustomField[]>(
+    cfg.fields?.length ? cfg.fields.map((f) => ({ ...f })) : [{ id: newId(), label: 'מספר סידורי', field_type: 'short_text', required: true }]
+  );
+  const patch = (i: number, p: Partial<CustomField>) => setFields((arr) => arr.map((f, idx) => (idx === i ? { ...f, ...p } : f)));
+  const add = () => setFields((arr) => [...arr, { id: newId(), label: '', field_type: 'short_text', required: false }]);
+  const removeI = (i: number) => setFields((arr) => (arr.length <= 1 ? arr : arr.filter((_, idx) => idx !== i)));
+  const moveI = (i: number, dir: -1 | 1) => setFields((arr) => { const j = i + dir; if (j < 0 || j >= arr.length) return arr; const n = [...arr]; [n[i], n[j]] = [n[j], n[i]]; return n; });
+  const save = async () => {
+    const clean = fields
+      .map((f) => ({ ...f, label: f.label.trim(), options: f.field_type === 'select' ? (f.options ?? []).map((o) => o.trim()).filter(Boolean) : undefined, unit: f.unit?.trim() || undefined }))
+      .filter((f) => f.label);
+    await updateBlockConfig(block.id, { title: title.trim() || 'תת־מערכת', description: description.trim() || undefined, fields: clean } as FieldsConfig);
+    onSaved();
+  };
+  return (
+    <EditorModal title="תת־מערכת / שדות מותאמים" onClose={onClose} onSubmit={save}>
+      <div className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="label">שם הקבוצה / תת־מערכת</label>
+            <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="למשל: משאבה A" autoFocus />
+          </div>
+          <div>
+            <label className="label">תיאור (רשות)</label>
+            <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} />
+          </div>
+        </div>
+        <div>
+          <div className="mb-1.5 flex items-center justify-between">
+            <label className="label !mb-0">שדות</label>
+            <button type="button" className="btn-secondary btn-sm gap-1.5" onClick={add}><Icon name="plus" size={14} /> הוסף שדה</button>
+          </div>
+          <div className="space-y-2">
+            {fields.map((f, i) => (
+              <div key={f.id} className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <input className="input !min-h-0 min-w-[140px] flex-1 !py-1.5 text-[14px]" value={f.label} onChange={(e) => patch(i, { label: e.target.value })} placeholder="שם השדה (מספר סידורי / דגם / מק״ט…)" />
+                  <select className="input !min-h-0 w-36 !py-1.5 text-[14px]" value={f.field_type} onChange={(e) => patch(i, { field_type: e.target.value as CustomField['field_type'] })}>
+                    {FIELD_TYPES.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}
+                  </select>
+                  <label className="flex items-center gap-1.5 text-[12.5px] text-ink-600">
+                    <input type="checkbox" className="h-4 w-4" checked={!!f.required} onChange={(e) => patch(i, { required: e.target.checked })} /> חובה
+                  </label>
+                  <button type="button" className="btn-ghost !p-1.5" disabled={i === 0} onClick={() => moveI(i, -1)}><Icon name="up" size={14} /></button>
+                  <button type="button" className="btn-ghost !p-1.5" disabled={i === fields.length - 1} onClick={() => moveI(i, 1)}><Icon name="down" size={14} /></button>
+                  <button type="button" className="btn-ghost !p-1.5 text-fault-600" disabled={fields.length <= 1} onClick={() => removeI(i)}><Icon name="trash" size={14} /></button>
+                </div>
+                {(f.field_type === 'number' || f.field_type === 'decimal') && (
+                  <input className="input !min-h-0 mt-2 w-40 !py-1.5 text-[13px]" value={f.unit ?? ''} onChange={(e) => patch(i, { unit: e.target.value })} placeholder="יחידה (V, A, °C…)" />
+                )}
+                {f.field_type === 'select' && (
+                  <input className="input !min-h-0 mt-2 !py-1.5 text-[13px]" value={(f.options ?? []).join(', ')} onChange={(e) => patch(i, { options: e.target.value.split(',').map((s) => s.trim()) })} placeholder="אפשרויות, מופרדות בפסיק" />
+                )}
+              </div>
+            ))}
           </div>
         </div>
       </div>

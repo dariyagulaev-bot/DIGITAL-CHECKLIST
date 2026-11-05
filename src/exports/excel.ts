@@ -310,6 +310,41 @@ export async function exportFormToExcel(formId: string): Promise<void> {
     }
   }
 
+  // Custom-field groups (תת־מערכת / שדות) — one "שדה | ערך" table per group.
+  const fieldBlocks = blocks.filter((b) => b.type === 'fields');
+  for (const b of fieldBlocks) {
+    const cfg = b.config_snapshot as import('@/types').FieldsConfig;
+    if (!cfg.fields?.length) continue;
+    const cells = b.data?.cells ?? {};
+    r++; // blank
+    const th = ws.getCell(`A${r}`);
+    th.value = cfg.title || 'תת־מערכת';
+    th.font = { bold: true, color: { argb: 'FF0F2B52' } };
+    ws.mergeCells(`A${r}:F${r}`);
+    r++;
+    const hdr = ws.getRow(r);
+    ['שדה', 'ערך'].forEach((h, i) => {
+      const cell = hdr.getCell(1 + i);
+      cell.value = h;
+      cell.font = { bold: true, color: { argb: HEADER_TEXT } };
+      cell.fill = solid(HEADER_BG);
+      cell.alignment = { horizontal: i === 0 ? 'right' : 'center', vertical: 'middle' };
+      cell.border = allBorders();
+    });
+    r++;
+    for (const f of cfg.fields) {
+      const xr = ws.getRow(r);
+      xr.getCell(1).value = f.label;
+      xr.getCell(1).font = { bold: true };
+      xr.getCell(1).alignment = { horizontal: 'right', vertical: 'middle' };
+      const raw = (cells[f.id] ?? '').trim();
+      xr.getCell(2).value = f.field_type === 'bool' ? (raw === 'true' ? 'כן' : raw === 'false' ? 'לא' : '') : f.unit && raw ? `${raw} ${f.unit}` : raw;
+      xr.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
+      [1, 2].forEach((n) => (xr.getCell(n).border = allBorders()));
+      r++;
+    }
+  }
+
   r++; // blank
   // Totals
   const totals: Array<[string, string | number]> = [

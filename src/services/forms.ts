@@ -619,6 +619,14 @@ export async function validateForSubmit(formId: string): Promise<SubmitValidatio
     );
     if (missing) errors.push(`יש למלא את כל השדות הנדרשים בטבלה "${cfg.title}"`);
   }
+  // Required custom fields (תת־מערכת / שדות) must be filled before submit.
+  for (const b of blocks) {
+    if (b.type !== 'fields') continue;
+    const cfg = b.config_snapshot as import('@/types').FieldsConfig;
+    const cells = b.data?.cells ?? {};
+    const missing = (cfg.fields ?? []).filter((f) => f.required && !(cells[f.id] ?? '').trim());
+    if (missing.length) errors.push(`יש למלא שדות חובה ב"${cfg.title || 'תת־מערכת'}": ${missing.map((f) => f.label).join(', ')}`);
+  }
   const faultsMissingDetail = tasks.filter(
     (t) => t.result === TaskResult.FAULT && !t.comment.trim()
   );
