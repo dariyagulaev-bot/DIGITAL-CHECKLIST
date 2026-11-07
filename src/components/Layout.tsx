@@ -1,5 +1,6 @@
-import { type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { getStoredTheme, setStoredTheme, type Theme } from '@/theme';
 import { useAuth } from '@/context/AuthContext';
 import { useNavGuard } from '@/context/NavGuardContext';
 import { roleLabel } from '@/exports/labels';
@@ -17,6 +18,41 @@ export function BrandMark({ size = 34 }: { size?: number }) {
     >
       <Icon name="clipboard-check" size={size * 0.62} />
     </span>
+  );
+}
+
+/** Light/Dark toggle — persists per user, offline. Inline SVG (no emoji). */
+export function ThemeToggle({ dark = false }: { dark?: boolean }) {
+  const [theme, setTheme] = useState<Theme>(() => getStoredTheme());
+  const toggle = () => {
+    const next: Theme = theme === 'dark' ? 'light' : 'dark';
+    setStoredTheme(next);
+    setTheme(next);
+  };
+  const isDark = theme === 'dark';
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-label={isDark ? 'מעבר למצב בהיר' : 'מעבר למצב כהה'}
+      title={isDark ? 'מצב בהיר' : 'מצב כהה'}
+      className={`inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors ${
+        dark ? 'text-navy-100 hover:bg-white/10 hover:text-white' : 'text-ink-500 hover:bg-slate-100 hover:text-ink-800'
+      }`}
+    >
+      {isDark ? (
+        /* sun → switch to light */
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+        </svg>
+      ) : (
+        /* moon → switch to dark */
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
+        </svg>
+      )}
+    </button>
   );
 }
 
@@ -80,6 +116,8 @@ export function Layout({ children }: { children: ReactNode }) {
 
           {user && (
             <div className="flex items-center gap-3">
+              <ThemeToggle dark />
+              <span className="hidden h-6 w-px bg-white/15 sm:block" />
               <div className="hidden text-left leading-tight sm:block">
                 <div className="text-[13.5px] font-semibold text-white">{user.full_name}</div>
                 <div className="text-[11px] text-navy-200">

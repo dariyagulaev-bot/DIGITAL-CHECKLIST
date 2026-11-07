@@ -5,6 +5,7 @@ import App from './App';
 import './index.css';
 import { runSeed } from './data/seed';
 import { installPwaManifest } from './pwa/installManifest';
+import { initTheme } from './theme';
 
 /**
  * Force full RTL at the document level. index.html already sets dir="rtl",
@@ -26,6 +27,7 @@ function enforceRtl() {
 
 async function bootstrap() {
   enforceRtl();
+  initTheme();
 
   // Make VERO installable as a standalone app (real icon) on any delivery,
   // without a separate manifest file. Progressive enhancement — never blocks.

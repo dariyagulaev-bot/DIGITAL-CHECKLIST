@@ -1,5 +1,13 @@
 /** @type {import('tailwindcss').Config} */
+// Neutral families (slate, ink) are variable-backed so a single token flip in
+// index.css recolors the whole app for Dark Mode. Accent/status families stay
+// literal and get per-utility dark overrides in index.css.
+const vshades = (name, shades) =>
+  Object.fromEntries(shades.map((s) => [s, `rgb(var(--c-${name}-${s}) / <alpha-value>)`]));
+const NEUTRAL = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
+
 export default {
+  darkMode: ['selector', '[data-theme="dark"]'],
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
@@ -23,20 +31,9 @@ export default {
           900: '#0e1f3a',
           950: '#081426',
         },
-        // Neutral-dark (headings / text) — a cool near-navy.
-        ink: {
-          50: '#f4f6f9',
-          100: '#e7ebf1',
-          200: '#cfd6e2',
-          300: '#aeb8ca',
-          400: '#7f8ba3',
-          500: '#5a6579',
-          600: '#414b5c',
-          700: '#2d3644',
-          800: '#1c2430',
-          900: '#0f1726',
-          950: '#080d17',
-        },
+        // Neutral families — variable-backed so Dark Mode flips them centrally.
+        ink: vshades('ink', NEUTRAL),
+        slate: vshades('slate', NEUTRAL),
         // Official action blue (buttons, links).
         brand: {
           50: '#eff5ff',

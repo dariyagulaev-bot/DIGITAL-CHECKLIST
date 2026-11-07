@@ -126,26 +126,28 @@
   }
   .btn-secondary,
   .btn-outline {
-    @apply btn bg-white text-ink-700;
+    @apply btn text-ink-700;
+    background: var(--surface);
     border-color: var(--border-strong);
   }
   .btn-secondary:hover:not(:disabled),
   .btn-outline:hover:not(:disabled) {
-    background: #f7f9fc;
-    border-color: #c2cad6;
+    background: var(--surface-2);
+    border-color: var(--border-strong);
   }
   .btn-ghost {
     @apply btn bg-transparent text-ink-600;
   }
   .btn-ghost:hover:not(:disabled) {
-    background: #eef1f6;
+    background: var(--surface-2);
   }
   .btn-danger {
-    @apply btn bg-white text-fault-600;
+    @apply btn text-fault-600;
+    background: var(--surface);
     border-color: #f0c9c9;
   }
   .btn-danger:hover:not(:disabled) {
-    background: #fef4f4;
+    background: var(--fail-bg);
     border-color: #e3aeae;
   }
   .btn-danger-solid {
@@ -165,8 +167,9 @@
 
   /* ---- Inputs ------------------------------------------------------------ */
   .input {
-    @apply w-full rounded-md bg-white px-3 text-[14px] text-ink-800 placeholder:text-slate-400
+    @apply w-full rounded-md px-3 text-[14px] text-ink-800 placeholder:text-slate-400
            transition-colors duration-150;
+    background: var(--surface);
     border: 1px solid var(--border-strong);
     min-height: 42px;
     padding-block: 0.5rem;
@@ -177,7 +180,7 @@
     box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.14);
   }
   .input:disabled {
-    background: #f5f7fa;
+    background: var(--surface-2);
     color: var(--text-soft);
   }
   .label {
@@ -671,3 +674,98 @@
     color: #b0bccd;
   }
 }
+
+/* ============================================================================
+   THEME SYSTEM — central Design Tokens. Light values below; Dark Mode flips
+   them under [data-theme="dark"]. Neutral palettes (slate/ink) are consumed by
+   Tailwind via rgb(var(--c-*) / <alpha>), so one flip recolors the whole app.
+   The printed document (.print-page) is a forced-light island (PDF ≠ UI theme).
+   ============================================================================ */
+@layer base {
+  :root {
+    /* slate (Tailwind default) */
+    --c-slate-50: 248 250 252; --c-slate-100: 241 245 249; --c-slate-200: 226 232 240;
+    --c-slate-300: 203 213 225; --c-slate-400: 148 163 184; --c-slate-500: 100 116 139;
+    --c-slate-600: 71 85 105; --c-slate-700: 51 65 85; --c-slate-800: 30 41 59;
+    --c-slate-900: 15 23 42; --c-slate-950: 2 6 23;
+    /* ink (brand neutral) */
+    --c-ink-50: 244 246 249; --c-ink-100: 231 235 241; --c-ink-200: 207 214 226;
+    --c-ink-300: 174 184 202; --c-ink-400: 127 139 163; --c-ink-500: 90 101 121;
+    --c-ink-600: 65 75 92; --c-ink-700: 45 54 68; --c-ink-800: 28 36 48;
+    --c-ink-900: 15 23 38; --c-ink-950: 8 13 23;
+  }
+
+  :root[data-theme='dark'] {
+    color-scheme: dark;
+    /* inverted neutral ramps: light-bg utilities become dark surfaces, dark-text
+       utilities become light text — automatically, everywhere. */
+    --c-slate-50: 30 41 59; --c-slate-100: 37 49 69; --c-slate-200: 49 63 86;
+    --c-slate-300: 71 85 105; --c-slate-400: 130 145 166; --c-slate-500: 156 170 190;
+    --c-slate-600: 186 197 213; --c-slate-700: 206 215 228; --c-slate-800: 223 229 239;
+    --c-slate-900: 235 240 246; --c-slate-950: 245 248 251;
+    --c-ink-50: 28 36 50; --c-ink-100: 38 47 63; --c-ink-200: 52 62 80;
+    --c-ink-300: 90 101 121; --c-ink-400: 140 152 172; --c-ink-500: 166 178 196;
+    --c-ink-600: 192 202 217; --c-ink-700: 212 220 232; --c-ink-800: 226 232 241;
+    --c-ink-900: 236 241 247; --c-ink-950: 245 248 252;
+    /* semantic surfaces */
+    --bg: #0c1322; --surface: #121d33; --surface-2: #0e1a30;
+    --border: #223049; --border-strong: #2c3b55;
+    --text: #e4eaf4; --text-soft: #9aa6b9; --text-faint: #7a8699;
+    /* status tokens */
+    --ok-bg: rgba(22,163,74,.16); --ok-border: rgba(22,163,74,.38); --ok-text: #4ade80;
+    --fail-bg: rgba(220,38,38,.16); --fail-border: rgba(220,38,38,.38); --fail-text: #f87171;
+    --warn-bg: rgba(217,119,6,.16); --warn-text: #fbbf24;
+    /* measurement table tokens */
+    --mt-head-bg: #0b1830; --mt-head-text: #e6edf7; --mt-surface: #111d33;
+    --mt-calc-bg: #0e1a30; --mt-border: #273650; --mt-text: #e4eaf4; --mt-text-soft: #9aa6b9;
+    --mt-pass-bg: rgba(22,163,74,.18); --mt-pass-text: #4ade80;
+    --mt-fail-bg: rgba(220,38,38,.18); --mt-fail-text: #f87171; --mt-fail-row: rgba(220,38,38,.12);
+  }
+}
+
+/* ---- Dark overrides for literal (non-token) utilities --------------------- */
+:root[data-theme='dark'] .bg-white { background-color: var(--surface); }
+:root[data-theme='dark'] .bg-white\/60,
+:root[data-theme='dark'] .bg-white\/70,
+:root[data-theme='dark'] .bg-white\/80 { background-color: color-mix(in srgb, var(--surface) 85%, transparent); }
+/* brand accent tints */
+:root[data-theme='dark'] .bg-brand-50,
+:root[data-theme='dark'] .bg-brand-50\/50,
+:root[data-theme='dark'] .bg-brand-50\/60 { background-color: rgba(59,106,232,.14); }
+:root[data-theme='dark'] .text-brand-600 { color: #7ba0ff; }
+:root[data-theme='dark'] .text-brand-700 { color: #8aadff; }
+:root[data-theme='dark'] .text-brand-800 { color: #a6c1ff; }
+:root[data-theme='dark'] .border-brand-200 { border-color: rgba(59,106,232,.35); }
+:root[data-theme='dark'] .border-r-brand-500 { border-color: #3b6ae8; }
+/* status tints */
+:root[data-theme='dark'] .bg-ok-50, :root[data-theme='dark'] .bg-ok-100 { background-color: rgba(22,163,74,.16); }
+:root[data-theme='dark'] .text-ok-600, :root[data-theme='dark'] .text-ok-700 { color: #4ade80; }
+:root[data-theme='dark'] .border-ok-200, :root[data-theme='dark'] .border-ok-300 { border-color: rgba(22,163,74,.4); }
+:root[data-theme='dark'] .bg-fault-50, :root[data-theme='dark'] .bg-fault-100 { background-color: rgba(220,38,38,.16); }
+:root[data-theme='dark'] .text-fault-600, :root[data-theme='dark'] .text-fault-700 { color: #f87171; }
+:root[data-theme='dark'] .border-fault-200, :root[data-theme='dark'] .border-fault-300 { border-color: rgba(220,38,38,.4); }
+:root[data-theme='dark'] .bg-pending-50, :root[data-theme='dark'] .bg-pending-50\/70, :root[data-theme='dark'] .bg-pending-100 { background-color: rgba(217,119,6,.16); }
+:root[data-theme='dark'] .text-pending-600, :root[data-theme='dark'] .text-pending-700, :root[data-theme='dark'] .text-pending-800 { color: #fbbf24; }
+:root[data-theme='dark'] .border-pending-200, :root[data-theme='dark'] .border-pending-300 { border-color: rgba(217,119,6,.4); }
+/* dark scrollbars */
+:root[data-theme='dark'] * { scrollbar-color: #33425e var(--surface-2); }
+
+/* ---- Forced-light island: the printed/exported document ------------------- */
+.print-page {
+  color-scheme: light;
+  --bg: #f4f6f9; --surface: #ffffff; --surface-2: #f7f9fc;
+  --border: #e2e7ee; --border-strong: #d3dae4;
+  --text: #1c2430; --text-soft: #545e70; --text-faint: #808a9c;
+  --c-slate-50: 248 250 252; --c-slate-100: 241 245 249; --c-slate-200: 226 232 240;
+  --c-slate-300: 203 213 225; --c-slate-400: 148 163 184; --c-slate-500: 100 116 139;
+  --c-slate-600: 71 85 105; --c-slate-700: 51 65 85; --c-slate-800: 30 41 59;
+  --c-slate-900: 15 23 42; --c-slate-950: 2 6 23;
+  --c-ink-50: 244 246 249; --c-ink-100: 231 235 241; --c-ink-200: 207 214 226;
+  --c-ink-300: 174 184 202; --c-ink-400: 127 139 163; --c-ink-500: 90 101 121;
+  --c-ink-600: 65 75 92; --c-ink-700: 45 54 68; --c-ink-800: 28 36 48;
+  --c-ink-900: 15 23 38; --c-ink-950: 8 13 23;
+  --mt-head-bg: #0e1f3a; --mt-head-text: #ffffff; --mt-surface: #ffffff;
+  --mt-calc-bg: #f5f8fc; --mt-border: #d9e0ea; --mt-text: #16202f; --mt-text-soft: #5a6579;
+  --mt-pass-bg: #ecfdf3; --mt-pass-text: #15803d; --mt-fail-bg: #fdecec; --mt-fail-text: #b91c1c; --mt-fail-row: #fff4f4;
+}
+.print-page.bg-white, .print-page .bg-white { background-color: #ffffff; }
