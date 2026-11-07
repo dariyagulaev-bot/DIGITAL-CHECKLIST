@@ -312,6 +312,184 @@
 }
 
 /* ---- Print ---- */
+/* ============================================================================
+   Professional measurement results table (shared: execution + report + PDF).
+   Token-driven so Dark Mode flips the tokens and the admin design editor can
+   override them per-table via inline custom properties. Clean & official.
+   ============================================================================ */
+@layer base {
+  :root {
+    /* status tokens — status colors kept consistent app-wide */
+    --ok-bg: #f0fdf4;
+    --ok-border: #bbf7d0;
+    --ok-text: #15803d;
+    --fail-bg: #fef2f2;
+    --fail-border: #fecaca;
+    --fail-text: #b91c1c;
+    --warn-bg: #fffbeb;
+    --warn-text: #b45309;
+    /* measurement table design tokens (overridable per-table) */
+    --mt-head-bg: #0e1f3a;
+    --mt-head-text: #ffffff;
+    --mt-surface: #ffffff;
+    --mt-calc-bg: #f5f8fc;
+    --mt-border: #d9e0ea;
+    --mt-text: #16202f;
+    --mt-text-soft: #5a6579;
+    --mt-pass-bg: #ecfdf3;
+    --mt-pass-text: #15803d;
+    --mt-fail-bg: #fdecec;
+    --mt-fail-text: #b91c1c;
+    --mt-fail-row: #fff4f4;
+    --mt-font: 14px;
+  }
+}
+
+@layer components {
+  .pro-mtbl {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--mt-surface);
+    border: 1px solid var(--mt-border);
+    border-radius: 10px;
+    overflow: hidden;
+    font-size: var(--mt-font);
+    color: var(--mt-text);
+  }
+  .pro-mtbl thead th {
+    background: var(--mt-head-bg);
+    color: var(--mt-head-text);
+    font-weight: 700;
+    font-size: calc(var(--mt-font) - 1.5px);
+    letter-spacing: 0.01em;
+    padding: 10px 14px;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .pro-mtbl thead th.th-c {
+    text-align: center;
+  }
+  .pro-mtbl td {
+    padding: 11px 14px;
+    border-top: 1px solid var(--mt-border);
+    vertical-align: middle;
+    min-height: 44px;
+  }
+  .pro-mtbl .c-label {
+    font-weight: 600;
+    text-align: right;
+    color: var(--mt-text);
+    width: 34%;
+  }
+  .pro-mtbl .c-val {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-size: calc(var(--mt-font) + 2px);
+    font-weight: 600;
+    color: var(--mt-text);
+    white-space: nowrap;
+  }
+  .pro-mtbl .c-req {
+    text-align: right;
+    color: var(--mt-text-soft);
+    font-size: calc(var(--mt-font) - 1.5px);
+    white-space: nowrap;
+  }
+  .pro-mtbl .c-res {
+    text-align: center;
+    white-space: nowrap;
+    width: 1%;
+  }
+  .pro-mtbl .c-dim {
+    color: var(--mt-text-soft);
+  }
+  /* computed-by-VERO rows read on a faint tint — clear separation from inputs */
+  .pro-mtbl tr.calc td {
+    background: var(--mt-calc-bg);
+  }
+  .pro-mtbl tr.row-fail td {
+    background: var(--mt-fail-row);
+  }
+  .pro-mtbl .grp td {
+    background: var(--mt-calc-bg);
+    padding: 5px 14px;
+    font-size: calc(var(--mt-font) - 2.5px);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--mt-text-soft);
+  }
+  .pro-mtbl input,
+  .pro-mtbl select {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid var(--mt-border);
+    border-radius: 7px;
+    background: var(--mt-surface);
+    padding: 8px 10px;
+    font-size: calc(var(--mt-font) + 1px);
+    font-variant-numeric: tabular-nums;
+    color: var(--mt-text);
+    min-height: 40px;
+  }
+  .pro-mtbl input:focus,
+  .pro-mtbl select:focus {
+    outline: none;
+    border-color: #5e8cf4;
+    box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.14);
+  }
+  .mt-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 700;
+    font-size: calc(var(--mt-font) - 1px);
+    border-radius: 7px;
+    padding: 3px 10px;
+    white-space: nowrap;
+  }
+  .mt-pill.pass {
+    color: var(--mt-pass-text);
+    background: var(--mt-pass-bg);
+  }
+  .mt-pill.fail {
+    color: var(--mt-fail-text);
+    background: var(--mt-fail-bg);
+  }
+  .mt-pill.pend {
+    color: var(--mt-text-soft);
+    background: var(--mt-calc-bg);
+  }
+  /* final verdict row — prominent, official */
+  .pro-mtbl tr.final td {
+    border-top: 2px solid var(--mt-border);
+    background: var(--mt-surface);
+    padding: 13px 14px;
+  }
+  .mt-final {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 800;
+    font-size: calc(var(--mt-font) + 2px);
+    border-radius: 8px;
+    padding: 7px 14px;
+  }
+  .mt-final.pass {
+    color: #fff;
+    background: #15803d;
+  }
+  .mt-final.fail {
+    color: #fff;
+    background: #b91c1c;
+  }
+  .mt-final.pend {
+    color: var(--mt-text-soft);
+    background: var(--mt-calc-bg);
+    font-weight: 700;
+  }
+}
+
 /* Repeating report footer — hidden on screen; shown on every printed page. */
 .print-footer {
   display: none;

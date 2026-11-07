@@ -79,19 +79,18 @@ export function MeasurementTable({
       {config.description && <p className="mb-2 text-[13px] text-ink-500">{config.description}</p>}
 
       {fieldMode ? (
-        /* Simplified field layout: a clean vertical list of labeled inputs. */
-        <div className="space-y-2.5">
-          {config.columns.map((c) => (
-            <FieldRow
-              key={c.id}
-              field={c}
-              value={cells[key(theRowId, c.id)] ?? ''}
-              required={!!(config.required || c.required)}
-              editable={editable}
-              onChange={(v) => setCell(theRowId, c.id, v)}
-            />
-          ))}
-        </div>
+        /* Professional measurement results table — inputs + VERO-computed rows
+           + final verdict, in one clean official table (screen + PDF). */
+        <ProMeasureTable
+          config={config}
+          cells={cells}
+          editable={editable}
+          full={full}
+          timerMode={timerMode}
+          startedAt={startedAt}
+          endedAt={endedAt}
+          onChange={(colId, v) => setCell(theRowId, colId, v)}
+        />
       ) : (
         /* Legacy row × column grid. */
         <div className="overflow-x-auto">
@@ -185,7 +184,7 @@ export function MeasurementTable({
         data stays persisted for the record, Audit, PDF and Excel. The detailed
         breakdown below renders only in the read-only report/documentation view.
       */}
-      {editable && full.status && (
+      {!fieldMode && editable && full.status && (
         <div
           className={`mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border px-3 py-2 text-[13px] font-bold ${
             full.status === 'fail'
@@ -221,7 +220,7 @@ export function MeasurementTable({
       )}
 
       {/* Legacy field-mode duration detail (report / documentation view only) */}
-      {!editable && config.duration && !timerMode && (
+      {!fieldMode && !editable && config.duration && !timerMode && (
         <div
           className={`mt-2 rounded-lg border px-3 py-2 text-[12.5px] ${
             dur?.invalid || dur?.passed === false
@@ -252,7 +251,7 @@ export function MeasurementTable({
       )}
 
       {/* ±X gap results (report / documentation view only) */}
-      {!editable && (config.rules ?? []).length > 0 && (
+      {!fieldMode && !editable && (config.rules ?? []).length > 0 && (
         <div className="mt-2 space-y-1.5">
           {(config.rules ?? []).map((rule) => {
             const res = results.find((x) => x.rule_id === rule.id) as MeasurementResult | undefined;
@@ -294,7 +293,7 @@ export function MeasurementTable({
       )}
 
       {/* Overall measurement result — duration + gap combined (report view only) */}
-      {!editable && full.status && (
+      {!fieldMode && !editable && full.status && (
         <div
           className={`mt-2 rounded-lg border px-3 py-2 text-[13px] font-bold ${
             full.status === 'fail'
@@ -327,6 +326,21 @@ export function MeasurementTable({
   );
 }
 
+/** Format a measured value for the read-only report by its field type. */
+function fmtFieldValue(fieldType: FieldType, raw: string): string {
+  const t = Date.parse(raw);
+  const p = (n: number) => String(n).padStart(2, '0');
+  if (fieldType === 'datetime' && Number.isFinite(t)) {
+    const d = new Date(t);
+    return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  }
+  if (fieldType === 'date' && Number.isFinite(t)) {
+    const d = new Date(t);
+    return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()}`;
+  }
+  return raw;
+}
+
 /** Compact datetime display: "DD.MM HH:MM" (date shown; mainly for the record). */
 function fmtDT(iso: string): string {
   const t = Date.parse(iso);
@@ -336,77 +350,25 @@ function fmtDT(iso: string): string {
   return `${p(d.getDate())}.${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-/**
- * One measurement field in the simplified field layout — a labeled input with
- * the unit shown next to the value (execution), or "label: value unit"
- * (read-only report / PDF). The unit is presentation only; the raw numeric
- * value is what gets stored and fed to the ±X math.
- */
-function FieldRow({
-  field,
-  value,
-  required,
-  editable,
-  onChange,
-}: {
-  field: TableColumn;
-  value: string;
-  required: boolean;
-  editable: boolean;
-  onChange: (v: string) => void;
-}) {
-  const showUnit = !!(field.unit && field.unit.trim()) && NUMERIC_UNIT.includes(field.field_type);
-  if (!editable) {
-    const shown = value.trim();
-    return (
-      <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
-        <span className="text-[13.5px] font-semibold text-ink-700">
-          {field.label}
-          {required && <span className="text-fault-500"> *</span>}
-        </span>
-        <span className="text-[13.5px] text-ink-900">
-          {shown ? (
-            <>
-              <bdi className="nums">{shown}</bdi>
-              {showUnit ? <span className="text-ink-500"> {field.unit}</span> : null}
-            </>
-          ) : (
-            '—'
-          )}
-        </span>
-      </div>
-    );
-  }
-  return (
-    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2.5">
-      <label className="mb-1 block text-[13px] font-semibold text-ink-700">
-        {field.label}
-        {required && <span className="text-fault-500"> *</span>}
-      </label>
-      <div className="flex items-center gap-2">
-        <div className="min-w-0 flex-1">
-          <CellInput type={field.field_type} column={field} value={value} editable onChange={onChange} />
-        </div>
-        {showUnit && <span className="shrink-0 text-[13px] font-medium text-ink-500">{field.unit}</span>}
-      </div>
-    </div>
-  );
-}
-
 function CellInput({
   type,
   column,
   value,
   editable,
   onChange,
+  plain = false,
 }: {
   type: FieldType;
   column: TableColumn;
   value: string;
   editable: boolean;
   onChange: (v: string) => void;
+  /** plain = drop the component's own border/bg so a parent (.pro-mtbl) styles it. */
+  plain?: boolean;
 }) {
-  const base = 'w-full min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[13.5px] text-ink-900 focus:border-brand-400 focus:outline-none';
+  const base = plain
+    ? 'w-full min-w-0 nums'
+    : 'w-full min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[13.5px] text-ink-900 focus:border-brand-400 focus:outline-none';
   if (!editable) {
     const shown = value.trim() || '—';
     return <span className="block px-1 py-1 text-ink-800 nums">{shown}</span>;
@@ -464,6 +426,168 @@ function CellInput({
     default:
       return <input type="text" className={base} value={value} onChange={(e) => onChange(e.target.value)} />;
   }
+}
+
+/** Status pill (✓ תקין / ✕ חריגה / ממתין). */
+function Pill({ status }: { status: 'pass' | 'fail' | 'pend' }) {
+  if (status === 'pass') return <span className="mt-pill pass">✓ תקין</span>;
+  if (status === 'fail') return <span className="mt-pill fail">✕ חריגה</span>;
+  return <span className="mt-pill pend">ממתין</span>;
+}
+
+/**
+ * The professional measurement results table (field-layout). One clean 4-column
+ * table — נתון · ערך שנמדד · דרישה · תוצאה — that lays out the measured inputs,
+ * then the VERO-computed rows (difference / duration) on a tinted band, then a
+ * prominent final verdict. Shared by execution (editable inputs) and the
+ * read-only report/PDF, so both always match.
+ */
+function ProMeasureTable({
+  config,
+  cells,
+  editable,
+  full,
+  timerMode,
+  startedAt,
+  endedAt,
+  onChange,
+}: {
+  config: TableConfig;
+  cells: Record<string, string>;
+  editable: boolean;
+  full: ReturnType<typeof evaluateTableFull>;
+  timerMode: boolean;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  onChange: (colId: string, value: string) => void;
+}) {
+  const theRowId = config.rows[0]?.id ?? '';
+  const results = full.results;
+  const dur = full.duration_result;
+  const colLabel = (id: string) => config.columns.find((c) => c.id === id)?.label ?? '';
+  const unitOf = (fieldId: string) => {
+    const c = config.columns.find((x) => x.id === fieldId);
+    return c && NUMERIC_UNIT.includes(c.field_type) ? (c.unit ?? '').trim() : '';
+  };
+  const signed = (n: number | null | undefined) => (n === null || n === undefined ? '' : n > 0 ? `+${n}` : `${n}`);
+
+  // Measured-input rows (what the performer fills).
+  const inputCols = config.columns;
+
+  // VERO-computed rows.
+  type Calc = { label: string; value: string; req: string; status: 'pass' | 'fail' | 'pend' | 'none'; note?: string; readonly?: boolean };
+  const calc: Calc[] = [];
+  for (const rule of config.rules ?? []) {
+    const res = results.find((r) => r.rule_id === rule.id);
+    const u = unitOf(rule.final.col_id) || unitOf(rule.initial.col_id);
+    const status: Calc['status'] = !res || res.passed === null ? 'pend' : res.passed ? 'pass' : 'fail';
+    calc.push({
+      label: (config.rules ?? []).length > 1 ? `הפרש · ${colLabel(rule.final.col_id)}` : 'הפרש',
+      value: res?.difference === null || res?.difference === undefined ? '—' : `${signed(res.difference)}${u ? ` ${u}` : ''}`,
+      req: `עד ±${rule.allowed_difference}${u ? ` ${u}` : ''}`,
+      status,
+    });
+  }
+  if (config.duration) {
+    if (timerMode) {
+      calc.push({ label: 'שעת התחלה', value: startedAt ? fmtDT(startedAt) : '—', req: '', status: 'none', readonly: true });
+      calc.push({ label: 'שעת סיום', value: endedAt ? fmtDT(endedAt) : '—', req: '', status: 'none', readonly: true });
+    }
+    const min = dur?.min_minutes ?? config.duration.min_minutes ?? null;
+    const status: Calc['status'] = dur?.invalid ? 'fail' : dur?.passed === null || dur?.passed === undefined ? 'pend' : dur.passed ? 'pass' : 'fail';
+    calc.push({
+      label: 'משך הבדיקה',
+      value: dur?.actual_minutes === null || dur?.actual_minutes === undefined ? '—' : formatDuration(dur.actual_minutes),
+      req: min !== null ? `מינימום ${formatDuration(min)}` : '',
+      status,
+      note: dur?.invalid ? 'זמן סיום מוקדם מהתחלה' : undefined,
+    });
+  }
+
+  const finalStatus = full.status; // 'pass' | 'fail' | 'incomplete' | undefined
+  const finalText = finalStatus === 'pass' ? 'עבר בדיקה' : finalStatus === 'fail' ? 'לא עבר בדיקה' : 'טרם הושלמה';
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="pro-mtbl">
+        <thead>
+          <tr>
+            <th>נתון</th>
+            <th>ערך שנמדד</th>
+            <th>דרישה</th>
+            <th className="th-c">תוצאה</th>
+          </tr>
+        </thead>
+        <tbody>
+          {inputCols.map((c) => {
+            const required = !!(config.required || c.required);
+            const raw = (cells[key(theRowId, c.id)] ?? '').trim();
+            const u = unitOf(c.id);
+            return (
+              <tr key={c.id}>
+                <td className="c-label">
+                  {c.label}
+                  {required && <span className="text-fault-500"> *</span>}
+                </td>
+                <td className="c-val">
+                  {editable ? (
+                    <CellInput type={c.field_type} column={c} value={cells[key(theRowId, c.id)] ?? ''} editable plain onChange={(v) => onChange(c.id, v)} />
+                  ) : raw ? (
+                    <>
+                      <bdi>{fmtFieldValue(c.field_type, raw)}</bdi>
+                      {u ? <span className="c-dim"> {u}</span> : null}
+                    </>
+                  ) : (
+                    <span className="c-dim">—</span>
+                  )}
+                </td>
+                <td className="c-req c-dim">—</td>
+                <td className="c-res c-dim">—</td>
+              </tr>
+            );
+          })}
+
+          {calc.length > 0 && (
+            <tr className="grp">
+              <td colSpan={4}>מחושב אוטומטית ע״י VERO</td>
+            </tr>
+          )}
+          {calc.map((row, i) => (
+            <tr key={i} className={`calc ${row.status === 'fail' ? 'row-fail' : ''}`}>
+              <td className="c-label">{row.label}</td>
+              <td className="c-val">
+                {row.value === '—' ? <span className="c-dim">—</span> : <bdi>{row.value}</bdi>}
+              </td>
+              <td className="c-req">{row.req || <span className="c-dim">—</span>}</td>
+              <td className="c-res">
+                {row.readonly || row.status === 'none' ? (
+                  <span className="c-dim">—</span>
+                ) : (
+                  <Pill status={row.status} />
+                )}
+              </td>
+            </tr>
+          ))}
+
+          {finalStatus && (
+            <tr className="final">
+              <td className="c-label">תוצאה סופית</td>
+              <td colSpan={3}>
+                <span className={`mt-final ${finalStatus === 'incomplete' ? 'pend' : finalStatus}`}>
+                  {finalStatus === 'pass' ? '✓' : finalStatus === 'fail' ? '✕' : '⏳'} {finalText}
+                </span>
+                {finalStatus === 'fail' && full.fail_reasons.length > 0 && (
+                  <span className="mr-3 text-[12.5px] font-semibold text-fault-700">
+                    — {full.fail_reasons.join(' · ')}
+                  </span>
+                )}
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 export { cellKey };
