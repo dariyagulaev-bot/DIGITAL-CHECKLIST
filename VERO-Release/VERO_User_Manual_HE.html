@@ -1,0 +1,1159 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>VERO – ספר מערכת ומדריך למשתמש</title>
+<style>
+/* ============================ VERO User Manual ============================ */
+:root{
+  --navy:#0e1f3a; --navy2:#132646; --navy3:#233f6c;
+  --brand:#1d4ed8; --brand2:#3b6ae8; --brand-50:#eff5ff; --brand-100:#dbe7fe; --brand-200:#bed2fc;
+  --ok:#15803d; --ok-50:#f0fdf4; --ok-100:#dcfce7; --ok-200:#bbf7d0;
+  --fault:#b91c1c; --fault-50:#fef2f2; --fault-100:#fee2e2; --fault-200:#fecaca;
+  --pending:#b45309; --pending-50:#fffbeb; --pending-100:#fef3c7; --pending-200:#fde68a;
+  --ink:#1f2733; --ink-600:#515c6b; --ink-500:#6b7686; --ink-300:#aab2bf;
+  --line:#e2e6ec; --line2:#eef1f5; --bg-soft:#f6f8fb;
+}
+
+/* ---- Page size (margins/header/footer are applied at render time) ---- */
+@page{ size:A4; }
+/* Invisible ASCII page-markers (extracted from the PDF to build the TOC). */
+.m{ color:#fff; font-size:7px; line-height:0; letter-spacing:0; }
+.pg{ font-variant-numeric:tabular-nums; font-weight:700; color:var(--brand); }
+
+html{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+*{ box-sizing:border-box; }
+body{
+  font-family:"Rubik","Heebo","Assistant","DejaVu Sans","FreeSans",Arial,sans-serif;
+  color:var(--ink); line-height:1.6; font-size:10.3pt; margin:0; background:#fff;
+}
+h1,h2,h3,h4{ color:var(--navy); line-height:1.25; }
+p{ margin:.45em 0 .7em; text-align:justify; }
+ul,ol{ margin:.3em 0 .8em; padding-inline-start:1.3em; }
+li{ margin:.22em 0; }
+b,strong{ color:var(--navy2); }
+code,.kbd{ font-family:"DejaVu Sans Mono",monospace; background:#f1f4f8; border:1px solid var(--line); border-radius:4px; padding:.02em .35em; font-size:.9em; }
+a{ color:var(--brand); text-decoration:none; }
+
+/* ---------- Cover ---------- */
+.cover{
+  position:relative; height:297mm; width:210mm; overflow:hidden;
+  background:radial-gradient(120% 120% at 85% 12%, #1c3a6b 0%, #132646 44%, #0b1a33 100%);
+  color:#fff;
+}
+.cover .grid-tex{ position:absolute; inset:0; opacity:.07;
+  background-image:linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px);
+  background-size:46px 46px; }
+.cover .vbig{ position:absolute; left:-70px; top:40px; width:420px; height:360px; opacity:.09; }
+.cover .vbig2{ position:absolute; right:-50px; bottom:-40px; width:320px; height:280px; opacity:.06; }
+.cover-inner{ position:absolute; inset:0; padding:40mm 26mm; display:flex; flex-direction:column; }
+.cover .logo{ display:flex; align-items:center; gap:14px; }
+.cover .logo .mark{ display:flex; align-items:center; justify-content:center; width:62px; height:62px; border-radius:12px; background:#fff; }
+.cover .wordmark{ font-size:42pt; font-weight:800; letter-spacing:2px; }
+.cover .tag{ margin-top:6px; font-size:12.5pt; color:#9fb6da; font-weight:600; letter-spacing:.06em; }
+.cover h1.title{ color:#fff; font-size:34pt; font-weight:800; line-height:1.14; margin-top:auto; }
+.cover .subtitle{ font-size:15pt; color:#cdd9ee; margin-top:10px; max-width:150mm; }
+.cover .chips{ display:flex; gap:10px; margin-top:26px; }
+.cover .chip{ border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.07); border-radius:999px; padding:7px 16px; font-size:11pt; font-weight:600; }
+.cover .meta{ margin-top:34px; border-top:1px solid rgba(255,255,255,.14); padding-top:14px; font-size:10pt; color:#aebfdb; display:flex; flex-wrap:wrap; gap:4px 26px; }
+.cover .classif{ position:absolute; top:16mm; left:50%; transform:translateX(-50%); border:1.5px solid rgba(255,255,255,.5); color:#fff; font-weight:700; letter-spacing:.3em; font-size:11pt; padding:4px 20px; border-radius:6px; }
+
+/* ---------- Section / chapter openers ---------- */
+.chapter{ break-before:page; }
+.chap-head{ display:flex; align-items:flex-end; gap:16px; border-bottom:3px solid var(--navy); padding-bottom:10px; margin:0 0 14px; }
+.chap-num{ font-size:40pt; font-weight:800; color:var(--brand-200); line-height:.8; }
+.chap-head h1{ font-size:21pt; margin:0; }
+.chap-head .sub{ display:block; font-size:10.5pt; color:var(--ink-500); font-weight:500; margin-top:3px; }
+
+h2.sec{ font-size:14.5pt; margin:1.1em 0 .35em; padding-inline-start:11px; border-inline-start:4px solid var(--brand); }
+h3.sub{ font-size:12pt; margin:.9em 0 .25em; color:var(--navy2); }
+h4{ font-size:10.6pt; margin:.7em 0 .2em; color:var(--navy3); }
+
+/* ---------- TOC ---------- */
+.toc{ break-after:page; }
+.toc h1{ font-size:22pt; border-bottom:3px solid var(--navy); padding-bottom:8px; margin-bottom:14px; }
+.toc ol{ list-style:none; padding:0; margin:0; counter-reset:toc; }
+.toc > ol > li{ margin:.28em 0; }
+.toc a{ display:flex; align-items:baseline; gap:8px; color:var(--ink); }
+.toc .t-main > a{ font-weight:700; color:var(--navy); font-size:11.4pt; }
+.toc .t-sub{ padding-inline-start:16px; }
+.toc .t-sub > a{ font-size:10pt; color:var(--ink-600); }
+.toc .lead{ flex:1; border-bottom:1px dotted #c4ccd6; transform:translateY(-3px); margin:0 4px; }
+
+/* ---------- Content blocks ---------- */
+figure{ margin:.8em 0 1em; break-inside:avoid; }
+figure img{ width:100%; border:1px solid var(--line); border-radius:8px; box-shadow:0 1px 4px rgba(16,31,58,.08); }
+figure.narrow img{ width:74%; display:block; margin:0 auto; }
+figcaption{ margin-top:6px; font-size:8.8pt; color:var(--ink-500); text-align:center; }
+figcaption b{ color:var(--brand); }
+
+.note,.tip,.warn,.sec-box{ break-inside:avoid; border-radius:9px; padding:10px 14px 10px 14px; margin:.7em 0; font-size:9.8pt; border:1px solid; }
+.note{ background:var(--brand-50); border-color:var(--brand-200); }
+.tip{ background:var(--ok-50); border-color:var(--ok-200); }
+.warn{ background:var(--fault-50); border-color:var(--fault-200); }
+.sec-box{ background:var(--pending-50); border-color:var(--pending-200); }
+.note .lbl,.tip .lbl,.warn .lbl,.sec-box .lbl{ display:block; font-weight:800; margin-bottom:2px; font-size:9.6pt; }
+.note .lbl{ color:var(--brand); } .tip .lbl{ color:var(--ok); } .warn .lbl{ color:var(--fault); } .sec-box .lbl{ color:var(--pending); }
+
+table.data{ width:100%; border-collapse:collapse; margin:.6em 0 1em; font-size:9.3pt; break-inside:auto; }
+table.data th,table.data td{ border:1px solid var(--line); padding:6px 9px; text-align:start; vertical-align:top; }
+table.data thead th{ background:var(--navy); color:#fff; font-weight:600; }
+table.data tbody tr:nth-child(even){ background:var(--bg-soft); }
+table.data td .ok{ color:var(--ok); font-weight:700; }
+table.data td .no{ color:var(--fault); font-weight:700; }
+tr{ break-inside:avoid; }
+
+ol.steps{ counter-reset:st; list-style:none; padding:0; margin:.4em 0 1em; }
+ol.steps > li{ position:relative; padding:3px 40px 8px 4px; margin:0; break-inside:avoid; }
+ol.steps > li::before{ counter-increment:st; content:counter(st); position:absolute; right:4px; top:3px;
+  width:25px; height:25px; border-radius:50%; background:var(--brand); color:#fff; font-weight:800; font-size:10pt;
+  display:inline-flex; align-items:center; justify-content:center; }
+ol.steps > li .st-t{ font-weight:700; color:var(--navy2); }
+
+.pill{ display:inline-block; border-radius:999px; padding:1px 9px; font-size:8.6pt; font-weight:700; vertical-align:middle; }
+.pill.ok{ background:var(--ok-100); color:var(--ok); } .pill.no{ background:var(--fault-100); color:var(--fault); }
+.pill.pend{ background:var(--pending-100); color:var(--pending); } .pill.brand{ background:var(--brand-100); color:var(--brand); }
+.pill.gray{ background:#eef1f5; color:var(--ink-600); }
+
+.roles{ display:flex; flex-wrap:wrap; gap:10px; margin:.6em 0 1em; }
+.role-card{ flex:1 1 30%; min-width:150px; border:1px solid var(--line); border-radius:10px; padding:10px 12px; break-inside:avoid; }
+.role-card h4{ margin:0 0 3px; color:var(--brand); }
+.role-card p{ margin:0; font-size:9.2pt; color:var(--ink-600); text-align:start; }
+
+.kv{ display:grid; grid-template-columns:auto 1fr; gap:3px 14px; font-size:9.6pt; margin:.4em 0 1em; }
+.kv dt{ font-weight:700; color:var(--navy3); } .kv dd{ margin:0; color:var(--ink-600); }
+
+.qbox{ break-inside:avoid; }
+.q{ font-weight:700; color:var(--navy2); margin:.7em 0 .1em; }
+.a{ margin:0 0 .5em; color:var(--ink-600); }
+
+.icon-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:4px 20px; font-size:9.3pt; margin:.4em 0; }
+.icon-grid .ig{ display:flex; align-items:center; gap:8px; padding:3px 0; border-bottom:1px solid var(--line2); }
+.icon-grid svg{ flex:none; }
+
+.flow{ display:flex; align-items:stretch; gap:0; margin:.6em 0 1em; flex-wrap:wrap; break-inside:avoid; }
+.flow .node{ flex:1; min-width:84px; text-align:center; border:1.5px solid var(--brand-200); background:var(--brand-50); border-radius:8px; padding:8px 6px; font-size:8.8pt; font-weight:700; color:var(--navy2); }
+.flow .arrow{ display:flex; align-items:center; color:var(--brand); font-size:15pt; padding:0 4px; }
+.flow .node.ok{ border-color:var(--ok-200); background:var(--ok-50); }
+.flow .node.no{ border-color:var(--fault-200); background:var(--fault-50); }
+
+hr.soft{ border:none; border-top:1px solid var(--line); margin:1.1em 0; }
+.small{ font-size:8.8pt; color:var(--ink-500); }
+.lead-p{ font-size:11pt; color:var(--ink-600); }
+.avoid{ break-inside:avoid; }
+</style>
+</head>
+<body>
+
+<!-- ========================= COVER ========================= -->
+<section class="cover">
+  <div class="grid-tex"></div>
+  <svg class="vbig" viewBox="0 0 48 40"><path d="M14 8 L24 31" stroke="#fff" stroke-width="7" stroke-linecap="round"/><path d="M24 31 L38 6" stroke="#4f9bff" stroke-width="7" stroke-linecap="round"/></svg>
+  <svg class="vbig2" viewBox="0 0 48 40"><path d="M14 8 L24 31" stroke="#fff" stroke-width="7" stroke-linecap="round"/><path d="M24 31 L38 6" stroke="#4f9bff" stroke-width="7" stroke-linecap="round"/></svg>
+  <div class="classif">בלמ״ס</div>
+  <div class="cover-inner">
+    <div class="logo">
+      <span class="mark">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#132646" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="8" y="4" width="8" height="4" rx="1.4"/><path d="M16 6h2a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2"/><path d="m9.5 13.5 1.8 1.8 3.6-3.8"/>
+        </svg>
+      </span>
+      <div>
+        <div class="wordmark">VERO</div>
+      </div>
+    </div>
+    <div class="tag">מערכת בקרה דיגיטלית · בד״ח דיגיטלי</div>
+
+    <h1 class="title">ספר מערכת<br/>ומדריך למשתמש</h1>
+    <div class="subtitle">מדריך הפעלה מקיף למבצע, למאשר ולמנהל — מהבדיקה ועד האישור, במערכת עצמאית שעובדת ללא אינטרנט.</div>
+    <div class="chips">
+      <span class="chip">בדיקה</span><span class="chip">בקרה</span><span class="chip">עקיבות</span><span class="chip">עבודה ללא רשת</span>
+    </div>
+    <div class="meta">
+      <span><b style="color:#dfe8f6">גרסת תוכנה:</b> v1.0.0</span>
+      <span><b style="color:#dfe8f6">גרסת מדריך:</b> 1.0</span>
+      <span><b style="color:#dfe8f6">עודכן:</b> נובמבר 2026</span>
+      <span><b style="color:#dfe8f6">סיווג:</b> בלמ״ס</span>
+    </div>
+  </div>
+</section>
+
+<!-- ========================= TOC ========================= -->
+<nav class="toc">
+  <h1>תוכן העניינים</h1>
+  <ol>
+    <li class="t-main"><a href="#ch1"><span>1 · מבוא למערכת</span><span class="lead"></span><span class="pg" data-k="ch1">2</span></a></li>
+    <li class="t-main"><a href="#ch2"><span>2 · התקנה והתחברות</span><span class="lead"></span><span class="pg" data-k="ch2">5</span></a></li>
+    <li class="t-main"><a href="#ch3"><span>3 · היכרות עם הממשק</span><span class="lead"></span><span class="pg" data-k="ch3">8</span></a></li>
+    <li class="t-main"><a href="#ch4"><span>4 · מדריך מלא למבצע</span><span class="lead"></span><span class="pg" data-k="ch4">11</span></a></li>
+    <li class="t-main"><a href="#ch5"><span>5 · מדריך מלא למאשר</span><span class="lead"></span><span class="pg" data-k="ch5">18</span></a></li>
+    <li class="t-main"><a href="#ch6"><span>6 · מדריך מלא למנהל</span><span class="lead"></span><span class="pg" data-k="ch6">23</span></a></li>
+    <li class="t-main"><a href="#ch7"><span>7 · בדיקות מדידה</span><span class="lead"></span><span class="pg" data-k="ch7">36</span></a></li>
+    <li class="t-main"><a href="#ch8"><span>8 · הרשאות והסמכות</span><span class="lead"></span><span class="pg" data-k="ch8">38</span></a></li>
+    <li class="t-main"><a href="#ch9"><span>9 · עבודה ללא אינטרנט וסנכרון</span><span class="lead"></span><span class="pg" data-k="ch9">40</span></a></li>
+    <li class="t-main"><a href="#ch10"><span>10 · דוחות, הדפסה וייצוא</span><span class="lead"></span><span class="pg" data-k="ch10">42</span></a></li>
+    <li class="t-main"><a href="#ch11"><span>11 · תרחישי עבודה מעשיים</span><span class="lead"></span><span class="pg" data-k="ch11">45</span></a></li>
+    <li class="t-main"><a href="#ch12"><span>12 · פתרון תקלות</span><span class="lead"></span><span class="pg" data-k="ch12">47</span></a></li>
+    <li class="t-main"><a href="#ch13"><span>13 · שאלות ותשובות</span><span class="lead"></span><span class="pg" data-k="ch13">48</span></a></li>
+    <li class="t-main"><a href="#ch14"><span>14 · נספחים</span><span class="lead"></span><span class="pg" data-k="ch14">49</span></a></li>
+  </ol>
+  <p class="small" style="margin-top:18px">מסמך זה מתאר את היכולות הקיימות בפועל במערכת VERO. יכולות שתוכננו לשלב הבא (כגון סנכרון רשת אוטומטי) מצוינות במפורש ככאלה ואינן מוצגות כפעילות.</p>
+</nav>
+
+<!-- ===================== CHAPTER 1 ===================== -->
+<section class="chapter" id="ch1"><i class="m">@@ch1@@</i>
+  <div class="chap-head"><span class="chap-num">1</span><h1 class="chaptitle">מבוא למערכת<span class="sub">מה היא VERO, איך היא בנויה, ומהם המושגים שחשוב להכיר לפני שמתחילים</span></h1></div>
+
+  <p class="lead-p">פרק זה נותן לך תמונה כוללת של המערכת עוד לפני שנגענו בכפתור אחד: מה המערכת עושה, מי המשתמשים בה, איך מאורגנים המידע והבדיקות, ומהו מסלול העבודה המלא של בד״ח — מרגע פתיחתו ועד אישורו הסופי. מומלץ לקרוא אותו גם למי שלא יעבוד עם כל חלקי המערכת.</p>
+
+  <h2 class="sec" id="ch1-2">1.2 מהי VERO ומה מטרתה</h2>
+  <p><b>VERO</b> היא מערכת דיגיטלית לניהול בדיקות ובקרה (בד״חים), שנועדה להחליף את טופסי הנייר. במקום למלא טופס ידני, לצלם אותו ולתייק אותו בקלסר, המבצע ממלא את הבדיקה על מסך מגע, חותם דיגיטלית, והבד״ח עובר באופן מסודר ומתועד לאישור. כל שלב נשמר עם שם המבצע, התאריך והשעה המדויקת.</p>
+  <p>המטרות המרכזיות של המערכת:</p>
+  <ul>
+    <li><b>תיעוד מלא ואמין</b> — כל פעולה (סימון תקין/לא תקין, חתימה, אישור, החזרה לתיקון) נרשמת ביומן ביקורת שאינו ניתן לשינוי.</li>
+    <li><b>מניעת טעויות</b> — המערכת לא מאפשרת להעביר בד״ח לאישור לפני שכל הסעיפים סומנו ושני המבצעים חתמו, ולא מאפשרת למבצע לאשר את עצמו.</li>
+    <li><b>אחידות</b> — כל הבדיקות נבנות מתוך תבנית (בד״ח) מרכזית שמנהל המערכת מגדיר, כך שכל המבצעים עובדים לפי אותו נוסח מדויק.</li>
+    <li><b>עבודה עצמאית בשטח</b> — המערכת פועלת <b>ללא אינטרנט כלל</b>. כל הנתונים נשמרים במכשיר עצמו (ראה פרק 9).</li>
+    <li><b>עקיבות וניהול ידע</b> — היסטוריה, דוחות, לוח בקרה, הסמכות ותקלות במעקב — הכול במקום אחד.</li>
+  </ul>
+
+  <h2 class="sec">1.3 מבנה המערכת</h2>
+  <p>VERO היא יישום אחד שרץ על המכשיר (טאבלט או מחשב) ואינו תלוי בשרת חיצוני. הוא בנוי משלושה חלקים עיקריים שהמשתמש פוגש:</p>
+  <div class="roles">
+    <div class="role-card"><h4>שכבת הביצוע</h4><p>המסכים שבהם המבצע ממלא בד״ח, המאשר חותם, והמנהל מנהל את המערכת.</p></div>
+    <div class="role-card"><h4>מסד נתונים מקומי</h4><p>כל הבד״חים, החתימות, התמונות, המשתמשים וההגדרות נשמרים בתוך המכשיר (IndexedDB), ושורדים כיבוי והדלקה.</p></div>
+    <div class="role-card"><h4>העברת נתונים</h4><p>ייצוא/ייבוא בקובץ (USB/רשת מקומית) להעברת בד״חים לתחנה מרכזית והפצת הגדרות למכשירים.</p></div>
+  </div>
+
+  <h2 class="sec" id="ch1-4">1.4 מהו בד״ח</h2>
+  <p><b>בד״ח</b> (בדיקה) הוא טופס הבדיקה המרכזי במערכת. כל בד״ח מורכב משורה של <b>סעיפי בדיקה</b> ומרכיבי תוכן נוספים (כותרות, הוראות, תמונות ייחוס, רשימות ציוד וטבלאות מדידה) בסדר שמנהל המערכת קבע. עבור כל סעיף המבצע מסמן <span class="pill ok">תקין</span> או <span class="pill no">לא תקין</span>, ובמקרה של אי-תקינות מוסיף פירוט ותמונה.</p>
+  <p>מאפיין מרכזי של הבד״ח הוא ה־<b>Snapshot (תצלום קפוא)</b>: ברגע שנפתח בד״ח, נשמרת בו <em>הגרסה המדויקת של התבנית</em> כפי שהייתה באותו רגע. אם מנהל המערכת ישנה את התבנית מחר, הבד״ח שכבר נפתח לא ישתנה — כך מובטח שתיעוד הבדיקה נאמן למה שבוצע בפועל.</p>
+
+  <h2 class="sec" id="ch1-5">1.5 סוגי המשתמשים (הרשאות)</h2>
+  <p>במערכת שלוש הרשאות. למשתמש יכולה להיות יותר מהרשאה אחת (למשל מנהל שהוא גם מבצע).</p>
+  <table class="data">
+    <thead><tr><th style="width:22%">הרשאה</th><th>מה מותר לה</th></tr></thead>
+    <tbody>
+      <tr><td><b>מבצע</b><br><span class="small">Performer</span></td><td>פותח בד״חים חדשים, ממלא סעיפי בדיקה, מבצע מדידות, חותם, ומעביר לאישור. מתקן בד״ח שהוחזר. רשאי לבצע בדיקה רק במערכת ובדרג שבהם הוא <b>מוסמך</b>.</td></tr>
+      <tr><td><b>מאשר</b><br><span class="small">Approver</span></td><td>בודק בד״חים שהוגשו, מאשר וחותם, או מחזיר לתיקון עם הערה. מגדיר תקלות במעקב, ויכול להעביר סעיפים לטיפול דרג גבוה יותר. <b>אינו יכול לאשר בד״ח שהוא עצמו ביצע.</b></td></tr>
+      <tr><td><b>מנהל</b><br><span class="small">Admin</span></td><td>הרשאת-על. מנהל משתמשים, מערכות, דרגים, תבניות בד״ח, הסמכות, מבחנים, גיבוי, הגדרות ויומן ביקורת. רואה הכול.</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><span class="lbl">חשוב לדעת</span>ההרשאות נאכפות בלב המערכת (בשכבת השירות) ולא רק בהסתרת כפתורים — כך שגם פנייה ישירה לא תעקוף אותן.</div>
+
+  <h2 class="sec" id="ch1-6">1.6 מערכות, מספרי מערכת, תתי־מערכות ודרגים</h2>
+  <p>המידע במערכת מאורגן בהיררכיה קבועה. חשוב להבין אותה, כי לפיה נבחר הבד״ח הנכון בכל בדיקה:</p>
+  <table class="data">
+    <thead><tr><th style="width:20%">מושג</th><th>משמעות</th><th style="width:26%">דוגמה</th></tr></thead>
+    <tbody>
+      <tr><td><b>סוג מערכת</b></td><td>הרמה העליונה — סוג הציוד/המתקן הנבדק.</td><td>מערכת א׳</td></tr>
+      <tr><td><b>מספר מערכת</b><br><span class="small">(יחידה)</span></td><td>המופע הספציפי שנבדק בתוך סוג המערכת.</td><td>מערכת 1, מערכת 2</td></tr>
+      <tr><td><b>תת־מערכת</b></td><td>רכיב בתוך המערכת שנבדק/נמדד בנפרד (מופיע כקבוצת שדות או כשורה בטבלת מדידה).</td><td>משאבה A, מעגל הזנה</td></tr>
+      <tr><td><b>דרג בדיקה</b></td><td>סוג/עומק הבדיקה. הדרג גם קובע איזה בד״ח ייפתח. הדרגים היררכיים — דרג גבוה כולל את כל שתחתיו.</td><td>דרג א׳ … דרג ד׳</td></tr>
+    </tbody>
+  </table>
+  <p>כאשר מבצע פותח בד״ח חדש, הוא בוחר <b>סוג מערכת ← מספר מערכת ← דרג</b>, והמערכת מציגה את הבד״ח המתאים. אם קיימת רק אפשרות אחת בשלב מסוים, המערכת מדלגת עליו אוטומטית.</p>
+
+  <h2 class="sec" id="ch1-7">1.7 מושגים וקיצורים</h2>
+  <dl class="kv">
+    <dt>בד״ח</dt><dd>טופס בדיקה/בקרה — יחידת העבודה המרכזית.</dd>
+    <dt>מבצע 1 / מבצע 2</dt><dd>כל בדיקה מחייבת שני מבצעים מוסמכים שחותמים שניהם.</dd>
+    <dt>מאשר</dt><dd>הגורם שבודק ומאשר את הבד״ח לאחר הביצוע.</dd>
+    <dt>Snapshot / תצלום קפוא</dt><dd>שמירת גרסת התבנית בתוך הבד״ח ברגע פתיחתו.</dd>
+    <dt>תקלה במעקב</dt><dd>תקלה שהוגדרה ע״י מאשר כפתוחה, ומוצגת בבד״חים הבאים של אותה מערכת עד לסגירתה.</dd>
+    <dt>דרג מטפל</dt><dd>דרג גבוה שאליו מועברים סעיפים לא תקינים לטיפול.</dd>
+    <dt>הסמכה</dt><dd>אישור שלמשתמש מותר לבצע בדיקות במערכת ובדרג מסוימים, בעלת תוקף בזמן.</dd>
+    <dt>בלמ״ס</dt><dd>בלתי מסווג — רמת הסיווג המוצגת על המסמכים.</dd>
+    <dt>PDF / Excel</dt><dd>פורמטי הפקת הדוח להדפסה ולניתוח.</dd>
+  </dl>
+
+  <h2 class="sec" id="ch1-8">1.8 תהליך העבודה הכללי</h2>
+  <p>זהו המסלול המלא של בד״ח. כל פרק בהמשך מרחיב שלב מתוכו:</p>
+  <div class="flow">
+    <span class="node">פתיחת בד״ח<br>ע״י מבצע</span><span class="arrow">←</span>
+    <span class="node">מילוי הסעיפים<br>+ מדידות</span><span class="arrow">←</span>
+    <span class="node">בחירת מבצע 2<br>+ שתי חתימות</span><span class="arrow">←</span>
+    <span class="node">העברה לאישור</span><span class="arrow">←</span>
+    <span class="node ok">אישור מאשר<br>וחתימה</span>
+  </div>
+  <p>אם המאשר מוצא ליקוי, הוא יכול להחזיר את הבד״ח לתיקון (עם הערה) או להעביר סעיפים לדרג מטפל. לאחר תיקון ותיעוד — הבד״ח חוזר לאישור. בד״ח מאושר הופך ל<b>מסמך סופי נעול</b> שניתן להפיק ממנו PDF ו־Excel.</p>
+  <div class="flow">
+    <span class="node no">נמצא ליקוי</span><span class="arrow">←</span>
+    <span class="node pend" style="border-color:var(--pending-200);background:var(--pending-50)">החזרה לתיקון<br>/ העברה לדרג מטפל</span><span class="arrow">←</span>
+    <span class="node">תיעוד הטיפול<br>+ חתימות</span><span class="arrow">←</span>
+    <span class="node">אישור חוזר</span><span class="arrow">←</span>
+    <span class="node ok">מאושר</span>
+  </div>
+</section>
+
+<!-- ===================== CHAPTER 2 ===================== -->
+<section class="chapter" id="ch2"><i class="m">@@ch2@@</i>
+  <div class="chap-head"><span class="chap-num">2</span><h1 class="chaptitle">התקנה והתחברות<span class="sub">דרישות המערכת, הפעלה ראשונה, התחברות, נעילה ויציאה — כולל עבודה ללא אינטרנט</span></h1></div>
+
+  <h2 class="sec">2.1 דרישות מערכת</h2>
+  <p>VERO רצה כיישום Windows עצמאי (חבילת Portable) או בדפדפן, ואינה דורשת התקנת שרת או חיבור לרשת.</p>
+  <table class="data">
+    <thead><tr><th style="width:30%">רכיב</th><th>דרישה</th></tr></thead>
+    <tbody>
+      <tr><td>מערכת הפעלה</td><td>Windows 10 (Build 1903 / 18362) ומעלה, 64-bit.</td></tr>
+      <tr><td>הרשאות</td><td>אינה דורשת הרשאות מנהל (Administrator) להרצה.</td></tr>
+      <tr><td>אינטרנט</td><td>אינו נדרש כלל — לא בהתקנה ולא בהפעלה.</td></tr>
+      <tr><td>מסך</td><td>מומלץ מסך מגע (טאבלט) עם עט; עובד גם עם עכבר ומקלדת.</td></tr>
+      <tr><td>אחסון נתונים</td><td>הנתונים נשמרים מקומית ומופרדים מקבצי התוכנה — אינם נמחקים בעדכון גרסה.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sec">2.2 התקנת התוכנה במחשב ובטאבלט</h2>
+  <ol class="steps">
+    <li><span class="st-t">קבלת החבילה.</span> קבלו מגורם המחשוב את חבילת <code>VERO-Portable</code> (קובץ ZIP) דרך אמצעי מאושר.</li>
+    <li><span class="st-t">חילוץ.</span> לחצו לחיצה ימנית על ה-ZIP ובחרו <b>Extract All</b> (חלץ הכול). תיווצר תיקייה בשם <b>VERO</b>.</li>
+    <li><span class="st-t">הפעלה.</span> היכנסו לתיקייה והפעילו את הקובץ <code>VERO.exe</code>. אין צורך בהתקנה ובהרשאות מנהל.</li>
+    <li><span class="st-t">השארת הקבצים יחד.</span> יש להשאיר את <code>VERO.exe</code> בתוך התיקייה עם שאר הקבצים; אין להעביר אותו לבדו.</li>
+  </ol>
+  <div class="tip"><span class="lbl">טיפ</span>כדי שתהיה גישה נוחה — לחצו ימני על <code>VERO.exe</code> ← "שלח אל" ← "שולחן העבודה (צור קיצור דרך)".</div>
+
+  <h2 class="sec">2.3 הפעלה ראשונית והתחברות</h2>
+  <p>בהפעלה הראשונה המערכת מכינה את מסד הנתונים המקומי ויוצרת משתמש מנהל ראשוני. לאחר מכן יופיע מסך ההתחברות.</p>
+  <figure><img src="manual-shots/01-login.png" alt="מסך התחברות VERO" />
+    <figcaption><b>מסך ההתחברות.</b> משמאל — פאנל המותג; מימין — טופס הכניסה עם שדות שם משתמש וסיסמה.</figcaption></figure>
+  <ol class="steps">
+    <li><span class="st-t">שם משתמש.</span> הקלידו בשדה <b>שם משתמש</b> (אייקון דמות).</li>
+    <li><span class="st-t">סיסמה.</span> הקלידו את הסיסמה. ניתן ללחוץ על אייקון <b>העין</b> כדי להציג/להסתיר אותה.</li>
+    <li><span class="st-t">כניסה.</span> לחצו על הכפתור <b>כניסה</b>. בהצלחה — תועברו למסך הבית.</li>
+  </ol>
+  <div class="note"><span class="lbl">פרטי כניסה ראשוניים</span>בהתקנה חדשה קיים מנהל ראשוני: שם משתמש <code>admin</code>, סיסמה <code>admin123</code>. <b>יש לשנות את הסיסמה מיד לאחר הכניסה הראשונה</b> (ניהול משתמשים ← עריכה ← סיסמה חדשה). אין סיסמאות אישור מובנות במערכת.</div>
+
+  <h2 class="sec">2.4 מסך נעילה ויציאה מהמערכת</h2>
+  <p>בראש כל מסך מוצגים שם המשתמש והרשאותיו, וכפתור <b>יציאה</b>. לחיצה עליו מנתקת את המשתמש ומחזירה למסך ההתחברות — ללא איבוד נתונים (בד״חים וטיוטות נשמרים).</p>
+  <ul>
+    <li><b>ניתוק מנהל אוטומטי:</b> ניתן להגדיר שמנהל ינותק אוטומטית לאחר זמן חוסר-פעילות (ברירת מחדל 10 דקות) — ראה פרק 6, הגדרות.</li>
+    <li><b>החלפת משתמש:</b> לפני שמאשר חותם, עליו להתחבר בחשבונו האישי (יציאה והתחברות מחדש). כך המערכת יודעת בדיוק מי אישר.</li>
+  </ul>
+
+  <h2 class="sec">2.5 שימוש בעט מגע</h2>
+  <p>המערכת תוכננה למסך מגע. כל הכפתורים גדולים ונוחים ללחיצה באצבע או בעט. <b>החתימות</b> (מבצע ומאשר) נעשות בציור ישיר על המסך באמצעות העט — אין צורך להקליד שם; זהות החותם נלקחת מהמשתמש המחובר.</p>
+
+  <h2 class="sec">2.6 עבודה ללא אינטרנט</h2>
+  <p>VERO עובדת תמיד במצב לא-מקוון. אין צורך בחיבור רשת כדי להתחבר, למלא בד״חים, לחתום, לאשר או להפיק דוחות. כל פעולה נשמרת מיידית במכשיר. פרק 9 מרחיב על שמירת הנתונים ועל העברתם בין מכשירים.</p>
+
+  <h2 class="sec">2.7 תקלות התחברות נפוצות</h2>
+  <table class="data">
+    <thead><tr><th style="width:38%">הודעה / מצב</th><th>פתרון</th></tr></thead>
+    <tbody>
+      <tr><td>"שם משתמש או סיסמה שגויים, או שהמשתמש אינו פעיל."</td><td>ודאו הקלדה נכונה (שפת מקלדת). אם המשתמש הושבת — פנו למנהל להפעלתו מחדש.</td></tr>
+      <tr><td>שכחתי סיסמה</td><td>אין שחזור עצמי. מנהל המערכת מאפס סיסמה דרך ניהול משתמשים.</td></tr>
+      <tr><td>המסך לא נטען / לבן</td><td>סגרו והפעילו מחדש את <code>VERO.exe</code>. אם נמשך — פנו לפרק 12 (פתרון תקלות).</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ===================== CHAPTER 3 ===================== -->
+<section class="chapter" id="ch3"><i class="m">@@ch3@@</i>
+  <div class="chap-head"><span class="chap-num">3</span><h1 class="chaptitle">היכרות עם הממשק<span class="sub">מסך הבית, התפריטים, האייקונים, צבעי הסטטוס ודרכי הניווט</span></h1></div>
+
+  <h2 class="sec">3.1 מסך הבית</h2>
+  <p>מסך הבית הוא נקודת המוצא. הוא מציג ברכה אישית, תמונת מצב מהירה, וכרטיסיות פעולה. התוכן משתנה לפי הרשאת המשתמש — מבצע יראה "בד״ח חדש", מאשר יראה גם "ממתינים לאישור" ו"תקלות במעקב", ומנהל יראה גם כלי ניהול.</p>
+  <figure><img src="manual-shots/02-home-performer.png" alt="מסך הבית של מבצע" />
+    <figcaption><b>מסך הבית (מבצע).</b> למעלה — ברכה ומצב סנכרון; באמצע — ארבעה מוני מצב (בד״חים פתוחים, ממתינים לאישור, בוצעו היום, עם תקלות); למטה — כרטיסיות הפעולה.</figcaption></figure>
+
+  <h2 class="sec">3.2 הכותרת העליונה והתפריט</h2>
+  <p>בראש כל מסך מופיעה כותרת כחולה (Navy) קבועה ובה:</p>
+  <ul>
+    <li><b>לוגו VERO</b> (מימין) — לחיצה עליו מחזירה למסך הבית.</li>
+    <li><b>מתג מצב כהה/בהיר</b> — אייקון שמש/ירח להחלפת ערכת הצבעים (ראה 3.7).</li>
+    <li><b>שם המשתמש והרשאותיו</b>.</li>
+    <li><b>כפתור יציאה</b>.</li>
+  </ul>
+  <p>מתחת לכותרת, בכל מסך פנימי, יש <b>סרגל ניווט</b> עם כפתור <b>חזרה</b> ושובל פירורי-לחם (Breadcrumbs) שמראה היכן אתם במערכת.</p>
+
+  <h2 class="sec">3.3 כרטיסיות הפעולה</h2>
+  <p>במסך הבית מוצגות כרטיסיות גדולות לכל פעולה עיקרית. כל כרטיסייה כוללת אייקון, כותרת, תיאור קצר, ולעיתים <b>מונה</b> (למשל מספר הבד״חים הממתינים לאישור). הכרטיסיות הזמינות לפי הרשאה:</p>
+  <table class="data">
+    <thead><tr><th>כרטיסייה</th><th>למי</th><th>פעולה</th></tr></thead>
+    <tbody>
+      <tr><td>בד״ח חדש</td><td>מבצע / מנהל</td><td>פתיחת בדיקה חדשה.</td></tr>
+      <tr><td>הבד״חים שלי</td><td>הכול</td><td>טיוטות, ממתינים ומאושרים שלי.</td></tr>
+      <tr><td>ממתינים לאישור</td><td>מאשר / מנהל</td><td>תור האישור.</td></tr>
+      <tr><td>תקלות במעקב</td><td>מאשר / מנהל</td><td>תקלות פתוחות לפי מערכת.</td></tr>
+      <tr><td>היסטוריית בד״חים</td><td>הכול</td><td>חיפוש, צפייה והפקת דוחות.</td></tr>
+      <tr><td>מבחני הסמכה</td><td>הכול</td><td>מבחנים זמינים / ניהול מבחנים.</td></tr>
+      <tr><td>ההסמכות שלי</td><td>הכול</td><td>מצב הסמכות ורענון.</td></tr>
+      <tr><td>ניהול בד״חים / משתמשים / לוח ניהול</td><td>מנהל</td><td>כלי הניהול.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sec">3.4 צבעי סטטוס</h2>
+  <p>המערכת משתמשת בצבעים עקביים כדי לתקשר מצב במבט אחד:</p>
+  <table class="data">
+    <thead><tr><th>צבע</th><th>משמעות</th><th>היכן</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill ok">ירוק</span></td><td>תקין / מאושר / בתוקף</td><td>סעיף תקין, בד״ח מאושר, הסמכה בתוקף.</td></tr>
+      <tr><td><span class="pill no">אדום</span></td><td>לא תקין / תקלה / פג תוקף</td><td>סעיף לא תקין, בד״ח עם תקלות.</td></tr>
+      <tr><td><span class="pill pend">כתום</span></td><td>ממתין / דורש טיפול</td><td>ממתין לאישור, נדרש רענון, תקלה במעקב.</td></tr>
+      <tr><td><span class="pill brand">כחול</span></td><td>מידע / פעולה</td><td>כפתורים, קישורים, הדגשות.</td></tr>
+      <tr><td><span class="pill gray">אפור</span></td><td>מושבת / ריק / טיוטה</td><td>פריט מושבת, טיוטה שלא פורסמה.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sec">3.5 הודעות והתראות</h2>
+  <ul>
+    <li><b>הודעות רגעיות (Toast):</b> מופיעות לרגע בפינת המסך לאחר פעולה ("החתימה נשמרה", "הבד״ח אושר ונעל").</li>
+    <li><b>כרזות (Banners):</b> פסים קבועים בתוך המסך — למשל "הבד״ח הוחזר לתיקון", או כרזת תקלה במעקב.</li>
+    <li><b>חלון רענון הסמכה:</b> בכניסה, אם נדרש רענון, יופיע חלון התראה חד-פעמי לסשן. סגירתו בלחיצה על <b>הבנתי</b>.</li>
+  </ul>
+
+  <h2 class="sec">3.6 חיפוש וסינון</h2>
+  <p>במסכי רשימה (היסטוריה, הסמכות) יש שורת חיפוש ומסננים — לפי טקסט חופשי, סטטוס, שלב, טווח תאריכים, "עם תקלות בלבד" ועוד. הפירוט בפרקים הרלוונטיים.</p>
+
+  <h2 class="sec">3.7 מצב כהה ובהיר</h2>
+  <p>לחיצה על מתג השמש/ירח בכותרת מחליפה בין ערכת צבעים בהירה לכהה. הבחירה נשמרת למכשיר ונטענת גם בהפעלה הבאה. <b>חשוב:</b> המסמך הרשמי (PDF/הדפסה) נשאר תמיד <b>בהיר</b> גם כשהממשק במצב כהה — כדי שמסמכים מודפסים ייראו תמיד זהים.</p>
+  <figure><img src="manual-shots/09-home-dark.png" alt="מסך הבית במצב כהה" />
+    <figcaption><b>מצב כהה.</b> נוח לעבודה בתנאי תאורה נמוכים; אינו משפיע על מראה הדוחות המופקים.</figcaption></figure>
+</section>
+
+<!-- ===================== CHAPTER 4 ===================== -->
+<section class="chapter" id="ch4"><i class="m">@@ch4@@</i>
+  <div class="chap-head"><span class="chap-num">4</span><h1 class="chaptitle">מדריך מלא למבצע<span class="sub">כל שלב בביצוע בד״ח — מהכניסה למערכת ועד סיום הבדיקה והעברתה לאישור</span></h1></div>
+  <p class="lead-p">זהו הפרק המרכזי למי שמבצע בדיקות בשטח. נעבור יחד, שלב אחר שלב, על כל מסלול העבודה. לכל שלב מצוין היכן לוחצים, מה ממלאים, מה אמור להופיע, ומה לעשות הלאה.</p>
+
+  <h2 class="sec">4.1 כניסה למערכת ובחירת "בד״ח חדש"</h2>
+  <ol class="steps">
+    <li><span class="st-t">התחברות.</span> התחברו עם חשבונכם האישי (פרק 2.3). תגיעו למסך הבית.</li>
+    <li><span class="st-t">פתיחת בדיקה.</span> לחצו על הכרטיסייה <b>בד״ח חדש</b> (אייקון +). תיפתח אשף בחירה.</li>
+  </ol>
+  <div class="note"><span class="lbl">מה אמור להופיע</span>אם אין לכם הרשאת ביצוע, או שלא הוסמכתם לאף מערכת, יוצג "אין בד״חים פעילים" — פנו למנהל להסמכה.</div>
+
+  <h2 class="sec">4.2 בחירת מערכת ודרג (האשף)</h2>
+  <p>האשף מוביל אתכם דרך שובל קצר: <b>סוג מערכת ← מספר מערכת ← דרג בדיקה ← בחירת בד״ח</b>. בכל שלב מוצגים כרטיסים גדולים ללחיצה. אם בשלב מסוים קיימת רק אפשרות אחת — המערכת מדלגת עליו אוטומטית; ואם לדרג שנבחר מתאים בד״ח יחיד, הוא נפתח ישירות.</p>
+  <figure><img src="manual-shots/03-new-wizard.png" alt="אשף בחירת פרטי הבדיקה" />
+    <figcaption><b>אשף הבד״ח החדש.</b> למעלה — שובל ההתקדמות; למטה — כרטיסי הבחירה לשלב הנוכחי. המערכת מציגה רק מערכות ודרגים שאתם מוסמכים אליהם.</figcaption></figure>
+  <ol class="steps">
+    <li><span class="st-t">סוג מערכת.</span> לחצו על סוג המערכת הנבדק.</li>
+    <li><span class="st-t">מספר מערכת.</span> בחרו את המופע הספציפי (אם מוגדרים מספרי מערכת).</li>
+    <li><span class="st-t">דרג בדיקה.</span> בחרו את הדרג. הוא מגדיר גם איזה בד״ח ייפתח.</li>
+    <li><span class="st-t">בחירת בד״ח.</span> אם מתאימים כמה בד״חים — בחרו את המתאים; אחרת הוא ייפתח מעצמו.</li>
+  </ol>
+  <p class="small">ניתן ללחוץ על שלב קודם בשובל ההתקדמות כדי לחזור אליו ולשנות בחירה.</p>
+
+  <h2 class="sec">4.3 מסך ביצוע הבד״ח — מבט כללי</h2>
+  <p>לאחר הפתיחה נכנסים למסך הביצוע. בראשו מוצגים פרטי הבד״ח הקבועים (סוג מערכת · מספר מערכת · תאריך · דרג) ו<b>פס התקדמות</b> שמראה כמה סעיפים סומנו מתוך הכלל. מתחת — פרטי הבד״ח, תוכן הבדיקה, החתימות וכפתור הסיום.</p>
+  <figure><img src="manual-shots/04-runner-empty.png" alt="מסך ביצוע בד״ח ריק" />
+    <figcaption><b>מסך ביצוע הבד״ח.</b> כותרת זהות אוטומטית, פס התקדמות, אזור "ציוד נדרש לבדיקה" (עזר למבצע בלבד), פרטי הבד״ח וטבלת הסעיפים.</figcaption></figure>
+
+  <h2 class="sec">4.4 מילוי פרטי הבדיקה ובחירת מבצע 2</h2>
+  <p>רוב הפרטים נקבעים אוטומטית: <b>מבצע 1</b> הוא המשתמש המחובר, והתאריך הוא תאריך הפתיחה. השדה היחיד שממלאים ידנית בפרטים הוא <b>מבצע 2</b>:</p>
+  <ol class="steps">
+    <li><span class="st-t">בחירת מבצע 2.</span> בשדה "מבצע 2" בחרו מהרשימה את המבצע השני. הרשימה כוללת רק מבצעים פעילים <b>המוסמכים</b>לאותה מערכת ודרג, ואינה כוללת את מבצע 1.</li>
+  </ol>
+  <div class="warn"><span class="lbl">חובה</span>כל בדיקה מחייבת <b>שני מבצעים</b>. לא ניתן להעביר לאישור בלי מבצע 2 ובלי שתי חתימות.</div>
+
+  <h2 class="sec">4.5 שלב הבד״ח (אם מוגדר)</h2>
+  <p>בבד״חים מסוימים מוגדר <b>שלב הבד״ח</b> — בחירה יחידה (למשל "לפני הכנה" / "אחרי הכנה"). בחרו אפשרות אחת לפני הסיום. זהו סיווג של הבד״ח; הבד״ח עצמו ממולא פעם אחת.</p>
+
+  <h2 class="sec">4.6 רשימת הציוד הנדרש</h2>
+  <p>בראש הבד״ח (בזמן ביצוע בלבד) מוצגת <b>רשימת ריכוז של כל הציוד</b> הדרוש לבדיקה. סמנו פריטים כדי לוודא שהצטיידתם בהכול לפני שמתחילים. הרשימה היא עזר למבצע בלבד — היא אינה מופיעה בדוח, ב-PDF או במסך הצפייה.</p>
+
+  <h2 class="sec">4.7 ביצוע סעיפי הבדיקה</h2>
+  <p>גוף הבד״ח הוא טבלת הסעיפים. כל שורה כוללת: <b>שם האזור</b>, <b>פעולה</b> (מה לבדוק), <b>ציוד נדרש</b>, <b>תמונה מתארת</b> (אם הוגדרה), ועמודת <b>תוצאה</b> עם שני כפתורים.</p>
+  <h4>סימון סעיף תקין</h4>
+  <p>לחצו על <span class="pill ok">תקין</span> (✓). השורה תסומן בירוק. לחיצה חוזרת מבטלת את הסימון.</p>
+  <h4>סימון סעיף לא תקין + פירוט</h4>
+  <ol class="steps">
+    <li><span class="st-t">סימון.</span> לחצו על <span class="pill no">לא תקין</span> (✕). השורה תסומן באדום וייפתח חלון פירוט.</li>
+    <li><span class="st-t">כתיבת פירוט.</span> תארו את אי-התקינות בשדה הטקסט ("נמצאה נזילה…"). פירוט ברור חוסך החזרות.</li>
+    <li><span class="st-t">צילום (רשות).</span> ניתן לצרף תמונת תקלה דרך המצלמה/קובץ.</li>
+    <li><span class="st-t">שמירה.</span> החלון נשמר אוטומטית; שורת הסעיף תציג "יש פירוט תקלה".</li>
+  </ol>
+  <div class="note"><span class="lbl">שים לב</span>אם תבטלו סימון "לא תקין" שכבר יש לו פירוט/תמונה — המערכת תבקש אישור, כי הפעולה תמחק את הפירוט.</div>
+
+  <h4>צפייה בתמונת ייחוס</h4>
+  <p>אם לסעיף הוגדרה תמונה מתארת, לחצו על התמונה הקטנה בעמודת "תמונה" כדי להגדילה — היא ממחישה מה בדיוק לבדוק.</p>
+  <figure><img src="manual-shots/05-runner-filled.png" alt="בד״ח עם סעיפים מסומנים" />
+    <figcaption><b>בד״ח במהלך מילוי.</b> סעיפים תקינים בירוק, סעיף לא תקין באדום עם שורת פירוט תקלה. פס ההתקדמות מתעדכן בכל סימון.</figcaption></figure>
+
+  <h2 class="sec">4.8 ביצוע מדידות</h2>
+  <p>חלק מהבד״חים כוללים <b>טבלת מדידה</b> — למשל מדידת ערך התחלתי וסופי, חישוב פער מול סבילות מותרת, או מדידת משך זמן מינימלי. המערכת מחשבת את התוצאה אוטומטית ומציגה <span class="pill ok">עבר</span> / <span class="pill no">לא עבר</span>. פרק 7 מוקדש כולו למדידות.</p>
+
+  <h2 class="sec">4.9 שמירת טיוטה וחזרה לבדיקה קיימת</h2>
+  <p>אין צורך בשמירה ידנית — <b>כל שינוי נשמר אוטומטית</b> (שמירה רציפה), ושורד כיבוי והפעלה מחדש. בד״ח שלא הושלם נשמר כ<b>טיוטה</b>.</p>
+  <ul>
+    <li>במסך הבית יופיע כרטיס <b>"בד״ח שלא הושלם"</b> עם כפתור <b>המשך בד״ח</b>.</li>
+    <li>מתוך <b>הבד״חים שלי</b> ניתן לפתוח כל טיוטה ולהמשיכה.</li>
+    <li>למחיקת טיוטה — כפתור <b>מחק</b> בראש מסך הביצוע (פעולה אינה הפיכה).</li>
+  </ul>
+
+  <h2 class="sec">4.10 חתימת שני המבצעים</h2>
+  <p>בתחתית הבד״ח שני אזורי חתימה — למבצע 1 ולמבצע 2. החתימה נעשית בציור ישיר על המסך.</p>
+  <ol class="steps">
+    <li><span class="st-t">חתימה.</span> חתמו במסגרת החתימה בעזרת העט/האצבע.</li>
+    <li><span class="st-t">שמירה.</span> לחצו <b>שמור חתימה</b>. יוצג "נחתם" עם שם החותם, התאריך והשעה.</li>
+    <li><span class="st-t">חתימה מחדש.</span> ניתן ללחוץ <b>חתום מחדש</b> כדי להחליף חתימה קיימת.</li>
+  </ol>
+  <p class="small">אזור חתימת מבצע 2 נפתח רק לאחר שנבחר מבצע 2.</p>
+
+  <h2 class="sec">4.11 סיום והעברה לאישור</h2>
+  <ol class="steps">
+    <li><span class="st-t">בדיקת שלמות.</span> ודאו שכל הסעיפים סומנו (הפס מראה "כל הסעיפים סומנו").</li>
+    <li><span class="st-t">סיום.</span> לחצו על הכפתור הקבוע בתחתית <b>סיום והעברה לאישור</b>.</li>
+    <li><span class="st-t">בדיקות אוטומטיות.</span> אם חסר משהו (מבצע 2, חתימה, סעיף לא מסומן, שלב לא נבחר) — תוצג רשימת התיקונים הנדרשים והבד״ח לא יועבר.</li>
+    <li><span class="st-t">אישור.</span> בהצלחה תוצג ההודעה "הועבר לגורם מאשר", והבד״ח יעבור לסטטוס <span class="pill pend">ממתין לאישור</span>.</li>
+  </ol>
+
+  <h2 class="sec">4.12 קבלת בד״ח לתיקון ותיעוד הטיפול</h2>
+  <p>אם המאשר החזיר את הבד״ח, הוא יופיע אצלכם עם כרזה אדומה <b>"הבד״ח הוחזר לתיקון"</b> והערת המאשר. מסלול התיקון:</p>
+  <ol class="steps">
+    <li><span class="st-t">קריאת ההערה.</span> קראו מה המאשר ביקש לתקן (מוצג לכל סעיף שהוחזר).</li>
+    <li><span class="st-t">דיווח תיקון.</span> בסעיף שהוחזר לחצו <b>דווח על ביצוע תיקון</b>, תארו את הטיפול שבוצע וצרפו תמונה (רשות).</li>
+    <li><span class="st-t">חתימה מחדש.</span> שני המבצעים חותמים מחדש (ההחזרה מבטלת את החתימות הקודמות).</li>
+    <li><span class="st-t">שליחה חוזרת.</span> לחצו שוב <b>סיום והעברה לאישור</b>. הבד״ח חוזר למאשר.</li>
+  </ol>
+  <div class="tip"><span class="lbl">טיפ</span>ההיסטוריה של התקלה (מתי נפתחה, מה תוקן, מי אימת) נשמרת ומוצגת לאורך כל הדרך — אין צורך לזכור אותה בעל-פה.</div>
+
+  <h2 class="sec">4.13 סיכום — שגיאות נפוצות בביצוע</h2>
+  <table class="data">
+    <thead><tr><th style="width:42%">מה קרה</th><th>מה לעשות</th></tr></thead>
+    <tbody>
+      <tr><td>"הבד״ח אינו שלם" בעת סיום</td><td>עברו על רשימת התיקונים שהוצגה — בדרך כלל סעיף לא מסומן, חסר מבצע 2 או חתימה.</td></tr>
+      <tr><td>לא ניתן לבחור מבצע 2 מסוים</td><td>הוא אינו מוסמך למערכת/דרג, אינו פעיל, או שהוא מבצע 1. פנו למנהל להסמכה.</td></tr>
+      <tr><td>סימנתי לא תקין בטעות</td><td>לחצו שוב על "לא תקין" לביטול; אם יש פירוט — אשרו את המחיקה.</td></tr>
+      <tr><td>סגרתי את התוכנה באמצע</td><td>אין בעיה — הכול נשמר. פתחו מחדש והמשיכו מהטיוטה.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ===================== CHAPTER 5 ===================== -->
+<section class="chapter" id="ch5"><i class="m">@@ch5@@</i>
+  <div class="chap-head"><span class="chap-num">5</span><h1 class="chaptitle">מדריך מלא למאשר<span class="sub">בדיקה, אישור וחתימה, או החזרה לתיקון והעברה לדרג מטפל — כולל הגדרת תקלות במעקב</span></h1></div>
+  <p class="lead-p">המאשר הוא הגורם הבודק את הבד״ח לאחר הביצוע. הוא מאשר וחותם, או מחזיר את הבד״ח לתיקון עם הערה. המערכת מבטיחה שהמאשר אינו יכול לאשר בד״ח שהוא עצמו ביצע.</p>
+
+  <h2 class="sec">5.1 התחברות ותור האישור</h2>
+  <ol class="steps">
+    <li><span class="st-t">התחברות.</span> התחברו עם חשבון בעל הרשאת <b>מאשר</b>. במסך הבית תראו את הכרטיסייה <b>ממתינים לאישור</b> עם מונה הבד״חים הממתינים.</li>
+    <li><span class="st-t">פתיחת התור.</span> לחצו על <b>ממתינים לאישור</b>.</li>
+  </ol>
+  <figure><img src="manual-shots/10-home-approver.png" alt="מסך הבית של מאשר" />
+    <figcaption><b>מסך הבית (מאשר).</b> נוספות הכרטיסיות "ממתינים לאישור" ו"תקלות במעקב" עם מוני הפריטים הפתוחים.</figcaption></figure>
+  <figure><img src="manual-shots/11-pending.png" alt="תור הבד״חים הממתינים לאישור" />
+    <figcaption><b>ממתינים לאישור.</b> רשימת הבד״חים שהוגשו, מהישן לחדש. לחיצה על בד״ח פותחת אותו לבדיקה.</figcaption></figure>
+
+  <h2 class="sec">5.2 בדיקת הבד״ח</h2>
+  <p>בפתיחת בד״ח מוצגים כל הסעיפים, התוצאות (תקין/לא תקין), פירוטי התקלות, התמונות, המדידות ושתי חתימות המבצעים. עברו עליהם לפני ההחלטה.</p>
+  <figure><img src="manual-shots/23-document-view.png" alt="תצוגת הבד״ח לבדיקת המאשר" />
+    <figcaption><b>תצוגת הבד״ח.</b> כותרת הזהות, טבלת הסעיפים, ריכוז "תקין/לא תקין", פירוט אי-התקינות, ואזורי החתימה. זהו גם המסמך שיופק כ-PDF.</figcaption></figure>
+
+  <h2 class="sec">5.3 אישור בד״ח תקין</h2>
+  <ol class="steps">
+    <li><span class="st-t">חתימה.</span> בתחתית הבד״ח, באזור <b>חתימת מאשר הבדיקה</b>, חתמו על המסך.</li>
+    <li><span class="st-t">אישור.</span> לחצו <b>אישור בד״ח</b>. הבד״ח יעבור לסטטוס <span class="pill ok">מאושר</span> ויהפוך למסמך סופי.</li>
+  </ol>
+  <div class="note"><span class="lbl">זהות המאשר</span>שם המאשר נלקח אוטומטית מהמשתמש המחובר — אין להקליד אותו. לכן חשוב שהמאשר יחתום מחשבונו האישי.</div>
+
+  <h2 class="sec">5.4 החזרת בד״ח לתיקון</h2>
+  <p>הכפתור <b>החזר לתיקון</b> מוצג רק כאשר יש בבד״ח לפחות סעיף אחד שסומן "לא תקין". בד״ח תקין לחלוטין ניתן רק לאשר.</p>
+  <ol class="steps">
+    <li><span class="st-t">פתיחת החלון.</span> לחצו <b>החזר לתיקון</b>.</li>
+    <li><span class="st-t">בחירת סעיפים.</span> סמנו את הסעיפים הלא-תקינים שברצונכם להחזיר.</li>
+    <li><span class="st-t">הערה לכל סעיף.</span> כתבו הערה ברורה לכל סעיף שנבחר (מה יש לתקן). הערה היא חובה לכל סעיף.</li>
+    <li><span class="st-t">החזרה.</span> לחצו <b>החזר לתיקון</b>. הבד״ח חוזר למבצע, והחתימות הקיימות מתבטלות.</li>
+  </ol>
+  <div class="warn"><span class="lbl">שים לב</span>לא ניתן להחזיר בד״ח בלי לבחור סעיף לא-תקין ולכתוב לו הערה. הערה כללית לבדה אינה מחזירה בד״ח.</div>
+
+  <h2 class="sec">5.5 העברת סעיפים לדרג מטפל</h2>
+  <p>כאשר תקלה דורשת טיפול של דרג גבוה יותר, ניתן להעביר אליו סעיפים במקום להחזיר למבצע. הכפתור (למשל <b>העבר לדרג ד׳</b>) מוצג כשיש סעיף לא תקין וכשמוגדר דרג גבוה מדרג הבדיקה.</p>
+  <ol class="steps">
+    <li><span class="st-t">פתיחה.</span> לחצו על <b>העבר ל<i>דרג המטפל</i></b>.</li>
+    <li><span class="st-t">בדיקת כוח אדם.</span> המערכת בודקת שקיימים לפחות שני מבצעים מוסמכים לדרג המטפל; אחרת תוצג התרעה.</li>
+    <li><span class="st-t">בחירת סעיפים + הערות.</span> בחרו את הסעיפים להעברה והוסיפו הערה לכל אחד.</li>
+    <li><span class="st-t">העברה.</span> לחצו <b>העבר לטיפול</b>. הבד״ח עובר לסטטוס "בטיפול", ומבצעי התיקון בדרג המטפל מתעדים את הטיפול וחותמים. הבדיקה והחתימות המקוריות נשמרות.</li>
+  </ol>
+
+  <h2 class="sec">5.6 הגדרת תקלה במעקב</h2>
+  <p>מאשר יכול להגדיר סעיף לא-תקין כ<b>תקלה במעקב</b>. תקלה כזו "נדבקת" למספר המערכת ומוצגת ככרזה בכל בד״ח עתידי של אותה מערכת, עד שתיסגר. שום דבר אינו קורה אוטומטית — ההגדרה היא יזומה.</p>
+  <ol class="steps">
+    <li><span class="st-t">באזור האישור</span>, תחת "הגדרת תקלה למעקב", אתרו את הסעיף הלא-תקין.</li>
+    <li><span class="st-t">לחצו <b>הגדר כתקלה במעקב</b>.</span> הסעיף יסומן <span class="pill pend">🟠 במעקב</span>.</li>
+  </ol>
+  <figure class="narrow"><img src="manual-shots/25-tracking.png" alt="מסך תקלות במעקב" />
+    <figcaption><b>תקלות במעקב.</b> ריכוז התקלות הפתוחות לפי מערכת. מכאן ניתן לנהלן ולסגור אותן.</figcaption></figure>
+
+  <h2 class="sec">5.7 דוגמאות לתהליכי אישור</h2>
+  <h4>תהליך תקין</h4>
+  <div class="flow"><span class="node">פתיחת בד״ח שהוגש</span><span class="arrow">←</span><span class="node">כל הסעיפים תקינים</span><span class="arrow">←</span><span class="node">חתימת מאשר</span><span class="arrow">←</span><span class="node ok">אישור ונעילה</span></div>
+  <h4>תהליך עם ליקוי</h4>
+  <div class="flow"><span class="node no">סעיף לא תקין</span><span class="arrow">←</span><span class="node pend" style="border-color:var(--pending-200);background:var(--pending-50)">החזרה לתיקון + הערה</span><span class="arrow">←</span><span class="node">המבצע מתקן וחותם</span><span class="arrow">←</span><span class="node">בדיקה חוזרת</span><span class="arrow">←</span><span class="node ok">אישור</span></div>
+</section>
+
+<!-- ===================== CHAPTER 6 ===================== -->
+<section class="chapter" id="ch6"><i class="m">@@ch6@@</i>
+  <div class="chap-head"><span class="chap-num">6</span><h1 class="chaptitle">מדריך מלא למנהל<span class="sub">ניהול מלא של המערכת — משתמשים, היררכיה, בניית בד״חים, הסמכות, מבחנים, גיבוי, הגדרות ויומן ביקורת</span></h1></div>
+  <p class="lead-p">פרק זה הוא הנרחב ביותר. המנהל מגדיר הכול — מי המשתמשים, אילו מערכות ודרגים קיימים, כיצד נראה כל בד״ח, מי מוסמך לְמה, וכן גיבוי, הגדרות ובקרה. לכל פעולה מצוינים ההוראות, התוצאה הצפויה ואזהרות.</p>
+
+  <h2 class="sec">6.1 לוח הניהול (Dashboard)</h2>
+  <p>הכניסה לניהול דרך הכרטיסייה <b>לוח ניהול</b>. לוח הבקרה מציג תמונת מצב: מוני בד״חים, נפח לפי חודש, יחס תקין/לא תקין, פילוח לפי מערכת/מספר/דרג/מבצע, ותור האישור.</p>
+  <figure><img src="manual-shots/13-admin-dashboard.png" alt="לוח הבקרה של המנהל" />
+    <figcaption><b>לוח הבקרה.</b> מדדים עליונים, גרף נפח חודשי, יחס תקין/לא תקין, ופילוחים לפי היררכיית המערכות.</figcaption></figure>
+
+  <h2 class="sec">6.2 ניהול משתמשים והרשאות</h2>
+  <p>מסך <b>ניהול משתמשים</b> מציג את כל המשתמשים, הרשאותיהם וסטטוסם.</p>
+  <figure><img src="manual-shots/15-admin-users.png" alt="ניהול משתמשים" />
+    <figcaption><b>ניהול משתמשים.</b> טבלת משתמשים עם שם, שם משתמש, הרשאות, סטטוס ופעולות (ערוך / השבת).</figcaption></figure>
+  <h4>יצירת/עריכת משתמש</h4>
+  <ol class="steps">
+    <li><span class="st-t">משתמש חדש.</span> לחצו <b>משתמש חדש</b> (או <b>ערוך</b> על קיים).</li>
+    <li><span class="st-t">פרטים.</span> מלאו שם מלא, שם משתמש וסיסמה (4 תווים לפחות).</li>
+    <li><span class="st-t">הרשאות.</span> סמנו הרשאות (מבצע / מאשר / מנהל). ניתן לשלב.</li>
+    <li><span class="st-t">שמירה.</span> לחצו <b>שמור</b>. הפעולה נרשמת ביומן הביקורת.</li>
+  </ol>
+  <ul>
+    <li><b>איפוס סיסמה:</b> בעריכת משתמש, הזינו סיסמה חדשה (השארה ריקה = ללא שינוי).</li>
+    <li><b>השבתה/הפעלה:</b> משתמש מושבת אינו יכול להתחבר ואינו מופיע כבחירת מבצע 2.</li>
+  </ul>
+
+  <h4>שיוך הסמכות למשתמש</h4>
+  <p>בתוך עריכת משתמש מופיע אזור <b>הסמכות — שיוך למערכות ודרגים</b>. לכל מערכת בוחרים <b>דרג הסמכה מרבי</b> אחד; מאחר שהדרגים היררכיים, בחירה זו כוללת אוטומטית את כל הדרגים שתחתיו. "ללא הסמכה" מסירה את ההסמכה למערכת.</p>
+  <figure><img src="manual-shots/30-user-editor.png" alt="עריכת משתמש והסמכות" />
+    <figcaption><b>עריכת משתמש.</b> פרטים, הרשאות, ולמטה — עורך ההסמכות לכל מערכת (דרג הסמכה מרבי).</figcaption></figure>
+  <div class="warn"><span class="lbl">אבטחה</span>השיטה מונעת שילוב לא חוקי (למשל דרג ד׳ בלי ב׳). כל שינוי הסמכה נשמר מיד ונרשם ביומן עם מבצע, תאריך ושעה.</div>
+
+  <h2 class="sec">6.3 ניהול ההיררכיה: מערכות, מספרי מערכת ודרגים</h2>
+  <h4>סוגי מערכת</h4>
+  <p>מסך <b>סוגי מערכת</b> — הרמה העליונה. ניתן להוסיף סוג מערכת, לשנות שם, לשנות סדר (חצים), ולהשבית (מערכת מושבתת לא תוצג בבדיקה חדשה).</p>
+  <figure><img src="manual-shots/14-admin-systems.png" alt="ניהול סוגי מערכת" />
+    <figcaption><b>סוגי מערכת.</b> סדר, שם, מספר בד״חים משויכים, סטטוס ופעולות.</figcaption></figure>
+  <ol class="steps">
+    <li><span class="st-t">סוג מערכת חדש.</span> לחצו <b>סוג מערכת חדש</b>, הזינו שם ושמרו.</li>
+    <li><span class="st-t">מספרי מערכת.</span> לחצו על <b>מספרי מערכת</b> כדי לנהל את המופעים (יחידות) של אותו סוג.</li>
+  </ol>
+  <figure class="narrow"><img src="manual-shots/26-admin-units.png" alt="ניהול מספרי מערכת" />
+    <figcaption><b>מספרי מערכת.</b> המופעים הספציפיים (יחידות) בתוך כל סוג מערכת.</figcaption></figure>
+  <h4>דרגים</h4>
+  <p>מסך <b>דרגים</b> מגדיר את דרגי הבדיקה וסדרם ההיררכי. הסדר קובע מהו "גבוה יותר" לצורך העברה לדרג מטפל והסמכות.</p>
+  <figure class="narrow"><img src="manual-shots/27-admin-ranks.png" alt="ניהול דרגים" />
+    <figcaption><b>דרגים.</b> רשימת הדרגים לפי סדר היררכי.</figcaption></figure>
+
+  <h2 class="sec">6.4 בניית בד״ח (תבנית) — ניהול בד״חים</h2>
+  <p>לב ההגדרה. מסך <b>ניהול בד״חים</b> מציג את כל התבניות. לחיצה על תבנית פותחת את <b>עורך הבד״ח</b>.</p>
+  <figure><img src="manual-shots/17-admin-templates.png" alt="רשימת תבניות הבד״ח" />
+    <figcaption><b>ניהול בד״חים.</b> רשימת התבניות לפי מערכת ודרג, עם סטטוס פרסום.</figcaption></figure>
+
+  <h4>עורך הבד״ח</h4>
+  <p>העורך בנוי משלושה אזורים: <b>פרטי הבד״ח</b> (מערכת, דרג, שם, תיאור), <b>שלב הבד״ח</b> (אופציונלי), ו<b>רכיבי הבד״ח</b> — רשימת המרכיבים בסדר שייראה למבצע.</p>
+  <figure><img src="manual-shots/18-admin-template-editor.png" alt="עורך הבד״ח" />
+    <figcaption><b>עורך הבד״ח.</b> סרגל פרסום (גרסה, שינויים שלא פורסמו), פרטי הבד״ח, ורשימת הרכיבים הניתנת לגרירה ולסידור.</figcaption></figure>
+
+  <h4>הוספת רכיבים</h4>
+  <p>לחצו <b>הוסף רכיב</b> ובחרו סוג. כל רכיב נערך בחלון ייעודי:</p>
+  <figure class="narrow"><img src="manual-shots/29-add-component-menu.png" alt="תפריט הוספת רכיב" />
+    <figcaption><b>תפריט הרכיבים.</b> מגוון סוגי הרכיבים שניתן להוסיף לבד״ח.</figcaption></figure>
+  <table class="data">
+    <thead><tr><th style="width:26%">רכיב</th><th>תיאור ושימוש</th></tr></thead>
+    <tbody>
+      <tr><td><b>סעיף בדיקה</b></td><td>שורת בדיקה: שם אזור, פעולה, ציוד נדרש (רשימה) ותמונה מתארת. זהו הרכיב הנפוץ ביותר.</td></tr>
+      <tr><td><b>כותרת / Section</b></td><td>כותרת מפרידה לקיבוץ סעיפים (למשל "בדיקות מקדימות"). ניתן להגדירה כניתנת לקיפול.</td></tr>
+      <tr><td><b>טקסט / הוראה</b></td><td>הוראה חופשית למבצע (למשל "בצע את המדידה לאחר 4 שעות עבודה").</td></tr>
+      <tr><td><b>טבלת מדידה</b></td><td>טבלה למדידות עם חוקי פער (±X) ו/או משך זמן מינימלי. ראה פרק 7.</td></tr>
+      <tr><td><b>טבלת תתי־מערכת (מדידה)</b></td><td>רשת שבה כל שורה היא תת־מערכת, עם חישוב פער/משך אוטומטי ותוצאה לכל שורה. ראה פרק 7.</td></tr>
+      <tr><td><b>תת־מערכת / שדות</b></td><td>קבוצת שדות מותאמים (מספר סידורי, דגם, מק״ט…) — המנהל מגדיר שם, סוג (טקסט/מספר/תאריך/רשימה) וחובה.</td></tr>
+      <tr><td><b>תמונה</b></td><td>תמונת ייחוס. ניתן לקבוע הצגה בזמן ביצוע ו/או ב-PDF.</td></tr>
+      <tr><td><b>ציוד נדרש</b></td><td>רשימת ציוד לכלל הבד״ח.</td></tr>
+      <tr><td><b>מפריד</b></td><td>קו הפרדה ויזואלי.</td></tr>
+    </tbody>
+  </table>
+  <h4>עריכת סעיף בדיקה</h4>
+  <ol class="steps">
+    <li><span class="st-t">שם האזור ופעולה.</span> מלאו את שם האזור הנבדק ואת הפעולה הנדרשת (שניהם חובה).</li>
+    <li><span class="st-t">ציוד נדרש.</span> הוסיפו פריטי ציוד (שורה לכל פריט), וסדרו אותם.</li>
+    <li><span class="st-t">תמונה מתארת.</span> ניתן לצרף תמונה שתעזור למבצע לזהות מה לבדוק.</li>
+  </ol>
+
+  <h4>שלב הבד״ח</h4>
+  <p>סמנו <b>הפעל בחירת שלב</b> כדי להוסיף בראש הבד״ח בחירה יחידה (למשל "לפני הכנה" / "אחרי הכנה"). הוסיפו שלבים, שנו שמות וסדר. השם נשמר בארכיון, ב-PDF וב-Excel.</p>
+
+  <h4>סידור, שכפול ומחיקה</h4>
+  <ul>
+    <li><b>סידור:</b> גררו רכיבים או השתמשו בחצים לשינוי הסדר.</li>
+    <li><b>שכפול:</b> כפתור שכפול יוצר עותק של רכיב.</li>
+    <li><b>מחיקה:</b> מסירה רכיב (דרושה הסכמה).</li>
+  </ul>
+
+  <h4>תצוגה מקדימה ופרסום גרסה</h4>
+  <p>המערכת מנהלת גרסאות. שינויים שמורים כטיוטה עד שמפרסמים.</p>
+  <ol class="steps">
+    <li><span class="st-t">תצוגה מקדימה.</span> לחצו <b>תצוגה מקדימה</b> לראות את הבד״ח כפי שהמבצע יראה (אינו יוצר בד״ח אמיתי).</li>
+    <li><span class="st-t">פרסום.</span> לחצו <b>פרסם גרסה</b>. המערכת בודקת תקינות; בחרו עדכון משני/ראשי והוסיפו תקציר שינויים.</li>
+    <li><span class="st-t">זמינות.</span> רק גרסה שפורסמה זמינה למבצעים. בד״חים שכבר נפתחו שומרים את גרסתם (Snapshot).</li>
+  </ol>
+  <div class="note"><span class="lbl">טיוטה מול פרסום</span>תבנית שמעולם לא פורסמה מסומנת "טיוטה — אינו זמין למבצעים". "יש שינויים שלא פורסמו" מציין שהעריכה טרם שוקפה למבצעים.</div>
+
+  <h2 class="sec">6.5 הסמכות ותוקף</h2>
+  <p>ניהול מרוכז של כל ההסמכות במסך <b>ניהול הסמכות</b> (מפורט בפרק 8). כולל מוני מצב (בתוקף / דורשות רענון / פגות תוקף), סינון, עריכה, קביעת תוקף ברירת מחדל (חודשים) וחידוש.</p>
+  <figure><img src="manual-shots/16-admin-certifications.png" alt="ניהול הסמכות" />
+    <figcaption><b>ניהול הסמכות.</b> לוח מוני מצב, הסמכות קרובות לפקיעה, וטבלת כל ההסמכות עם סינון ועריכה.</figcaption></figure>
+
+  <h2 class="sec">6.6 מבחנים ורענונים</h2>
+  <p>מסך <b>מבחני הסמכה</b> מאפשר ליצור ולערוך מבחנים (שאלות, תשובות, ציון מעבר) שישמשו לרענון הסמכה. כאשר הסמכה מתקרבת לפקיעה, המשתמש מבצע את מבחן הרענון, והמאשר המורשה מאשר — מה שמאריך את תוקף ההסמכה.</p>
+  <figure class="narrow"><img src="manual-shots/28-admin-exams.png" alt="ניהול מבחנים" />
+    <figcaption><b>מבחני הסמכה.</b> יצירה, עריכה ופרסום מבחנים עבור רענוני הסמכה.</figcaption></figure>
+
+  <h2 class="sec">6.7 גיבוי ושחזור</h2>
+  <p>מסך <b>גיבוי</b> כולל שלוש פעולות (מפורט בפרק 9):</p>
+  <figure><img src="manual-shots/19-admin-backup.png" alt="מסך גיבוי ושחזור" />
+    <figcaption><b>גיבוי ושחזור.</b> גיבוי מלא, העברת בד״חים למחשב מרכזי (מוסיף בלבד), והפצת הגדרות למכשירים.</figcaption></figure>
+  <ul>
+    <li><b>גיבוי מערכת מלא</b> — קובץ הכולל את כל הנתונים (משתמשים, תבניות, בד״חים, חתימות, תמונות, הסמכות, מבחנים, תקלות במעקב). <b>השחזור מחליף</b> את כל הנתונים במכשיר.</li>
+    <li><b>העברת בד״חים (מוסיף בלבד)</b> — ייצוא בד״חים ומיזוגם במחשב המרכזי בלי לדרוס קיימים.</li>
+    <li><b>הפצת הגדרות</b> — ייצוא משתמשים/תבניות/הגדרות למכשירי השטח.</li>
+  </ul>
+  <div class="warn"><span class="lbl">אזהרה</span>שחזור מגיבוי מלא הוא <b>הרסני</b> — הוא מוחק ומחליף את כל הנתונים במכשיר. בצעו רק לאחר ודאות, והמערכת תבקש אישור.</div>
+
+  <h2 class="sec">6.8 מכשירים וסנכרון</h2>
+  <p>מסך <b>מכשירים</b> מגדיר את תפקיד המכשיר (טאבלט / תחנה מרכזית) ומנהל סנכרון חבילות (פרק 9).</p>
+  <figure><img src="manual-shots/20-admin-devices.png" alt="מכשירים וסנכרון" />
+    <figcaption><b>מכשירים וסנכרון.</b> תפקיד המכשיר, פעולות סנכרון, מרשם מכשירים (בתחנה מרכזית) והיסטוריית סנכרונים.</figcaption></figure>
+
+  <h2 class="sec">6.9 הגדרות</h2>
+  <p>מסך <b>הגדרות</b>:</p>
+  <figure class="narrow"><img src="manual-shots/21-admin-settings.png" alt="מסך הגדרות" />
+    <figcaption><b>הגדרות.</b> אופן אימות המאשר, שם ארגון, וניתוק מנהל אוטומטי.</figcaption></figure>
+  <ul>
+    <li><b>אופן אישור:</b> חשבונות מאשרים אישיים (מומלץ) או סיסמת מאשר משותפת.</li>
+    <li><b>שם ארגון / מערכת</b> ו<b>ניתוק מנהל אוטומטי</b> (דקות).</li>
+  </ul>
+
+  <h2 class="sec">6.10 יומן ביקורת</h2>
+  <p>מסך <b>יומן ביקורת</b> מתעד פעולות מערכתיות (יצירת/עדכון משתמשים, שינויי הסמכה ומערכות ועוד) עם מבצע הפעולה, התאריך והשעה. היומן בלתי-משתנה.</p>
+  <figure><img src="manual-shots/22-admin-audit.png" alt="יומן ביקורת" />
+    <figcaption><b>יומן ביקורת.</b> תיעוד בלתי-משתנה של הפעולות המערכתיות.</figcaption></figure>
+</section>
+
+<!-- ===================== CHAPTER 7 ===================== -->
+<section class="chapter" id="ch7"><i class="m">@@ch7@@</i>
+  <div class="chap-head"><span class="chap-num">7</span><h1 class="chaptitle">בדיקות מדידה<span class="sub">טבלאות מדידה, חישוב פער מול סבילות, משך בדיקה מינימלי, וטבלת תתי־מערכת</span></h1></div>
+  <p class="lead-p">מעבר לסימון תקין/לא תקין, VERO יודעת לבצע מדידות מספריות ולחשב תוצאה אוטומטית. התוצאה תמיד נגזרת מהנתונים — אי אפשר לקבוע אותה ידנית — כך שהיא אמינה ועקבית.</p>
+
+  <h2 class="sec">7.1 יצירת טבלת מדידות (למנהל)</h2>
+  <p>בעורך הבד״ח, דרך <b>הוסף רכיב ← טבלת מדידה</b>. המנהל מגדיר עמודות (ערכים), שורות (נקודות מדידה), וחוקי הערכה. אין צורך בקוד — הכול דרך הממשק, ונשמר ב-Database.</p>
+
+  <h2 class="sec">7.2 ערך התחלתי וסופי וחישוב פער (חוק ±X)</h2>
+  <p>חוק המדידה הנפוץ הוא חוק ה<b>פער</b>: בודקים את ההפרש בין ערך סופי לערך התחלתי מול <b>פער מותר</b>.</p>
+  <ul>
+    <li><b>פער = ערך סופי − ערך התחלתי</b> (עם סימן).</li>
+    <li>המדידה <span class="pill ok">עברה</span> כאשר הערך המוחלט של הפער קטן או שווה לפער המותר: <code>|פער| ≤ מותר</code>. ערך על הגבול נחשב תקין.</li>
+  </ul>
+  <h4>דוגמאות מספריות</h4>
+  <table class="data">
+    <thead><tr><th>ערך התחלתי</th><th>ערך סופי</th><th>פער מותר</th><th>פער בפועל</th><th>תוצאה</th></tr></thead>
+    <tbody>
+      <tr><td>100</td><td>103</td><td>±5</td><td>+3</td><td><span class="ok">עבר</span></td></tr>
+      <tr><td>100</td><td>95</td><td>±5</td><td>−5</td><td><span class="ok">עבר</span> (על הגבול)</td></tr>
+      <tr><td>100</td><td>107</td><td>±5</td><td>+7</td><td><span class="no">לא עבר</span></td></tr>
+      <tr><td>100</td><td>—</td><td>±5</td><td>—</td><td class="small">טרם הושלם</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sec">7.3 משך בדיקה מינימלי</h2>
+  <p>חוק נוסף הוא <b>משך מינימלי</b>: בדיקה שחייבת להימשך לפחות פרק זמן מסוים (למשל 180 דקות). המערכת מודדת את הזמן בפועל (התחלה→סיום) ומשווה למינימום:</p>
+  <ul>
+    <li>המינימום הוא רצפה, לא תקרה: <b>בפועל ≥ מינימום → עבר</b>; <b>בפועל &lt; מינימום → לא עבר</b>.</li>
+    <li>זמן סיום מוקדם מזמן התחלה מסומן כלא תקין (בלתי-אפשרי כרונולוגית).</li>
+  </ul>
+  <table class="data">
+    <thead><tr><th>משך נדרש (מינ')</th><th>משך בפועל</th><th>תוצאה</th></tr></thead>
+    <tbody>
+      <tr><td>180 דקות</td><td>3 שעות ו-15 דקות</td><td><span class="ok">עבר</span></td></tr>
+      <tr><td>180 דקות</td><td>2 שעות ו-40 דקות</td><td><span class="no">לא עבר</span></td></tr>
+      <tr><td>180 דקות</td><td>טרם הסתיים</td><td class="small">טרם הושלם</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sec">7.4 משמעות "עבר / לא עבר"</h2>
+  <p>טבלת מדידה מסכמת את כל חוקיה לתוצאה אחת: <span class="pill ok">עבר</span> רק כאשר כל החוקים עברו; <span class="pill no">לא עבר</span> אם ולו חוק אחד נכשל; <b>טרם הושלם</b> כל עוד חסר ערך נדרש. כשהמדידה "לא עברה", המערכת מציגה את הסיבה המדויקת (למשל "הפער בפועל 7 חורג מהמותר ±5").</p>
+
+  <h2 class="sec">7.5 טבלת תתי־מערכת (מדידה)</h2>
+  <p>רכיב מתקדם שבו <b>כל שורה היא תת־מערכת</b> (למשל משאבה A, משאבה B), ואותם חוקי עמודות מוחלים על כל שורה בנפרד. עמודות חישוב (פער/משך) מחושבות אוטומטית, ולכל שורה מתקבלת תוצאה <span class="pill ok">עבר</span>/<span class="pill no">לא עבר</span> משלה. המנהל בונה ומעצב את הטבלה בעורך ויזואלי (שורות/עמודות/אייקונים/ספים/עיצוב) — והכול נשמר ב-Database ונלכד ב-Snapshot של הבד״ח.</p>
+  <div class="note"><span class="lbl">הערת תיעוד</span>בעותק ההדגמה של המערכת לא הוגדרה טבלת מדידה לדוגמה, ולכן אין כאן צילום מסך חי של מילוי טבלה. המנגנון פעיל וזמין בעורך הבד״ח (רכיב "טבלת מדידה" / "טבלת תתי־מערכת"). לקבלת צילומים עם נתונים אמיתיים — ניתן להוסיף טבלת מדידה לבד״ח הדגמה ולצלם במכשיר.</div>
+
+  <h2 class="sec">7.6 תקלות מדידה נפוצות</h2>
+  <table class="data">
+    <thead><tr><th style="width:42%">מצב</th><th>סיבה / פתרון</th></tr></thead>
+    <tbody>
+      <tr><td>התוצאה נשארת "טרם הושלם"</td><td>חסר ערך נדרש (התחלתי/סופי) או שלא נמדד משך. השלימו את כל השדות.</td></tr>
+      <tr><td>"זמן הסיום מוקדם מזמן ההתחלה"</td><td>בדקו את שעות ההתחלה/סיום — ייתכן שהוזנו הפוך.</td></tr>
+      <tr><td>מספר אינו מתקבל</td><td>הזינו ספרות בלבד (נקודה עשרונית מותרת). טקסט אינו נחשב כמספר.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ===================== CHAPTER 8 ===================== -->
+<section class="chapter" id="ch8"><i class="m">@@ch8@@</i>
+  <div class="chap-head"><span class="chap-num">8</span><h1 class="chaptitle">הרשאות והסמכות<span class="sub">סוגי ההרשאות, הסמכות לפי מערכת ודרג, תוקף, חידוש והתראות פקיעה</span></h1></div>
+
+  <h2 class="sec">8.1 סוגי הרשאות</h2>
+  <p>כפי שתואר בפרק 1.5, קיימות שלוש הרשאות: <b>מבצע</b>, <b>מאשר</b> ו<b>מנהל</b>. ההרשאה קובעת אילו מסכים ופעולות זמינים. הסמכה, לעומת זאת, קובעת <b>באילו מערכות ודרגים</b> מותר למבצע לבצע בדיקות.</p>
+  <div class="note"><span class="lbl">הרשאה מול הסמכה</span><b>הרשאה</b> = מה מותר לך לעשות במערכת (לבצע/לאשר/לנהל). <b>הסמכה</b> = היכן מותר לך לבצע (מערכת + דרג), עם תוקף בזמן.</div>
+
+  <h2 class="sec">8.2 הסמכות לפי מערכת ודרג</h2>
+  <p>לכל מערכת בוחרים למשתמש <b>דרג הסמכה מרבי</b> אחד. הדרגים היררכיים — דרג גבוה כולל אוטומטית את כל שתחתיו. כך מובטח שאי אפשר להגדיר שילוב לא חוקי. ההסמכה נדרשת גם למבצע 1, גם למבצע 2, וגם למבצעי תיקון בדרג מטפל.</p>
+
+  <h2 class="sec">8.3 תוקף הסמכה</h2>
+  <p>לכל הסמכה תאריך הנפקה/רענון ותוקף בחודשים (ברירת מחדל נקבעת בהגדרות ההסמכות). ממנו מחושב תאריך התפוגה. סטטוסי ההסמכה:</p>
+  <table class="data">
+    <thead><tr><th>סטטוס</th><th>משמעות</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill ok">בתוקף</span></td><td>ההסמכה תקפה.</td></tr>
+      <tr><td><span class="pill pend">נדרש רענון</span></td><td>מתקרבת לפקיעה (בטווח 3 חודשים) — יש לרענן.</td></tr>
+      <tr><td><span class="pill no">פג תוקף</span></td><td>פקעה — יש לרענן לפני ביצוע נוסף.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sec">8.4 חידוש הסמכה והתראות</h2>
+  <p>המערכת מתריעה מראש:</p>
+  <ul>
+    <li>במסך הבית מופיעה כרזה <b>"יש לבצע רענון הסמכה"</b> עם כפתור <b>בצע רענון</b>.</li>
+    <li>בכניסה מוצג חלון רענון חד-פעמי לסשן.</li>
+    <li>מנהל רואה במסך הבית כמה הסמכות דורשות טיפול, ובמסך ההסמכות — פירוט מלא.</li>
+  </ul>
+  <figure><img src="manual-shots/08-my-certifications.png" alt="ההסמכות שלי" />
+    <figcaption><b>ההסמכות שלי.</b> מצב כל הסמכה, זמן שנותר, היסטוריית חידושים, וכפתור "בצע רענון" כשנדרש.</figcaption></figure>
+
+  <h2 class="sec">8.5 מבחני הסמכה ורענון</h2>
+  <p>רענון מתבצע לרוב דרך <b>מבחן רענון</b>:</p>
+  <ol class="steps">
+    <li><span class="st-t">התחלת רענון.</span> במסך "ההסמכות שלי" לחצו <b>בצע רענון</b> בהסמכה הרלוונטית.</li>
+    <li><span class="st-t">מבחן.</span> עונים על שאלות המבחן. נדרש לעבור את <b>ציון המעבר</b>.</li>
+    <li><span class="st-t">אישור.</span> לאחר הצלחה, הרענון ממתין לאישור מאשר מורשה; באישור — תוקף ההסמכה מתארך.</li>
+  </ol>
+  <p>כל אירוע (הנפקה, רענון, אישור, דחייה) נשמר ב<b>היסטוריית הרענונים</b> הבלתי-משתנה, עם ציון, מאשר ותאריך.</p>
+
+  <h2 class="sec">8.6 פעולות שאינן מותרות למשתמש לא מוסמך</h2>
+  <ul>
+    <li>פתיחת בד״ח במערכת/דרג שאינו מוסמך אליהם — המערכת לא תציג אפשרות זו.</li>
+    <li>בחירה כמבצע 2 בבדיקה שאינו מוסמך אליה.</li>
+    <li>קבלת סעיף לטיפול בדרג מטפל שאינו מוסמך אליו.</li>
+  </ul>
+</section>
+
+<!-- ===================== CHAPTER 9 ===================== -->
+<section class="chapter" id="ch9"><i class="m">@@ch9@@</i>
+  <div class="chap-head"><span class="chap-num">9</span><h1 class="chaptitle">עבודה ללא אינטרנט וסנכרון<span class="sub">שמירה מקומית, שרידות נתונים, והעברת בד״חים בין מכשירים — בקובץ, ללא רשת</span></h1></div>
+  <p class="lead-p">VERO תוכננה מהיסוד לעבודה מלאה ללא אינטרנט. כל הנתונים חיים במכשיר. פרק זה מסביר כיצד נשמרים הנתונים וכיצד מעבירים אותם בין מכשירים בבטחה.</p>
+
+  <h2 class="sec">9.1 עבודה במצב אופליין</h2>
+  <p>אין שום פעולה במערכת הדורשת רשת: התחברות, מילוי בד״ח, חתימה, אישור, הפקת PDF ו-Excel — הכול מקומי. אין שרת, אין ענן, אין עדכונים אוטומטיים מהרשת. זה גם יתרון אבטחה (ראה גם פרק 9.6).</p>
+
+  <h2 class="sec">9.2 שמירת נתונים מקומית ושרידות</h2>
+  <ul>
+    <li>כל הנתונים נשמרים במסד נתונים מקומי בתוך המכשיר (IndexedDB).</li>
+    <li><b>שמירה אוטומטית רציפה</b> בזמן מילוי בד״ח — אין צורך ללחוץ "שמור".</li>
+    <li>הנתונים <b>שורדים כיבוי והדלקה</b> של המכשיר/התוכנה.</li>
+    <li>נתוני VERO <b>מופרדים מקבצי התוכנה</b> ואינם נמחקים בעדכון גרסה.</li>
+  </ul>
+  <div class="tip"><span class="lbl">טיפ</span>אם סגרתם בטעות — פשוט פתחו שוב. הטיוטה תמתין לכם במסך הבית ("בד״ח שלא הושלם").</div>
+
+  <h2 class="sec">9.3 חזרה לטיוטות וסגירת התוכנה</h2>
+  <p>בד״ח שלא הושלם נשמר כטיוטה וזמין במסך הבית וב"הבד״חים שלי". אפשר לסגור את התוכנה בכל שלב ולהמשיך מאוחר יותר — ללא איבוד מידע.</p>
+
+  <h2 class="sec">9.4 העברת נתונים למחשב מרכזי</h2>
+  <p>העברת בד״חים מהטאבלט לתחנה מרכזית מתבצעת ב<b>קובץ</b> (USB מאושר / רשת מקומית), ללא אינטרנט. המנגנון <b>מוסיף בלבד</b> — בד״חים קיימים אינם נדרסים.</p>
+  <ol class="steps">
+    <li><span class="st-t">בטאבלט.</span> בניהול ← גיבוי (או מכשירים), לחצו <b>ייצוא בד״חים להעברה</b> / <b>ייצוא חבילת סנכרון</b>. נוצר קובץ.</li>
+    <li><span class="st-t">העברה.</span> העבירו את הקובץ לתחנה המרכזית ב-USB מאושר.</li>
+    <li><span class="st-t">בתחנה המרכזית.</span> לחצו <b>מיזוג בד״חים מקובץ</b> / <b>ייבוא חבילת סנכרון</b>. יוצג סיכום "נוספו X בד״חים (Y כבר קיימים)".</li>
+  </ol>
+
+  <h2 class="sec">9.5 הפצת הגדרות למכשירים</h2>
+  <p>בכיוון ההפוך — מהתחנה המרכזית למכשירי השטח — מפיצים משתמשים, תבניות בד״ח והגדרות:</p>
+  <ol class="steps">
+    <li><span class="st-t">בתחנה המרכזית.</span> <b>ייצוא הגדרות</b> → קובץ.</li>
+    <li><span class="st-t">בטאבלטים.</span> <b>ייבוא הגדרות</b> → המכשיר מתעדכן בתבניות ובמשתמשים החדשים.</li>
+  </ol>
+
+  <h2 class="sec">9.6 תפקיד מכשיר, מרשם מכשירים ומניעת כפילויות</h2>
+  <p>במסך <b>מכשירים</b> מגדירים אם המכשיר הוא <b>טאבלט</b> (עמדת ביצוע) או <b>תחנה מרכזית</b> (מקבלת בד״חים ומנהלת הגדרות). התחנה המרכזית מנהלת מרשם מכשירים (אישור/השבתה) והיסטוריית סנכרונים. הסנכרון <b>בטוח לייבוא חוזר</b> — ייבוא של אותה חבילה פעמיים לא יוצר כפילויות.</p>
+
+  <h2 class="sec">9.7 טיפול בתקלות סנכרון</h2>
+  <table class="data">
+    <thead><tr><th style="width:40%">מצב</th><th>פתרון</th></tr></thead>
+    <tbody>
+      <tr><td>"הסנכרון לא הושלם" בייבוא</td><td>ודאו שהקובץ תקין ולא נפגם בהעברה; נסו לייצא ולהעביר שוב.</td></tr>
+      <tr><td>בד״חים לא הופיעו בתחנה</td><td>ודאו שייבאתם את הקובץ הנכון; בדקו בהיסטוריית הסנכרונים שהקליטה נרשמה.</td></tr>
+      <tr><td>מכשיר "ממתין לאישור" בתחנה</td><td>אשרו אותו במרשם המכשירים כדי לאפשר לו לקבל עדכונים.</td></tr>
+    </tbody>
+  </table>
+  <div class="sec-box"><span class="lbl">יכולת מתוכננת (אינה פעילה)</span>חיבור רשת מקומית (LAN) אוטומטי, אימות הדדי בין מכשירים והצפנת תעבורה — מתוכננים כשלב הבא, ודורשים אישור גורמי המחשוב ואבטחת המידע. כיום הסנכרון מתבצע בחבילת קובץ בלבד.</div>
+</section>
+
+<!-- ===================== CHAPTER 10 ===================== -->
+<section class="chapter" id="ch10"><i class="m">@@ch10@@</i>
+  <div class="chap-head"><span class="chap-num">10</span><h1 class="chaptitle">דוחות, הדפסה וייצוא<span class="sub">הפקת דוח בד״ח, מבנה המסמך, PDF, הדפסה, וייצוא ל-Excel (ליחיד ומרוכז)</span></h1></div>
+
+  <h2 class="sec">10.1 הפקת דוח בד״ח</h2>
+  <p>מכל בד״ח (מתוך מסך הביצוע או ההיסטוריה) ניתן להיכנס ל<b>צפייה / הדפסה</b>. המסך מציג את המסמך הרשמי ובראשו שלושה כפתורים: <b>Excel</b>, <b>PDF</b> ו<b>הדפס</b>.</p>
+  <figure><img src="manual-shots/23-document-view.png" alt="מסמך הבד״ח הרשמי" />
+    <figcaption><b>המסמך הרשמי.</b> כותרת עם לוגו ומספר בד״ח, סטטוס, פרטי הזהות, טבלת הסעיפים, ריכוז תוצאות, פירוט אי-תקינות ואזורי חתימה.</figcaption></figure>
+
+  <h2 class="sec">10.2 מבנה הדוח</h2>
+  <dl class="kv">
+    <dt>כותרת</dt><dd>לוגו VERO, "דוח בדיקה", תאריך ומספר בד״ח.</dd>
+    <dt>סטטוס</dt><dd>מצב הבד״ח (בביצוע / ממתין / מאושר). בד״ח מאושר מוצג כמסמך סופי.</dd>
+    <dt>פרטי זהות</dt><dd>סוג מערכת, מספר מערכת, מספר בד״ח, דרג, תאריך, סיווג (בלמ״ס), מבצעים ומאשר.</dd>
+    <dt>טבלת סעיפים</dt><dd>שם האזור, פעולה, ציוד, ועמודות תקין/לא תקין.</dd>
+    <dt>ריכוז</dt><dd>סה״כ בדיקות, כמה תקין וכמה לא תקין.</dd>
+    <dt>פירוט אי-תקינות</dt><dd>לכל סעיף לא תקין — התקלה, הטיפול (אם בוצע) והאימות.</dd>
+    <dt>חתימות</dt><dd>מבצע 1, מבצע 2 ומאשר — עם תאריך ושעה.</dd>
+    <dt>כותרת תחתונה</dt><dd>מספר בד״ח, תאריך ושעת ההפקה, וסיווג — בכל עמוד.</dd>
+  </dl>
+  <p>מספר הבד״ח, תאריך ושעה, היסטוריית התיקונים ורמת הסיווג — כולם מופיעים במסמך באופן אוטומטי.</p>
+
+  <h2 class="sec">10.3 הפקת PDF והדפסה</h2>
+  <ol class="steps">
+    <li><span class="st-t">PDF.</span> לחצו <b>PDF</b> — נוצר קובץ PDF של המסמך (A4, כותרת תחתונה חוזרת בכל עמוד).</li>
+    <li><span class="st-t">הדפסה.</span> לחצו <b>הדפס</b> לשליחה למדפסת.</li>
+  </ol>
+  <div class="note"><span class="lbl">מסמך תמיד בהיר</span>גם כאשר הממשק במצב כהה, ה-PDF וההדפסה נשארים <b>בהירים</b> תמיד — כדי שמסמכים מודפסים ייראו אחידים וברורים.</div>
+
+  <h2 class="sec">10.4 ייצוא ל-Excel (בד״ח יחיד)</h2>
+  <p>לחצו <b>Excel</b> במסך הצפייה (או "Excel" בשורת הבד״ח בהיסטוריה) ליצירת קובץ Excel של אותו בד״ח — נוח לניתוח ולארכוב.</p>
+
+  <h2 class="sec">10.5 ייצוא לאקסל מרוכז</h2>
+  <p>במסך <b>היסטוריית בד״חים</b>, מנהל/מאשר יכול להפיק <b>Excel מרוכז</b> של כל הבד״חים המסוננים כעת. מתקבלת חוברת אחת: גיליון סיכום, וגיליון נפרד לכל צירוף <b>מערכת × דרג</b> — מטריצה חכמה של כל הבד״חים מול הסעיפים, השדות והתוצאות.</p>
+  <figure><img src="manual-shots/07-history.png" alt="היסטוריית בד״חים" />
+    <figcaption><b>היסטוריית בד״חים.</b> חיפוש וסינון (סטטוס, שלב, תאריכים, "עם תקלות"), כפתור "ייצוא לאקסל מרוכז", וטבלת הבד״חים עם צפייה ו-Excel לכל שורה.</figcaption></figure>
+  <ol class="steps">
+    <li><span class="st-t">סינון.</span> הגדירו את הסינון הרצוי (למשל כל הבד״חים המאושרים של מערכת מסוימת).</li>
+    <li><span class="st-t">ייצוא.</span> לחצו <b>ייצוא לאקסל מרוכז</b>. יוצג סיכום (כמה בד״חים בכמה גיליונות).</li>
+  </ol>
+
+  <h2 class="sec">10.6 שמירת קבצים ופתרון תקלות הדפסה</h2>
+  <table class="data">
+    <thead><tr><th style="width:40%">מצב</th><th>פתרון</th></tr></thead>
+    <tbody>
+      <tr><td>ה-PDF ריק / חתוך</td><td>המתינו שהמסמך ייטען במלואו לפני ההפקה; נסו שוב. ודאו שהבד״ח נפתח בצפייה המלאה.</td></tr>
+      <tr><td>לא נמצאת מדפסת</td><td>ודאו שהמדפסת מחוברת ומוגדרת ב-Windows; לחלופין הפיקו PDF והדפיסו אותו.</td></tr>
+      <tr><td>היכן נשמר הקובץ</td><td>קבצים מופקים לתיקיית ההורדות של המכשיר (אלא אם הוגדר אחרת).</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ===================== CHAPTER 11 ===================== -->
+<section class="chapter" id="ch11"><i class="m">@@ch11@@</i>
+  <div class="chap-head"><span class="chap-num">11</span><h1 class="chaptitle">תרחישי עבודה מעשיים<span class="sub">תהליכים שלמים מקצה לקצה — צעד אחר צעד</span></h1></div>
+
+  <h2 class="sec">תרחיש 1 — בדיקה תקינה מתחילתה ועד סופה</h2>
+  <ol class="steps">
+    <li>מבצע מתחבר ← <b>בד״ח חדש</b> ← בוחר מערכת/מספר/דרג.</li>
+    <li>בוחר <b>מבצע 2</b>, מסמן את כל הסעיפים <span class="pill ok">תקין</span>.</li>
+    <li>שני המבצעים חותמים ← <b>סיום והעברה לאישור</b>.</li>
+    <li>המאשר נכנס, בודק, חותם ולוחץ <b>אישור בד״ח</b>.</li>
+    <li><b>תוצאה:</b> בד״ח <span class="pill ok">מאושר</span>. ניתן להפיק PDF/Excel.</li>
+  </ol>
+
+  <h2 class="sec">תרחיש 2 — בדיקה עם סעיף לא תקין</h2>
+  <ol class="steps">
+    <li>המבצע מסמן סעיף <span class="pill no">לא תקין</span>, כותב פירוט ומצרף תמונה.</li>
+    <li>משלים את שאר הסעיפים, חותמים, ומעביר לאישור.</li>
+    <li>המאשר רואה את הפירוט. אם התקלה אושרה כמצב מקובל — מאשר; אחרת מחזיר לתיקון.</li>
+    <li><b>תוצאה:</b> הבד״ח מתעד במדויק את אי-התקינות ואת ההחלטה.</li>
+  </ol>
+
+  <h2 class="sec">תרחיש 3 — החזרה לתיקון ואישור חוזר</h2>
+  <ol class="steps">
+    <li>המאשר לוחץ <b>החזר לתיקון</b>, בוחר את הסעיף וכותב הערה.</li>
+    <li>הבד״ח חוזר למבצע עם כרזה אדומה; המבצע <b>מדווח על ביצוע תיקון</b> ומצרף תמונה.</li>
+    <li>שני המבצעים חותמים מחדש ושולחים שוב לאישור.</li>
+    <li>המאשר מאמת את התיקון, חותם ומאשר. <b>תוצאה:</b> מאושר, עם תיעוד מלא של מסלול התיקון.</li>
+  </ol>
+
+  <h2 class="sec">תרחיש 4 — יצירת בד״ח חדש (מנהל)</h2>
+  <ol class="steps">
+    <li>מנהל ← <b>ניהול בד״חים</b> ← יוצר/פותח תבנית ← בוחר מערכת ודרג.</li>
+    <li><b>הוסף רכיב</b> ← מוסיף סעיפי בדיקה, כותרות, תמונות וטבלת מדידה.</li>
+    <li><b>תצוגה מקדימה</b> ← בדיקה ← <b>פרסם גרסה</b>.</li>
+    <li><b>תוצאה:</b> הבד״ח זמין למבצעים המוסמכים.</li>
+  </ol>
+
+  <h2 class="sec">תרחיש 5 — הוספת משתמש והגדרת הרשאות והסמכה</h2>
+  <ol class="steps">
+    <li>מנהל ← <b>ניהול משתמשים</b> ← <b>משתמש חדש</b> ← שם, שם משתמש, סיסמה, הרשאות.</li>
+    <li>בעריכת המשתמש ← אזור הסמכות ← בחירת <b>דרג הסמכה מרבי</b> לכל מערכת.</li>
+    <li><b>תוצאה:</b> המשתמש יכול להתחבר ולבצע בדיקות במערכות/דרגים שהוסמך אליהם.</li>
+  </ol>
+
+  <h2 class="sec">תרחיש 6 — ביצוע בדיקת מדידה</h2>
+  <ol class="steps">
+    <li>בבד״ח עם טבלת מדידה — המבצע מזין ערך התחלתי וסופי (ומודד משך אם נדרש).</li>
+    <li>המערכת מחשבת פער/משך ומציגה <span class="pill ok">עבר</span>/<span class="pill no">לא עבר</span> עם הסיבה.</li>
+    <li><b>תוצאה:</b> תוצאת מדידה אובייקטיבית שנגזרת מהנתונים בלבד.</li>
+  </ol>
+
+  <h2 class="sec">תרחיש 7 — עבודה ללא אינטרנט והעברה לתחנה</h2>
+  <ol class="steps">
+    <li>בשטח ללא רשת — המבצע ממלא בד״חים; הכול נשמר מקומית.</li>
+    <li>בסוף היום: <b>ייצוא חבילת סנכרון</b> → קובץ → העברה ב-USB מאושר לתחנה.</li>
+    <li>בתחנה: <b>ייבוא חבילת סנכרון</b> → הבד״חים מתמזגים (מוסיף בלבד).</li>
+  </ol>
+</section>
+
+<!-- ===================== CHAPTER 12 ===================== -->
+<section class="chapter" id="ch12"><i class="m">@@ch12@@</i>
+  <div class="chap-head"><span class="chap-num">12</span><h1 class="chaptitle">פתרון תקלות<span class="sub">תיאור התקלה, סיבות אפשריות, פתרון צעד-אחר-צעד, ומתי לפנות למנהל</span></h1></div>
+  <table class="data">
+    <thead><tr><th style="width:24%">תקלה</th><th style="width:30%">סיבות אפשריות</th><th>פתרון</th></tr></thead>
+    <tbody>
+      <tr><td>לא ניתן להתחבר</td><td>סיסמה שגויה / משתמש מושבת / שפת מקלדת.</td><td>בדקו הקלדה; אם מושבת — פנו למנהל להפעלה/איפוס סיסמה.</td></tr>
+      <tr><td>"אין בד״חים פעילים" בבד״ח חדש</td><td>אין הסמכה למערכת, או שאין בד״ח מפורסם.</td><td>פנו למנהל להסמכה ולפרסום בד״ח מתאים.</td></tr>
+      <tr><td>לא ניתן לבחור מבצע 2</td><td>אינו מוסמך / מושבת / הוא מבצע 1.</td><td>המנהל יסמיך מבצע מתאים למערכת ולדרג.</td></tr>
+      <tr><td>"הבד״ח אינו שלם" בסיום</td><td>סעיף לא מסומן / חסר מבצע 2 / חסרה חתימה / לא נבחר שלב.</td><td>עברו על רשימת התיקונים המוצגת והשלימו.</td></tr>
+      <tr><td>לא ניתן לאשר בד״ח</td><td>אתם המבצע של הבד״ח (מניעת אישור עצמי), או אין הרשאת מאשר.</td><td>מאשר אחר יאשר; ודאו התחברות בחשבון מאשר.</td></tr>
+      <tr><td>תוצאת מדידה "טרם הושלם"</td><td>חסר ערך/משך.</td><td>השלימו את כל שדות המדידה.</td></tr>
+      <tr><td>מסך לבן / התוכנה לא נטענת</td><td>תקלת הפעלה זמנית.</td><td>סגרו והפעילו מחדש את <code>VERO.exe</code>. אם נמשך — פנו ל-IT.</td></tr>
+      <tr><td>"אין מספיק מקום" בהפקה/שמירה</td><td>אחסון מלא במכשיר.</td><td>פנו ל-IT לפינוי מקום; אל תמחקו קבצי VERO.</td></tr>
+      <tr><td>סנכרון נכשל</td><td>קובץ פגום / קובץ שגוי.</td><td>ייצאו והעבירו שוב; בדקו בהיסטוריית הסנכרונים.</td></tr>
+      <tr><td>הסמכה פגה</td><td>לא בוצע רענון בזמן.</td><td>בצעו מבחן רענון ב"ההסמכות שלי"; מנהל יכול לחדש ידנית.</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><span class="lbl">מתי לפנות למנהל המערכת</span>פנו למנהל לכל נושא של הרשאות, הסמכות, יצירת/עריכת בד״חים, שחזור נתונים, או תקלה שחוזרת לאחר הפעלה מחדש. לתקלות התקנה/חומרה/מדפסת — פנו לגורם המחשוב (IT).</div>
+</section>
+
+<!-- ===================== CHAPTER 13 ===================== -->
+<section class="chapter" id="ch13"><i class="m">@@ch13@@</i>
+  <div class="chap-head"><span class="chap-num">13</span><h1 class="chaptitle">שאלות ותשובות<span class="sub">שאלות נפוצות למבצעים, מאשרים ומנהלים</span></h1></div>
+
+  <h3 class="sub">למבצעים</h3>
+  <div class="qbox"><p class="q">שכחתי לשמור — איבדתי את הבד״ח?</p><p class="a">לא. המערכת שומרת אוטומטית כל הזמן. פתחו מחדש והמשיכו מהטיוטה.</p></div>
+  <div class="qbox"><p class="q">חובה שני מבצעים?</p><p class="a">כן. כל בדיקה מחייבת שני מבצעים מוסמכים ושתי חתימות.</p></div>
+  <div class="qbox"><p class="q">סימנתי "לא תקין" בטעות, מה עכשיו?</p><p class="a">לחצו שוב על "לא תקין" לביטול. אם כבר כתבתם פירוט — תתבקשו לאשר את מחיקתו.</p></div>
+  <div class="qbox"><p class="q">אפשר לעבוד בלי אינטרנט?</p><p class="a">כן, תמיד. המערכת כולה עובדת מקומית ללא רשת.</p></div>
+  <div class="qbox"><p class="q">אפשר לצרף תמונה לתקלה?</p><p class="a">כן — דרך חלון פירוט התקלה (מצלמה/קובץ).</p></div>
+
+  <h3 class="sub">למאשרים</h3>
+  <div class="qbox"><p class="q">אפשר לאשר בד״ח שאני ביצעתי?</p><p class="a">לא. המערכת מונעת אישור עצמי. מאשר אחר יאשר.</p></div>
+  <div class="qbox"><p class="q">מתי אפשר להחזיר לתיקון?</p><p class="a">רק כשיש סעיף "לא תקין", ועם הערה לכל סעיף שמוחזר.</p></div>
+  <div class="qbox"><p class="q">מה ההבדל בין החזרה לתיקון להעברה לדרג מטפל?</p><p class="a">החזרה מחזירה את הבד״ח למבצע המקורי; העברה לדרג מטפל מנתבת סעיפים לטיפול של דרג גבוה יותר, תוך שמירת הבדיקה המקורית.</p></div>
+  <div class="qbox"><p class="q">מה קורה לחתימות אחרי החזרה?</p><p class="a">הן מתבטלות, ונדרשות חתימות מחדש לאחר התיקון.</p></div>
+
+  <h3 class="sub">למנהלים</h3>
+  <div class="qbox"><p class="q">שיניתי תבנית — זה משפיע על בד״חים קיימים?</p><p class="a">לא. בד״ח שומר את גרסת התבנית שהייתה בעת פתיחתו (Snapshot). השינוי חל רק על בד״חים חדשים לאחר פרסום.</p></div>
+  <div class="qbox"><p class="q">איך נותנים למשתמש להתחיל לעבוד?</p><p class="a">צרו לו משתמש עם הרשאת מבצע, והגדירו לו הסמכה (דרג הסמכה מרבי) לכל מערכת רלוונטית.</p></div>
+  <div class="qbox"><p class="q">איך מגבים את המערכת?</p><p class="a">ניהול ← גיבוי ← "גיבוי מערכת מלא". שמרו את הקובץ במקום בטוח. שחזור הוא פעולה הרסנית.</p></div>
+  <div class="qbox"><p class="q">האם יש סנכרון אוטומטי ברשת?</p><p class="a">לא כרגע. הסנכרון מתבצע בקובץ (USB/רשת מקומית). חיבור LAN אוטומטי מתוכנן לשלב הבא.</p></div>
+  <div class="qbox"><p class="q">מי יכול לראות את יומן הביקורת?</p><p class="a">מנהל, במסך "יומן ביקורת". היומן בלתי-משתנה.</p></div>
+</section>
+
+<!-- ===================== CHAPTER 14 ===================== -->
+<section class="chapter" id="ch14"><i class="m">@@ch14@@</i>
+  <div class="chap-head"><span class="chap-num">14</span><h1 class="chaptitle">נספחים<span class="sub">מילון מונחים, רשימת אייקונים, טבלת הרשאות, תרשימי זרימה, רשימות בדיקה ופרטי גרסה</span></h1></div>
+
+  <h2 class="sec">נספח א' — מילון מונחים</h2>
+  <dl class="kv">
+    <dt>בד״ח</dt><dd>טופס בדיקה/בקרה — יחידת העבודה המרכזית.</dd>
+    <dt>סעיף בדיקה</dt><dd>שורת בדיקה בודדת (אזור + פעולה + תוצאה).</dd>
+    <dt>מבצע 1 / 2</dt><dd>שני המבצעים המוסמכים החותמים על הבדיקה.</dd>
+    <dt>מאשר</dt><dd>הגורם הבודק ומאשר את הבד״ח.</dd>
+    <dt>דרג בדיקה</dt><dd>עומק/סוג הבדיקה; היררכי.</dd>
+    <dt>דרג מטפל</dt><dd>דרג גבוה שמטפל בסעיפים שהועברו אליו.</dd>
+    <dt>Snapshot</dt><dd>תצלום קפוא של גרסת התבנית בתוך הבד״ח.</dd>
+    <dt>תקלה במעקב</dt><dd>תקלה פתוחה שנצמדת למערכת ומוצגת בבד״חיה הבאים.</dd>
+    <dt>הסמכה</dt><dd>היתר לבצע בדיקות במערכת ובדרג, עם תוקף בזמן.</dd>
+    <dt>רענון הסמכה</dt><dd>חידוש תוקף ההסמכה (לרוב דרך מבחן).</dd>
+    <dt>טיוטה</dt><dd>בד״ח שטרם הושלם/הוגש.</dd>
+    <dt>תחנה מרכזית</dt><dd>מכשיר שמרכז בד״חים ומפיץ הגדרות.</dd>
+    <dt>בלמ״ס</dt><dd>בלתי מסווג — רמת הסיווג המוצגת.</dd>
+  </dl>
+
+  <h2 class="sec">נספח ב' — רשימת אייקונים</h2>
+  <p>המערכת משתמשת בערכת אייקונים אחידה (קווי, 24px). המשמעויות הנפוצות:</p>
+  <div class="icon-grid">
+    <div class="ig"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> הוספה / בד״ח חדש</div>
+    <div class="ig"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7"/></svg> תקין / אושר</div>
+    <div class="ig"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></svg> לא תקין</div>
+    <div class="ig"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 1.7"/></svg> ממתין לאישור</div>
+    <div class="ig"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 5.5 6v5.2c0 4 2.8 6.9 6.5 8.3 3.7-1.4 6.5-4.3 6.5-8.3V6L12 3.5Z"/><path d="m9.3 12 1.9 1.9 3.6-3.9"/></svg> הסמכה / אישור</div>
+    <div class="ig"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#515c6b" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="4" width="8" height="4" rx="1.4"/><path d="M16 6h2a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2"/><path d="m9.5 13.5 1.8 1.8 3.6-3.8"/></svg> בד״ח / רשימה</div>
+    <div class="ig"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#515c6b" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3"/><path d="M3.8 19a5.2 5.2 0 0 1 10.4 0"/><path d="M16 6.2a3 3 0 0 1 0 5.6M20.5 19a5 5 0 0 0-3.2-4.6"/></svg> משתמשים</div>
+    <div class="ig"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#515c6b" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1"/><path d="M5 3.5V8h4.5"/><path d="M12 8v4.3l3 1.7"/></svg> היסטוריה</div>
+    <div class="ig"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#515c6b" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg> נעילה / סיווג</div>
+    <div class="ig"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#515c6b" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0 4-4m-4 4-4-4"/><path d="M5 20h14"/></svg> הורדה / ייצוא</div>
+    <div class="ig"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#515c6b" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20s3-1 4.5-2.5L19 7a2 2 0 0 0-3-3L5.5 14.5C4 16 4 20 4 20Z"/><path d="m14.5 6.5 3 3"/></svg> עריכה / חתימה</div>
+    <div class="ig"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5 21 19.5H3L12 4.5Z"/><path d="M12 10v4M12 17.2v.2"/></svg> התראה / תקלה</div>
+  </div>
+
+  <h2 class="sec">נספח ג' — טבלת הרשאות לפי תפקיד</h2>
+  <table class="data">
+    <thead><tr><th>פעולה</th><th class="text-center">מבצע</th><th class="text-center">מאשר</th><th class="text-center">מנהל</th></tr></thead>
+    <tbody>
+      <tr><td>פתיחת/מילוי בד״ח</td><td>✓ (מוסמך)</td><td>—</td><td>✓</td></tr>
+      <tr><td>חתימת מבצע</td><td>✓</td><td>—</td><td>✓</td></tr>
+      <tr><td>אישור/החזרת בד״ח</td><td>—</td><td>✓ (לא עצמי)</td><td>✓</td></tr>
+      <tr><td>העברה לדרג מטפל / תקלה במעקב</td><td>—</td><td>✓</td><td>✓</td></tr>
+      <tr><td>ניהול משתמשים והרשאות</td><td>—</td><td>—</td><td>✓</td></tr>
+      <tr><td>ניהול מערכות/דרגים/תבניות</td><td>—</td><td>—</td><td>✓</td></tr>
+      <tr><td>הסמכות ומבחנים</td><td>—</td><td>—</td><td>✓</td></tr>
+      <tr><td>גיבוי/שחזור, הגדרות, יומן ביקורת</td><td>—</td><td>—</td><td>✓</td></tr>
+      <tr><td>היסטוריה והפקת דוחות</td><td>✓ (שלו)</td><td>✓</td><td>✓</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sec">נספח ד' — תרשימי זרימה</h2>
+  <h4>מחזור חיי בד״ח</h4>
+  <div class="flow">
+    <span class="node">טיוטה</span><span class="arrow">←</span>
+    <span class="node pend" style="border-color:var(--pending-200);background:var(--pending-50)">ממתין לאישור</span><span class="arrow">←</span>
+    <span class="node ok">מאושר</span>
+  </div>
+  <div class="flow">
+    <span class="node pend" style="border-color:var(--pending-200);background:var(--pending-50)">ממתין לאישור</span><span class="arrow">←</span>
+    <span class="node no">הוחזר לתיקון</span><span class="arrow">←</span>
+    <span class="node">תיקון + חתימות</span><span class="arrow">←</span>
+    <span class="node pend" style="border-color:var(--pending-200);background:var(--pending-50)">ממתין לאישור</span>
+  </div>
+  <h4>מסלול דרג מטפל</h4>
+  <div class="flow">
+    <span class="node">סעיף לא תקין</span><span class="arrow">←</span>
+    <span class="node pend" style="border-color:var(--pending-200);background:var(--pending-50)">בטיפול דרג מטפל</span><span class="arrow">←</span>
+    <span class="node">תיעוד + חתימות תיקון</span><span class="arrow">←</span>
+    <span class="node">אימות המאשר</span><span class="arrow">←</span>
+    <span class="node ok">מאושר</span>
+  </div>
+
+  <h2 class="sec">נספח ה' — רשימות בדיקה למשתמשים</h2>
+  <h4>מבצע — לפני סיום בד״ח</h4>
+  <ul>
+    <li>כל הסעיפים סומנו (תקין/לא תקין).</li>
+    <li>לכל סעיף לא תקין יש פירוט (ותמונה אם נדרש).</li>
+    <li>נבחר מבצע 2.</li>
+    <li>שני המבצעים חתמו.</li>
+    <li>נבחר שלב הבד״ח (אם מוגדר).</li>
+  </ul>
+  <h4>מאשר — לפני אישור</h4>
+  <ul>
+    <li>עברתי על כל הסעיפים והפירוטים.</li>
+    <li>בדקתי את המדידות והתוצאות.</li>
+    <li>ודאתי ששתי חתימות המבצעים קיימות.</li>
+    <li>חתמתי מחשבוני האישי.</li>
+  </ul>
+  <h4>מנהל — הקמת מערכת חדשה</h4>
+  <ul>
+    <li>הוגדרו סוגי מערכת, מספרי מערכת ודרגים.</li>
+    <li>נבנו ופורסמו תבניות בד״ח.</li>
+    <li>נוצרו משתמשים והוגדרו הרשאות.</li>
+    <li>הוגדרו הסמכות (דרג מרבי לכל מערכת).</li>
+    <li>בוצע גיבוי ראשוני.</li>
+  </ul>
+
+  <h2 class="sec">נספח ו' — פרטי גרסה</h2>
+  <dl class="kv">
+    <dt>שם המערכת</dt><dd>VERO — מערכת בקרה דיגיטלית (בד״ח דיגיטלי)</dd>
+    <dt>גרסת תוכנה</dt><dd>v1.0.0</dd>
+    <dt>גרסת מדריך</dt><dd>1.0</dd>
+    <dt>תאריך עדכון המדריך</dt><dd>נובמבר 2026</dd>
+    <dt>סיווג</dt><dd>בלמ״ס</dd>
+    <dt>סביבת הרצה</dt><dd>Windows 10 (1903+) · עצמאי · ללא אינטרנט</dd>
+  </dl>
+  <hr class="soft" />
+  <p class="small" style="text-align:center">© 2026 VERO · כל הזכויות שמורות · מסמך זה מתאר את היכולות הקיימות בפועל במערכת. יכולות המצוינות כ"מתוכננות" אינן פעילות בגרסה זו.</p>
+</section>
+
+</body>
+</html>
