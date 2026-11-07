@@ -98,6 +98,42 @@ export function defaultTableConfig(): TableConfig {
     show_in_pdf: true,
   };
 }
+
+/**
+ * Starter sub-system GRID (rows = sub-systems, columns = fields incl. auto
+ * difference/duration and a per-row result). Ships with the professional VERO
+ * default look; the admin edits everything visually afterwards. Nothing is
+ * hard-coded — this is only the first template the admin can change.
+ */
+export function defaultSubsystemGrid(): TableConfig {
+  const init = newId();
+  const fin = newId();
+  const start = newId();
+  const end = newId();
+  return {
+    title: 'בדיקת מדידה — תתי־מערכות',
+    description: '',
+    layout: 'grid',
+    row_header_label: 'תת מערכת',
+    required: false,
+    columns: [
+      { id: init, label: 'מספר התחלה', field_type: 'number', icon: 'database' },
+      { id: fin, label: 'מספר סיום', field_type: 'number', icon: 'database' },
+      { id: newId(), label: 'פער', field_type: 'calc', calc: { kind: 'difference', from: init, to: fin }, allowed_difference: 25 },
+      { id: start, label: 'שעת התחלה', field_type: 'time', icon: 'clock' },
+      { id: end, label: 'שעת סיום', field_type: 'time', icon: 'clock' },
+      { id: newId(), label: 'משך', field_type: 'calc', calc: { kind: 'duration', from: start, to: end }, min_minutes: 180 },
+      { id: newId(), label: 'תוצאה', field_type: 'result' },
+    ],
+    rows: [
+      { id: newId(), label: 'תת מערכת 1' },
+      { id: newId(), label: 'תת מערכת 2' },
+    ],
+    rules: [],
+    show_in_execution: true,
+    show_in_pdf: true,
+  };
+}
 function defaultConfig(type: BlockType): BlockConfig {
   switch (type) {
     case 'section':

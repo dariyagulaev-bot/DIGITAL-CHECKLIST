@@ -9,6 +9,7 @@ import {
 import {
   addBlock,
   addCheckBlock,
+  defaultSubsystemGrid,
   deleteBlock,
   duplicateBlock,
   ensureBlocks,
@@ -38,6 +39,8 @@ import { Icon, type IconName } from '@/components/Icon';
 import { equipmentItemsOf } from '@/exports/labels';
 import { BlockContent } from '@/components/BlockContent';
 import { TableBlockEditor } from './TableBlockEditor';
+import { SubsystemGridEditor } from './SubsystemGridEditor';
+import { isSubsystemGrid } from '@/services/measurements';
 import type { CompletedBlock, PublishedBlock, PublishedCheckConfig } from '@/types';
 import type {
   BlockType,
@@ -186,6 +189,15 @@ export default function TemplateEditorPage() {
     if (type !== 'divider') setEditing({ kind: 'block', block });
   };
 
+  // Add a sub-system measurement GRID (a 'table' block seeded with the grid config).
+  const addGridTable = async () => {
+    if (!template) return;
+    setAddOpen(false);
+    const block = await addBlock(template.id, 'table', defaultSubsystemGrid());
+    await load();
+    setEditing({ kind: 'block', block });
+  };
+
   // Running number for check blocks (display only — never a DB id).
   let checkNo = 0;
 
@@ -320,6 +332,13 @@ export default function TemplateEditorPage() {
                       {BLOCK_META[type].label}
                     </button>
                   ))}
+                  <button
+                    className="flex w-full items-center gap-2.5 border-t border-slate-100 px-3 py-2.5 text-right text-[14px] text-ink-800 hover:bg-brand-50"
+                    onClick={addGridTable}
+                  >
+                    <Icon name="layers" size={16} className="text-ink-400" />
+                    טבלת תתי־מערכת (מדידה)
+                  </button>
                 </div>
               </>
             )}
@@ -393,7 +412,14 @@ export default function TemplateEditorPage() {
       {editing?.kind === 'block' && editing.block.type === 'image' && (
         <ImageEditor block={editing.block} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} notify={notify} />
       )}
-      {editing?.kind === 'block' && editing.block.type === 'table' && (
+      {editing?.kind === 'block' && editing.block.type === 'table' && isSubsystemGrid(editing.block.config as TableConfig) && (
+        <SubsystemGridEditor
+          block={editing.block}
+          onClose={() => setEditing(null)}
+          onSaved={() => { setEditing(null); load(); }}
+        />
+      )}
+      {editing?.kind === 'block' && editing.block.type === 'table' && !isSubsystemGrid(editing.block.config as TableConfig) && (
         <TableBlockEditor
           block={editing.block}
           systemId={template.system_id}

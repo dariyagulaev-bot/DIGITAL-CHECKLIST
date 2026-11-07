@@ -144,7 +144,7 @@ export default function FormViewPage() {
           }`}
         >
           סטטוס הבד״ח: {statusLabel(form.status)}
-          {approved ? ' — נעול' : ' — טרם אושר'}
+          {approved ? '' : ' — טרם אושר'}
         </div>
 
         {/* Tracking faults active AT execution (frozen snapshot) — kept in the
