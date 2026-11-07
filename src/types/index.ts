@@ -259,7 +259,33 @@ export type FieldType =
   | 'bool'
   | 'select'
   | 'multiselect'
-  | 'percent';
+  | 'percent'
+  | 'calc' // auto-computed (difference / duration) — read-only for the performer
+  | 'result'; // per-row pass/fail verdict — auto-computed, read-only
+
+/** A calculated column: its value per row is derived from two other columns. */
+export interface ColumnCalc {
+  kind: 'difference' | 'duration'; // difference = to − from; duration = to − from (time)
+  from: string; // source column id (initial / start)
+  to: string; // source column id (final / end)
+}
+
+/** Per-table visual style (admin "🎨 עיצוב טבלה"); all optional → VERO defaults. */
+export interface TableStyle {
+  head_bg?: string;
+  head_text?: string;
+  row_bg?: string;
+  alt_row_bg?: string;
+  text?: string;
+  border?: string;
+  border_width?: number; // px
+  font_size?: number; // px
+  bold_head?: boolean;
+  align?: 'right' | 'center' | 'left';
+  row_height?: number; // px
+  pass_color?: string;
+  fail_color?: string;
+}
 
 export interface TableColumn {
   id: string;
@@ -268,6 +294,12 @@ export interface TableColumn {
   required?: boolean;
   unit?: string; // display unit for numeric/decimal/percent (free text)
   options?: string[]; // for select / multiselect
+  width?: number; // admin-set column width (px); omitted = auto
+  icon?: string; // optional header icon (local icon library name)
+  align?: 'right' | 'center' | 'left'; // cell text alignment
+  calc?: ColumnCalc; // field_type 'calc': how the value is derived
+  allowed_difference?: number; // 'calc' difference column: ±X threshold per row
+  min_minutes?: number; // 'calc' duration column: minimum minutes per row
 }
 
 export interface TableRow {
@@ -337,6 +369,14 @@ export interface TableConfig {
   rules?: MeasurementRule[];
   show_in_execution?: boolean; // default true
   show_in_pdf?: boolean; // default true
+  /**
+   * Grid sub-system mode: rows are sub-systems and columns may include
+   * 'calc' (difference/duration) and 'result' columns, each row evaluated
+   * independently. Any 'grid' table with a calc/result column renders as the
+   * professional sub-system grid.
+   */
+  style?: TableStyle; // per-table visual design (admin editable; optional)
+  row_header_label?: string; // sub-system grid: the first (name) column header, default "תת מערכת"
 }
 
 /**

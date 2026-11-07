@@ -34,6 +34,8 @@ const FIELD_LABELS: Record<FieldType, string> = {
   time: 'שעה',
   date: 'תאריך',
   datetime: 'תאריך ושעה',
+  calc: 'חישוב אוטומטי',
+  result: 'תוצאה',
 };
 /** Order shown in the type dropdown (most common first). */
 const FIELD_ORDER: FieldType[] = ['number', 'decimal', 'percent', 'short_text', 'long_text', 'bool', 'select', 'multiselect', 'time', 'date'];

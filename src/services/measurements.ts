@@ -236,3 +236,107 @@ export function withResults(config: TableConfig, data: TableData): TableData {
     fail_reasons: full.fail_reasons,
   };
 }
+
+// ===========================================================================
+//  Sub-system grid evaluation — each ROW (sub-system) is judged independently
+//  using the SAME column rules. Reuses the delta / duration math above so the
+//  main-system measurement and the sub-system grid never diverge.
+// ===========================================================================
+
+/** Parse "HH:MM" time-of-day → minutes since midnight (null if unparseable). */
+export function parseTimeOfDay(raw: string | null | undefined): number | null {
+  if (raw === null || raw === undefined) return null;
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(raw).trim());
+  if (!m) return null;
+  const h = Number(m[1]);
+  const mi = Number(m[2]);
+  if (!Number.isFinite(h) || !Number.isFinite(mi) || h > 23 || mi > 59) return null;
+  return h * 60 + mi;
+}
+
+/** Duration in minutes between two cells, by the END column's type (time / datetime). */
+export function cellDurationMinutes(
+  fromRaw: string | null | undefined,
+  toRaw: string | null | undefined,
+  type: string
+): number | null {
+  if (type === 'time') {
+    const a = parseTimeOfDay(fromRaw);
+    const b = parseTimeOfDay(toRaw);
+    if (a === null || b === null) return null;
+    let d = b - a;
+    if (d < 0) d += 24 * 60; // allow a measurement that crosses midnight
+    return d;
+  }
+  const a = parseDateTime(fromRaw);
+  const b = parseDateTime(toRaw);
+  if (a === null || b === null) return null;
+  return Math.round((b - a) / 60000);
+}
+
+export interface GridRowResult {
+  row_id: string;
+  calc: Record<string, number | null>; // calc column id → computed value
+  pass: boolean | null; // overall row verdict (null = incomplete / no criteria)
+  reasons: string[]; // precise reasons when the row fails
+}
+
+/**
+ * Evaluate every row of a sub-system grid. For each row and each 'calc' column:
+ *   • difference = to − from (numeric); pass when |difference| ≤ allowed_difference
+ *   • duration   = to − from (time/datetime); pass when minutes ≥ min_minutes
+ * The row passes only when every thresholded calc column passes; a column still
+ * missing data leaves the row verdict pending (null).
+ */
+export function evaluateGrid(config: TableConfig, cells: Record<string, string>): GridRowResult[] {
+  const calcCols = config.columns.filter((c) => c.field_type === 'calc' && c.calc);
+  const typeOf = (colId: string) => config.columns.find((x) => x.id === colId)?.field_type ?? 'time';
+  return config.rows.map((row) => {
+    const calc: Record<string, number | null> = {};
+    const reasons: string[] = [];
+    let anyThreshold = false;
+    let anyPending = false;
+    let anyFail = false;
+    for (const col of calcCols) {
+      const spec = col.calc!;
+      const fromRaw = cells[`${row.id}|${spec.from}`];
+      const toRaw = cells[`${row.id}|${spec.to}`];
+      let val: number | null = null;
+      let pass: boolean | null = null;
+      if (spec.kind === 'difference') {
+        const a = parseNum(fromRaw);
+        const b = parseNum(toRaw);
+        if (a !== null && b !== null) {
+          val = b - a;
+          if (col.allowed_difference !== null && col.allowed_difference !== undefined) {
+            pass = Math.abs(val) <= Math.abs(col.allowed_difference);
+          }
+        }
+        if (col.allowed_difference !== null && col.allowed_difference !== undefined) {
+          anyThreshold = true;
+          if (pass === null) anyPending = true;
+          else if (!pass) { anyFail = true; reasons.push(`חריגה מהפער המותר ב"${col.label}" (±${col.allowed_difference})`); }
+        }
+      } else {
+        val = cellDurationMinutes(fromRaw, toRaw, typeOf(spec.to));
+        if (col.min_minutes !== null && col.min_minutes !== undefined) {
+          anyThreshold = true;
+          if (val === null) anyPending = true;
+          else {
+            pass = val >= col.min_minutes;
+            if (!pass) { anyFail = true; reasons.push(`זמן בדיקה קצר מהמינימום ב"${col.label}" (${formatDuration(col.min_minutes)})`); }
+          }
+        }
+      }
+      calc[col.id] = val;
+    }
+    let verdict: boolean | null = null;
+    if (anyThreshold) verdict = anyFail ? false : anyPending ? null : true;
+    return { row_id: row.id, calc, pass: verdict, reasons: [...new Set(reasons)] };
+  });
+}
+
+/** True when a grid table carries sub-system per-row evaluation (calc columns). */
+export function isSubsystemGrid(config: TableConfig): boolean {
+  return (config.layout === 'grid' || !config.layout) && config.columns.some((c) => c.field_type === 'calc' || c.field_type === 'result');
+}

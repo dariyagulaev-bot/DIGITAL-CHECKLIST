@@ -490,6 +490,123 @@
   }
 }
 
+/* ---- Sub-system grid table (rows = sub-systems, cols = fields) ---------- */
+@layer components {
+  .grid-mtbl {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--mt-surface);
+    border: var(--mt-bw, 1px) solid var(--mt-border);
+    border-radius: 10px;
+    overflow: hidden;
+    font-size: var(--mt-font);
+    color: var(--mt-text);
+    table-layout: fixed; /* always fit the container / A4 width — never clip a column */
+  }
+  .grid-mtbl thead th {
+    background: var(--mt-head-bg);
+    color: var(--mt-head-text);
+    font-weight: var(--mt-head-weight, 700);
+    font-size: calc(var(--mt-font) - 1.5px);
+    padding: 9px 8px;
+    text-align: var(--mt-align, center);
+    white-space: normal; /* let long headers wrap to a second line instead of overflowing */
+    word-break: break-word;
+    line-height: 1.25;
+    border-inline-start: var(--mt-bw, 1px) solid color-mix(in srgb, var(--mt-head-text) 18%, transparent);
+  }
+  /* the name (first) and result (last) columns get a touch more room; the rest
+     share the remaining width equally under the fixed layout. */
+  .grid-mtbl th:first-child,
+  .grid-mtbl td:first-child {
+    width: 15%;
+  }
+  .grid-mtbl thead th:first-child {
+    border-inline-start: none;
+    text-align: right;
+  }
+  .grid-mtbl tbody td {
+    padding: 9px 12px;
+    border-top: var(--mt-bw, 1px) solid var(--mt-border);
+    border-inline-start: var(--mt-bw, 1px) solid var(--mt-border);
+    text-align: var(--mt-align, center);
+    vertical-align: middle;
+    height: var(--mt-row-h, 44px);
+    font-variant-numeric: tabular-nums;
+  }
+  .grid-mtbl tbody td:first-child {
+    border-inline-start: none;
+    text-align: right;
+    font-weight: 600;
+    background: var(--mt-calc-bg);
+    white-space: nowrap;
+  }
+  .grid-mtbl tbody tr:nth-child(even) td {
+    background: var(--mt-alt-row, transparent);
+  }
+  .grid-mtbl tbody tr.row-fail td {
+    background: var(--mt-fail-row);
+  }
+  .grid-mtbl td.calc {
+    font-weight: 700;
+    color: var(--mt-text);
+    background: color-mix(in srgb, var(--mt-calc-bg) 70%, var(--mt-surface));
+  }
+  .grid-mtbl input,
+  .grid-mtbl select {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid var(--mt-border);
+    border-radius: 6px;
+    background: var(--mt-surface);
+    padding: 7px 8px;
+    font-size: var(--mt-font);
+    font-variant-numeric: tabular-nums;
+    color: var(--mt-text);
+    min-height: 38px;
+    text-align: center;
+  }
+  .grid-mtbl input:focus,
+  .grid-mtbl select:focus {
+    outline: none;
+    border-color: #5e8cf4;
+    box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.14);
+  }
+  .grid-mtbl .thd-ic {
+    display: inline-flex;
+    vertical-align: -2px;
+    margin-inline-end: 4px;
+    opacity: 0.85;
+  }
+  .grid-mtbl .res-col {
+    width: 14%;
+  }
+  .grid-mtbl td.res-col {
+    white-space: normal;
+  }
+  .grid-reason {
+    display: block;
+    margin-top: 2px;
+    font-size: calc(var(--mt-font) - 3px);
+    font-weight: 600;
+    color: var(--mt-fail-text);
+    white-space: normal;
+    line-height: 1.3;
+  }
+}
+
+/* Keep the grid readable and within the A4 width in print. */
+@media print {
+  .grid-mtbl {
+    font-size: 9.5pt;
+  }
+  .grid-mtbl thead th,
+  .grid-mtbl tbody td {
+    padding: 5px 6px;
+  }
+}
+
 /* Repeating report footer — hidden on screen; shown on every printed page. */
 .print-footer {
   display: none;

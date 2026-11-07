@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Icon } from './Icon';
-import { cellKey, evaluateTableFull, allowedRange, formatDuration } from '@/services/measurements';
+import { SubsystemGrid } from './SubsystemGrid';
+import { cellKey, evaluateTableFull, allowedRange, formatDuration, isSubsystemGrid } from '@/services/measurements';
 import type { FieldType, MeasurementResult, TableColumn, TableConfig } from '@/types';
 
 const key = (rowId: string, colId: string) => `${rowId}|${colId}`;
@@ -34,6 +35,22 @@ export function MeasurementTable({
     () => evaluateTableFull(config, cells, { started_at: startedAt, ended_at: endedAt }),
     [config, cells, startedAt, endedAt]
   );
+
+  // Sub-system grid (rows = sub-systems, per-row calc + result): dedicated
+  // professional grid renderer. The performer only fills inputs.
+  if (isSubsystemGrid(config)) {
+    return (
+      <div className="measure-table">
+        {(config.title || config.description) && (
+          <div className="mb-1.5">
+            {config.title && <div className="text-[15px] font-bold text-ink-900">{config.title}</div>}
+            {config.description && <p className="mt-0.5 text-[13px] text-ink-500">{config.description}</p>}
+          </div>
+        )}
+        <SubsystemGrid config={config} cells={cells} editable={editable} onChange={onChange} />
+      </div>
+    );
+  }
   const results = full.results;
   const dur = full.duration_result;
   // A timer-mode duration uses Start/Stop device-clock stamps (no datetime cells).
@@ -350,7 +367,7 @@ function fmtDT(iso: string): string {
   return `${p(d.getDate())}.${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-function CellInput({
+export function CellInput({
   type,
   column,
   value,
