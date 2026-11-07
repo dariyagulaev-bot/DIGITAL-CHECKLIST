@@ -3,9 +3,10 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { canApprove, isAdmin } from '@/services/rbac';
 import { getFormStats, listAllForms, listFormsByPerformer } from '@/services/forms';
-import { exportFormToExcel } from '@/exports/excel';
+import { exportFormToExcel, exportConsolidatedExcel } from '@/exports/excel';
 import { PageHeader } from '@/components/Layout';
 import { EmptyState, Spinner, StatusBadge } from '@/components/ui';
+import { Icon } from '@/components/Icon';
 import { useToast } from '@/context/ToastContext';
 import { formatDate, statusLabel } from '@/exports/labels';
 import { FormStatus, type CompletedForm } from '@/types';
@@ -81,11 +82,34 @@ export default function HistoryPage() {
     }
   };
 
+  const [busyBulk, setBusyBulk] = useState(false);
+  const consolidated = async () => {
+    setBusyBulk(true);
+    try {
+      const res = await exportConsolidatedExcel(filtered.map((r) => r.id));
+      notify(`יוצא אקסל מרוכז: ${res.forms} בד״חים ב-${res.groups} גיליונות (מערכת × דרג)`, 'ok');
+    } catch (e) {
+      notify((e as Error).message, 'error');
+    } finally {
+      setBusyBulk(false);
+    }
+  };
+
   if (!user) return null;
 
   return (
     <div>
-      <PageHeader title="היסטוריית בד״חים" subtitle="חיפוש, צפייה והפקת דוחות" />
+      <PageHeader
+        title="היסטוריית בד״חים"
+        subtitle="חיפוש, צפייה והפקת דוחות"
+        actions={
+          (isAdmin(user) || canApprove(user)) && (
+            <button className="btn-primary gap-1.5" onClick={consolidated} disabled={busyBulk || filtered.length === 0}>
+              <Icon name="file" size={16} /> {busyBulk ? 'מייצא…' : 'ייצוא לאקסל מרוכז'}
+            </button>
+          )
+        }
+      />
 
       {/* Filters */}
       <div className="card mb-4 p-4">

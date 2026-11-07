@@ -1,8 +1,18 @@
 import type ExcelJSType from 'exceljs';
 import { getFormBundle } from '@/services/forms';
-import { statusLabel, equipmentItemsOf, currentResult } from './labels';
+import { db } from '@/data/db';
+import { statusLabel, equipmentItemsOf, currentResult, formatDate } from './labels';
 import { evaluateTableFull, formatDuration } from '@/services/measurements';
-import { FormStatus, SignerType, TaskResult, type TableConfig } from '@/types';
+import {
+  FormStatus,
+  SignerType,
+  TaskResult,
+  type TableConfig,
+  type FieldsConfig,
+  type CompletedForm,
+  type CompletedTask,
+  type CompletedBlock,
+} from '@/types';
 
 /** Equipment as a bulleted, one-per-line cell value (never a comma sentence). */
 function equipmentCellValue(items: string[] | undefined, fallback: string): string {
@@ -471,4 +481,255 @@ function triggerDownload(blob: Blob, filename: string): void {
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ===========================================================================
+//  Consolidated Excel — one workbook, one sheet per (system + rank).
+//  Each sheet is a "smart" matrix: one row per completed בד״ח, with a column
+//  for every check item, measurement cell and custom field used in that group
+//  (union across the group's forms), so the same template lines up column-wise.
+// ===========================================================================
+
+interface ColDef {
+  key: string;
+  label: string;
+  order: number;
+  kind: 'check' | 'data' | 'result';
+}
+
+/** Collect this form's per-column values + register the columns it introduces. */
+function collectFormColumns(
+  tasks: CompletedTask[],
+  blocks: CompletedBlock[],
+  registry: Map<string, ColDef>
+): { values: Map<string, string>; faults: string[] } {
+  const values = new Map<string, string>();
+  const faults: string[] = [];
+  const reg = (c: ColDef) => {
+    const prev = registry.get(c.key);
+    if (!prev || c.order < prev.order) registry.set(c.key, c);
+  };
+
+  // Check items → ✓ / ✕
+  for (const t of [...tasks].sort((a, b) => a.sort_order - b.sort_order)) {
+    const label = `${t.part_name_snapshot} · ${t.action_snapshot}`.trim();
+    const key = `chk|${label}`;
+    reg({ key, label, order: t.sort_order, kind: 'check' });
+    const cur = currentResult(t);
+    values.set(key, cur === TaskResult.OK ? '✓' : cur === TaskResult.FAULT ? '✕' : '');
+    if (cur === TaskResult.FAULT) faults.push(`${t.part_name_snapshot}: ${t.comment?.trim() || 'לא תקין'}`);
+  }
+
+  const NUMERIC = ['number', 'decimal', 'percent'];
+  for (const b of [...blocks].sort((a, b) => a.sort_order - b.sort_order)) {
+    const base = b.sort_order * 1000;
+    if (b.type === 'fields') {
+      const cfg = b.config_snapshot as FieldsConfig;
+      const cells = b.data?.cells ?? {};
+      const title = cfg.title || 'שדות';
+      (cfg.fields ?? []).forEach((f, i) => {
+        const label = `${title} · ${f.label}`;
+        const key = `fld|${label}`;
+        reg({ key, label, order: base + i, kind: 'data' });
+        const raw = (cells[f.id] ?? '').trim();
+        values.set(key, f.field_type === 'bool' ? (raw === 'true' ? 'כן' : raw === 'false' ? 'לא' : '') : f.unit && raw ? `${raw} ${f.unit}` : raw);
+      });
+    } else if (b.type === 'table') {
+      const cfg = b.config_snapshot as TableConfig;
+      const cells = b.data?.cells ?? {};
+      const title = cfg.title || 'טבלת מדידה';
+      if (cfg.layout === 'fields') {
+        const rowId = cfg.rows[0]?.id ?? '';
+        cfg.columns.forEach((c, i) => {
+          const unit = NUMERIC.includes(c.field_type) && c.unit ? ` (${c.unit})` : '';
+          const label = `${title} · ${c.label}${unit}`;
+          const key = `tbl|${label}`;
+          reg({ key, label, order: base + i, kind: 'data' });
+          values.set(key, (cells[`${rowId}|${c.id}`] ?? '').trim());
+        });
+      } else {
+        cfg.rows.forEach((row, ri) => {
+          cfg.columns.forEach((c, ci) => {
+            const unit = c.unit ? ` (${c.unit})` : '';
+            const label = `${title} · ${row.label} · ${c.label}${unit}`;
+            const key = `tbl|${label}`;
+            reg({ key, label, order: base + ri * cfg.columns.length + ci, kind: 'data' });
+            values.set(key, (cells[`${row.id}|${c.id}`] ?? '').trim());
+          });
+        });
+      }
+      // One compact pass/fail result column per measurement table.
+      const full = evaluateTableFull(cfg, cells, { started_at: b.data?.started_at, ended_at: b.data?.ended_at });
+      if (full.status) {
+        const label = `${title} · תוצאה`;
+        const key = `res|${label}`;
+        reg({ key, label, order: base + 900, kind: 'result' });
+        values.set(key, full.status === 'pass' ? '✓ עברה' : full.status === 'fail' ? '✕ נכשלה' : 'טרם הושלמה');
+      }
+    }
+  }
+  return { values, faults };
+}
+
+function groupBySystemRank(forms: CompletedForm[]): Map<string, { system: string; rank: string; forms: CompletedForm[] }> {
+  const groups = new Map<string, { system: string; rank: string; forms: CompletedForm[] }>();
+  for (const f of forms) {
+    const system = f.system_name_snapshot || '—';
+    const rank = f.rank_name_snapshot || '—';
+    const key = `${system}||${rank}`;
+    if (!groups.has(key)) groups.set(key, { system, rank, forms: [] });
+    groups.get(key)!.forms.push(f);
+  }
+  return groups;
+}
+
+/**
+ * Build one consolidated .xlsx from all completed forms (optionally a filtered
+ * subset): a סיכום sheet, then one sheet per (system + rank) group.
+ */
+export async function exportConsolidatedExcel(formIds?: string[]): Promise<{ groups: number; forms: number }> {
+  const all = await db.completed_forms.toArray();
+  const forms = formIds ? all.filter((f) => formIds.includes(f.id)) : all;
+  if (!forms.length) throw new Error('אין בד״חים לייצוא.');
+
+  const ids = new Set(forms.map((f) => f.id));
+  const [allTasks, allBlocks] = await Promise.all([
+    db.completed_tasks.toArray(),
+    db.completed_blocks.toArray(),
+  ]);
+  const tasksByForm = new Map<string, CompletedTask[]>();
+  for (const t of allTasks) if (ids.has(t.completed_form_id)) (tasksByForm.get(t.completed_form_id) ?? tasksByForm.set(t.completed_form_id, []).get(t.completed_form_id)!).push(t);
+  const blocksByForm = new Map<string, CompletedBlock[]>();
+  for (const b of allBlocks) if (ids.has(b.completed_form_id)) (blocksByForm.get(b.completed_form_id) ?? blocksByForm.set(b.completed_form_id, []).get(b.completed_form_id)!).push(b);
+
+  const groups = groupBySystemRank(forms);
+
+  const ExcelJS = (await import('exceljs')).default;
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'VERO';
+  wb.created = new Date();
+
+  // ---- Summary sheet ------------------------------------------------------
+  const sum = wb.addWorksheet('סיכום', { views: [{ rightToLeft: true, showGridLines: false }] });
+  sum.columns = [{ width: 24 }, { width: 14 }, { width: 10 }, { width: 10 }, { width: 10 }, { width: 12 }];
+  sum.mergeCells('A1:F1');
+  sum.getCell('A1').value = 'VERO · ייצוא מרוכז לאקסל';
+  sum.getCell('A1').font = { size: 14, bold: true, color: { argb: 'FF0F2B52' } };
+  sum.getCell('A1').alignment = { horizontal: 'right' };
+  sum.mergeCells('A2:F2');
+  sum.getCell('A2').value = `הופק: ${formatDate(new Date().toISOString())} · ${forms.length} בד״חים · ${groups.size} קבוצות (מערכת × דרג)`;
+  sum.getCell('A2').font = { size: 11, color: { argb: 'FF64748B' } };
+  sum.getCell('A2').alignment = { horizontal: 'right' };
+  let sr = 4;
+  ['מערכת', 'דרג', 'בד״חים', 'תקין', 'לא תקין', 'גיליון'].forEach((h, i) => {
+    const c = sum.getRow(sr).getCell(i + 1);
+    c.value = h; c.font = { bold: true, color: { argb: HEADER_TEXT } };
+    c.fill = solid(HEADER_BG); c.alignment = { horizontal: 'center' }; c.border = allBorders();
+  });
+  sr++;
+
+  // ---- One sheet per (system + rank) --------------------------------------
+  const usedNames = new Set<string>();
+  const sheetName = (system: string, rank: string) => {
+    let base = `${system}-${rank}`.replace(/[\\/?*[\]:]/g, ' ').trim().slice(0, 28);
+    let name = base || 'קבוצה';
+    let n = 2;
+    while (usedNames.has(name)) name = `${base.slice(0, 25)} ${n++}`;
+    usedNames.add(name);
+    return name;
+  };
+
+  const META = ['מספר מערכת', 'מספר בד״ח', 'תאריך', 'שלב', 'מבצע 1', 'מבצע 2', 'מאשר', 'סטטוס'];
+
+  for (const { system, rank, forms: gForms } of [...groups.values()].sort((a, b) => `${a.system}${a.rank}`.localeCompare(`${b.system}${b.rank}`, 'he'))) {
+    // First pass: gather the union of columns + each form's values.
+    const registry = new Map<string, ColDef>();
+    const perForm = new Map<string, { values: Map<string, string>; faults: string[] }>();
+    for (const f of gForms) {
+      perForm.set(f.id, collectFormColumns(tasksByForm.get(f.id) ?? [], blocksByForm.get(f.id) ?? [], registry));
+    }
+    const cols = [...registry.values()].sort((a, b) => a.order - b.order);
+
+    const name = sheetName(system, rank);
+    const ws = wb.addWorksheet(name, {
+      views: [{ rightToLeft: true, showGridLines: false, state: 'frozen', xSplit: 1, ySplit: 3 }],
+      pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+    });
+
+    // Title
+    const totalCols = META.length + cols.length + 3; // +תקין +לא תקין +תקלות
+    ws.mergeCells(1, 1, 1, totalCols);
+    ws.getCell(1, 1).value = `${system} · ${rank}`;
+    ws.getCell(1, 1).font = { size: 13, bold: true, color: { argb: 'FF0F2B52' } };
+    ws.getCell(1, 1).alignment = { horizontal: 'right' };
+    ws.mergeCells(2, 1, 2, totalCols);
+    ws.getCell(2, 1).value = `${gForms.length} בד״חים`;
+    ws.getCell(2, 1).font = { size: 10, color: { argb: 'FF64748B' } };
+    ws.getCell(2, 1).alignment = { horizontal: 'right' };
+
+    // Header row (row 3)
+    const headers = [...META, ...cols.map((c) => c.label), 'תקין', 'לא תקין', 'תקלות'];
+    const hr = ws.getRow(3);
+    headers.forEach((h, i) => {
+      const c = hr.getCell(i + 1);
+      c.value = h;
+      c.font = { bold: true, color: { argb: HEADER_TEXT }, size: 10 };
+      c.fill = solid(i < META.length ? 'FF0F2B52' : HEADER_BG);
+      c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      c.border = allBorders();
+    });
+    hr.height = 42;
+    ws.getColumn(1).width = 14;
+    for (let i = 2; i <= META.length; i++) ws.getColumn(i).width = 12;
+    for (let i = META.length + 1; i <= META.length + cols.length; i++) ws.getColumn(i).width = 13;
+    for (let i = META.length + cols.length + 1; i <= totalCols; i++) ws.getColumn(i).width = i === totalCols ? 32 : 9;
+
+    // Data rows — one per form, sorted by unit then date
+    let r = 4;
+    let gOk = 0, gFault = 0;
+    const sortedForms = [...gForms].sort((a, b) => (a.unit_name_snapshot || '').localeCompare(b.unit_name_snapshot || '', 'he') || a.date.localeCompare(b.date));
+    for (const f of sortedForms) {
+      const pf = perForm.get(f.id)!;
+      const okCount = [...pf.values].filter(([k, v]) => k.startsWith('chk|') && v === '✓').length;
+      const faultCount = [...pf.values].filter(([k, v]) => k.startsWith('chk|') && v === '✕').length;
+      gOk += okCount; gFault += faultCount;
+      const row = ws.getRow(r);
+      const meta = [f.unit_name_snapshot || '—', f.number || '—', formatDate(f.date), f.phase_name_snapshot || '', f.performer_name || '', f.performer2_name || '', f.approver_name || '—', statusLabel(f.status)];
+      meta.forEach((v, i) => { row.getCell(i + 1).value = v; });
+      cols.forEach((c, i) => {
+        const cell = row.getCell(META.length + i + 1);
+        const v = pf.values.get(c.key) ?? '';
+        cell.value = v;
+        if (v === '✓') { cell.fill = solid(GREEN); cell.font = { bold: true, color: { argb: GREEN_TEXT } }; }
+        else if (v === '✕' || v === '✕ נכשלה') { cell.fill = solid(RED); cell.font = { bold: true, color: { argb: RED_TEXT } }; }
+        else if (v === '✓ עברה') { cell.fill = solid(GREEN); cell.font = { color: { argb: GREEN_TEXT } }; }
+      });
+      row.getCell(META.length + cols.length + 1).value = okCount;
+      row.getCell(META.length + cols.length + 2).value = faultCount;
+      row.getCell(META.length + cols.length + 3).value = pf.faults.join(' | ');
+      for (let c = 1; c <= totalCols; c++) {
+        const cell = row.getCell(c);
+        cell.border = allBorders();
+        cell.alignment = { horizontal: c <= META.length ? 'right' : c === totalCols ? 'right' : 'center', vertical: 'middle', wrapText: c === totalCols };
+        if (!cell.font) cell.font = { size: 10 };
+      }
+      r++;
+    }
+
+    // Summary-sheet row for this group (links are by name)
+    const srow = sum.getRow(sr++);
+    [system, rank, gForms.length, gOk, gFault, name].forEach((v, i) => {
+      const c = srow.getCell(i + 1);
+      c.value = v;
+      c.alignment = { horizontal: i < 2 ? 'right' : 'center' };
+      c.border = allBorders();
+      if (i === 4 && Number(v) > 0) c.font = { bold: true, color: { argb: RED_TEXT } };
+    });
+  }
+
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const stamp = new Date().toISOString().slice(0, 10);
+  triggerDownload(blob, `VERO_ייצוא_מרוכז_${stamp}.xlsx`);
+  return { groups: groups.size, forms: forms.length };
 }

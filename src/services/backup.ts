@@ -21,6 +21,12 @@ import type {
   UserSystemRank,
   TemplateBlock,
   CompletedBlock,
+  Exam,
+  ExamQuestion,
+  ExamAttempt,
+  CertRenewal,
+  RenewalApprover,
+  TrackingFault,
 } from '@/types';
 
 /**
@@ -61,6 +67,12 @@ export interface FullBackup {
     settings: Setting[];
     counters: Counter[];
     user_system_ranks: UserSystemRank[];
+    exams?: Exam[];
+    exam_questions?: ExamQuestion[];
+    exam_attempts?: ExamAttempt[];
+    cert_renewals?: CertRenewal[];
+    renewal_approvers?: RenewalApprover[];
+    tracking_faults?: TrackingFault[];
   };
 }
 
@@ -113,6 +125,12 @@ async function collectAll() {
     settings,
     counters,
     user_system_ranks,
+    exams,
+    exam_questions,
+    exam_attempts,
+    cert_renewals,
+    renewal_approvers,
+    tracking_faults,
   ] = await Promise.all([
     db.users.toArray(),
     db.roles.toArray(),
@@ -132,6 +150,12 @@ async function collectAll() {
     db.settings.toArray(),
     db.counters.toArray(),
     db.user_system_ranks.toArray(),
+    db.exams.toArray(),
+    db.exam_questions.toArray(),
+    db.exam_attempts.toArray(),
+    db.cert_renewals.toArray(),
+    db.renewal_approvers.toArray(),
+    db.tracking_faults.toArray(),
   ]);
   return {
     users,
@@ -152,6 +176,12 @@ async function collectAll() {
     settings,
     counters,
     user_system_ranks,
+    exams,
+    exam_questions,
+    exam_attempts,
+    cert_renewals,
+    renewal_approvers,
+    tracking_faults,
   };
 }
 
@@ -200,6 +230,12 @@ export async function restoreFullBackup(
       db.settings,
       db.counters,
       db.user_system_ranks,
+      db.exams,
+      db.exam_questions,
+      db.exam_attempts,
+      db.cert_renewals,
+      db.renewal_approvers,
+      db.tracking_faults,
     ],
     async () => {
       await Promise.all([
@@ -221,6 +257,12 @@ export async function restoreFullBackup(
         db.settings.clear(),
         db.counters.clear(),
         db.user_system_ranks.clear(),
+        db.exams.clear(),
+        db.exam_questions.clear(),
+        db.exam_attempts.clear(),
+        db.cert_renewals.clear(),
+        db.renewal_approvers.clear(),
+        db.tracking_faults.clear(),
       ]);
       await Promise.all([
         db.users.bulkAdd(d.users),
@@ -241,6 +283,12 @@ export async function restoreFullBackup(
         db.settings.bulkAdd(d.settings),
         db.counters.bulkAdd(d.counters ?? []),
         db.user_system_ranks.bulkAdd(d.user_system_ranks ?? []),
+        db.exams.bulkAdd(d.exams ?? []),
+        db.exam_questions.bulkAdd(d.exam_questions ?? []),
+        db.exam_attempts.bulkAdd(d.exam_attempts ?? []),
+        db.cert_renewals.bulkAdd(d.cert_renewals ?? []),
+        db.renewal_approvers.bulkAdd(d.renewal_approvers ?? []),
+        db.tracking_faults.bulkAdd(d.tracking_faults ?? []),
       ]);
     }
   );
