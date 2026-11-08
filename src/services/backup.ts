@@ -406,8 +406,22 @@ export async function importConfigBundle(payload: ConfigBundle): Promise<void> {
 // Browser helpers: download an object as JSON, and read a File as JSON.
 // -------------------------------------------------------------------------
 
+/**
+ * Serialize to JSON with every non-ASCII character escaped to \uXXXX.
+ * The payload is byte-for-byte identical in meaning (JSON.parse restores the
+ * original Hebrew), but the file is pure 7-bit ASCII — so it renders correctly
+ * in ANY editor/viewer regardless of its assumed encoding (no UTF-8 "mojibake"),
+ * and survives transfer / sanitization pipelines that are not UTF-8 clean.
+ */
+export function toPortableJson(obj: unknown): string {
+  return JSON.stringify(obj, null, 2).replace(
+    /[\u0080-￿]/g,
+    (ch) => '\\u' + ch.charCodeAt(0).toString(16).padStart(4, '0')
+  );
+}
+
 export function downloadJson(obj: unknown, filename: string): void {
-  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+  const blob = new Blob([toPortableJson(obj)], { type: 'application/json;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
