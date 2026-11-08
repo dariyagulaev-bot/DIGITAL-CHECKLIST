@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { getSetting, setSetting, SettingKeys } from '@/services/settings';
+import { getSetting, setSetting, SettingKeys, getCalibrationPolicy, setCalibrationPolicy } from '@/services/settings';
 import { hashPassword } from '@/services/auth';
 import { useToast } from '@/context/ToastContext';
 import { useUnsavedGuard } from '@/context/NavGuardContext';
 import { Spinner } from '@/components/ui';
+import type { CalibrationPolicy } from '@/types';
 
 export default function SettingsPage() {
   const { notify } = useToast();
@@ -12,7 +13,8 @@ export default function SettingsPage() {
   const [sharedPw, setSharedPw] = useState('');
   const [orgName, setOrgName] = useState('');
   const [autoLogout, setAutoLogout] = useState('10');
-  const initial = useRef({ mode: 'personal_accounts', orgName: '', autoLogout: '10' });
+  const [calPolicy, setCalPolicy] = useState<CalibrationPolicy>('warn');
+  const initial = useRef({ mode: 'personal_accounts', orgName: '', autoLogout: '10', calPolicy: 'warn' as CalibrationPolicy });
 
   useEffect(() => {
     (async () => {
@@ -20,10 +22,12 @@ export default function SettingsPage() {
       const resolvedMode = m === 'shared_password' ? 'shared_password' : 'personal_accounts';
       const org = (await getSetting(SettingKeys.ORG_NAME)) ?? '';
       const al = (await getSetting(SettingKeys.ADMIN_AUTOLOGOUT_MIN)) ?? '10';
+      const cp = await getCalibrationPolicy();
       setMode(resolvedMode);
       setOrgName(org);
       setAutoLogout(al);
-      initial.current = { mode: resolvedMode, orgName: org.trim(), autoLogout: String(parseInt(al, 10) || 10) };
+      setCalPolicy(cp);
+      initial.current = { mode: resolvedMode, orgName: org.trim(), autoLogout: String(parseInt(al, 10) || 10), calPolicy: cp };
       setLoading(false);
     })();
   }, []);
@@ -32,11 +36,12 @@ export default function SettingsPage() {
     await setSetting(SettingKeys.APPROVAL_MODE, mode);
     await setSetting(SettingKeys.ORG_NAME, orgName.trim());
     await setSetting(SettingKeys.ADMIN_AUTOLOGOUT_MIN, String(parseInt(autoLogout, 10) || 10));
+    await setCalibrationPolicy(calPolicy);
     if (mode === 'shared_password' && sharedPw) {
       await setSetting(SettingKeys.APPROVER_SHARED_HASH, await hashPassword(sharedPw));
     }
     setSharedPw('');
-    initial.current = { mode, orgName: orgName.trim(), autoLogout: String(parseInt(autoLogout, 10) || 10) };
+    initial.current = { mode, orgName: orgName.trim(), autoLogout: String(parseInt(autoLogout, 10) || 10), calPolicy };
     notify('ההגדרות נשמרו', 'ok');
   };
 
@@ -45,6 +50,7 @@ export default function SettingsPage() {
     mode !== initial.current.mode ||
     orgName.trim() !== initial.current.orgName ||
     String(parseInt(autoLogout, 10) || 10) !== initial.current.autoLogout ||
+    calPolicy !== initial.current.calPolicy ||
     sharedPw.length > 0;
   useUnsavedGuard(() => dirty, save);
 
@@ -115,6 +121,33 @@ export default function SettingsPage() {
               onChange={(e) => setAutoLogout(e.target.value)}
             />
           </div>
+        </div>
+      </section>
+
+      <section className="card p-5">
+        <h2 className="mb-1 text-lg font-bold text-slate-700">ציוד הדורש כיול</h2>
+        <p className="mb-4 text-sm text-slate-500">
+          התנהגות המערכת כאשר בבד״ח נעשה שימוש בציוד שפג תוקף הכיול שלו (נכון לתאריך הבדיקה).
+        </p>
+        <div className="space-y-3">
+          <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-3">
+            <input type="radio" className="mt-1 h-5 w-5" checked={calPolicy === 'warn'} onChange={() => setCalPolicy('warn')} />
+            <div>
+              <div className="font-semibold text-slate-800">התרעה בלבד (ברירת מחדל)</div>
+              <div className="text-sm text-slate-500">
+                מוצגת אזהרה ברורה למבצע ולמאשר, אך ניתן לבצע ולהגיש את הבד״ח.
+              </div>
+            </div>
+          </label>
+          <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-3">
+            <input type="radio" className="mt-1 h-5 w-5" checked={calPolicy === 'block'} onChange={() => setCalPolicy('block')} />
+            <div>
+              <div className="font-semibold text-slate-800">חסימת ביצוע באמצעות ציוד שפג תוקפו</div>
+              <div className="text-sm text-slate-500">
+                לא ניתן להגיש בד״ח לאישור כל עוד נעשה בו שימוש בציוד שפג תוקף הכיול שלו.
+              </div>
+            </div>
+          </label>
         </div>
       </section>
 

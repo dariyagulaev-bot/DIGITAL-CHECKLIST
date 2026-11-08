@@ -44,6 +44,7 @@ import { isSubsystemGrid } from '@/services/measurements';
 import type { CompletedBlock, PublishedBlock, PublishedCheckConfig } from '@/types';
 import type {
   BlockType,
+  EquipmentCalibration,
   EquipmentConfig,
   CustomField,
   FieldsConfig,
@@ -812,20 +813,43 @@ function CheckEditor({
     const list = equipmentItemsOf(task?.equipment_items, task?.equipment);
     return list.length ? list : [''];
   });
+  // Per-item calibration, aligned by index with equipmentItems. null = this item
+  // does not require calibration. Seeded from the task's saved calibration.
+  const [cal, setCal] = useState<(EquipmentCalibration | null)[]>(() => {
+    const list = equipmentItemsOf(task?.equipment_items, task?.equipment);
+    const src = task?.equipment_calibration ?? [];
+    const n = list.length || 1;
+    return Array.from({ length: n }, (_, i) => src[i] ?? null);
+  });
   const [image, setImage] = useState<string | null>(task?.image_data ?? null);
   const [busy, setBusy] = useState(false);
 
   const setItem = (i: number, val: string) => setEquipmentItems((prev) => prev.map((v, idx) => (idx === i ? val : v)));
-  const addItem = () => setEquipmentItems((prev) => [...prev, '']);
-  const removeItem = (i: number) => setEquipmentItems((prev) => (prev.length <= 1 ? [''] : prev.filter((_, idx) => idx !== i)));
-  const moveItem = (i: number, dir: -1 | 1) =>
-    setEquipmentItems((prev) => {
-      const j = i + dir;
-      if (j < 0 || j >= prev.length) return prev;
-      const next = [...prev];
+  const patchCal = (i: number, p: Partial<EquipmentCalibration> | null) =>
+    setCal((prev) =>
+      prev.map((c, idx) =>
+        idx !== i ? c : p === null ? null : { ...(c ?? {}), requires_calibration: true, ...p }
+      )
+    );
+  const addItem = () => {
+    setEquipmentItems((prev) => [...prev, '']);
+    setCal((prev) => [...prev, null]);
+  };
+  const removeItem = (i: number) => {
+    setEquipmentItems((prev) => (prev.length <= 1 ? [''] : prev.filter((_, idx) => idx !== i)));
+    setCal((prev) => (prev.length <= 1 ? [null] : prev.filter((_, idx) => idx !== i)));
+  };
+  const moveItem = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
+    const swap = <T,>(arr: T[]): T[] => {
+      if (j < 0 || j >= arr.length) return arr;
+      const next = [...arr];
       [next[i], next[j]] = [next[j], next[i]];
       return next;
-    });
+    };
+    setEquipmentItems((prev) => swap(prev));
+    setCal((prev) => swap(prev));
+  };
 
   const pickImage = async (file: File | null) => {
     if (!file) return;
@@ -841,13 +865,14 @@ function CheckEditor({
       notify('יש למלא שם אזור ופעולה', 'error');
       return;
     }
-    const items = equipmentItems.map((s) => s.trim()).filter(Boolean);
+    // Pass the raw (index-aligned) items + calibration; the service trims blanks
+    // and keeps the calibration aligned, dropping it entirely when unused.
     setBusy(true);
     try {
       if (task) {
-        await updateTask(task.id, { part_name: partName, action, equipment_items: items, image_data: image });
+        await updateTask(task.id, { part_name: partName, action, equipment_items: equipmentItems, equipment_calibration: cal, image_data: image });
       } else {
-        await addCheckBlock(templateId, { part_name: partName, action, equipment_items: items, image_data: image });
+        await addCheckBlock(templateId, { part_name: partName, action, equipment_items: equipmentItems, equipment_calibration: cal, image_data: image });
       }
       onSaved();
     } catch (err) {
@@ -871,14 +896,54 @@ function CheckEditor({
         <div>
           <label className="label">ציוד נדרש</label>
           <div className="space-y-2">
-            {equipmentItems.map((val, i) => (
-              <div key={i} className="flex items-center gap-1.5">
-                <input className="input flex-1" value={val} placeholder={`פריט ציוד ${i + 1}`} onChange={(e) => setItem(i, e.target.value)} />
-                <button type="button" className="btn-ghost !min-h-0 !px-1.5 !py-1.5" onClick={() => moveItem(i, -1)} disabled={i === 0}><Icon name="up" size={15} /></button>
-                <button type="button" className="btn-ghost !min-h-0 !px-1.5 !py-1.5" onClick={() => moveItem(i, 1)} disabled={i === equipmentItems.length - 1}><Icon name="down" size={15} /></button>
-                <button type="button" className="btn-ghost !min-h-0 !px-1.5 !py-1.5 text-fault-600" onClick={() => removeItem(i)}><Icon name="trash" size={15} /></button>
-              </div>
-            ))}
+            {equipmentItems.map((val, i) => {
+              const c = cal[i];
+              const needsCal = !!c?.requires_calibration;
+              return (
+                <div key={i} className="rounded-lg border border-slate-200 bg-slate-50/60 p-2">
+                  <div className="flex items-center gap-1.5">
+                    <input className="input flex-1" value={val} placeholder={`פריט ציוד ${i + 1}`} onChange={(e) => setItem(i, e.target.value)} />
+                    <button type="button" className="btn-ghost !min-h-0 !px-1.5 !py-1.5" onClick={() => moveItem(i, -1)} disabled={i === 0}><Icon name="up" size={15} /></button>
+                    <button type="button" className="btn-ghost !min-h-0 !px-1.5 !py-1.5" onClick={() => moveItem(i, 1)} disabled={i === equipmentItems.length - 1}><Icon name="down" size={15} /></button>
+                    <button type="button" className="btn-ghost !min-h-0 !px-1.5 !py-1.5 text-fault-600" onClick={() => removeItem(i)}><Icon name="trash" size={15} /></button>
+                  </div>
+                  {/* Calibration — attaches to THIS item; the name above is reused. */}
+                  <label className="mt-1.5 flex cursor-pointer items-center gap-2 text-[13px] text-ink-700">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={needsCal}
+                      disabled={!val.trim()}
+                      onChange={(e) => patchCal(i, e.target.checked ? { requires_calibration: true } : null)}
+                    />
+                    <Icon name="shield-check" size={14} className={needsCal ? 'text-brand-600' : 'text-ink-400'} />
+                    דורש כיול
+                  </label>
+                  {needsCal && (
+                    <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
+                      <div>
+                        <span className="mb-0.5 block text-[11.5px] font-medium text-ink-500">מספר סידורי</span>
+                        <input
+                          className="input !min-h-0 !py-1.5 text-[13px]"
+                          value={c?.serial_number ?? ''}
+                          placeholder="לדוגמה: 45821"
+                          onChange={(e) => patchCal(i, { serial_number: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <span className="mb-0.5 block text-[11.5px] font-medium text-ink-500">תוקף כיול</span>
+                        <input
+                          type="date"
+                          className="input !min-h-0 !py-1.5 text-[13px]"
+                          value={c?.calibration_expiry ?? ''}
+                          onChange={(e) => patchCal(i, { calibration_expiry: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
             <button type="button" className="btn-secondary btn-sm gap-1.5" onClick={addItem}><Icon name="plus" size={15} /> הוסף פריט ציוד</button>
           </div>
         </div>

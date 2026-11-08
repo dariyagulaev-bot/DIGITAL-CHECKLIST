@@ -35,6 +35,9 @@ export async function buildDraftContent(templateId: string): Promise<PublishedBl
         action: t.action,
         equipment: t.equipment,
         equipment_items: equipmentItemsOf(t.equipment_items, t.equipment),
+        // Freeze per-item calibration (aligned with the clean equipment_items the
+        // admin saved). Undefined when the task has no calibrated equipment.
+        equipment_calibration: t.equipment_calibration,
         image_data: t.image_data,
       };
       out.push({ type: 'check', sort_order: i, config: cfg });

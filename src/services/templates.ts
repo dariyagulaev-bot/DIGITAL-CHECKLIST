@@ -5,6 +5,7 @@ import { ensureDefaultRank } from './ranks';
 import { equipmentItemsOf } from '@/exports/labels';
 import type {
   CheckRefConfig,
+  EquipmentCalibration,
   TableConfig,
   Template,
   TemplateBlock,
@@ -15,6 +16,43 @@ import type {
 function normalizeEquipment(items?: string[], text?: string): { items: string[]; text: string } {
   const list = equipmentItemsOf(items, text);
   return { items: list, text: list.join(', ') };
+}
+
+/**
+ * Normalize equipment items TOGETHER with their per-item calibration, so the two
+ * arrays stay index-aligned after empty items are dropped. Calibration is kept
+ * only for items that require it (cleaned of blanks); returns undefined when no
+ * item needs calibration, so templates without calibration carry no extra data.
+ */
+function normalizeEquipmentWithCal(
+  items?: string[],
+  calibration?: (EquipmentCalibration | null)[],
+  text?: string
+): { items: string[]; text: string; calibration?: (EquipmentCalibration | null)[] } {
+  // No structured items → fall back to the legacy text split (no calibration).
+  if (!items || items.length === 0) {
+    const base = normalizeEquipment(items, text);
+    return { ...base, calibration: undefined };
+  }
+  const outItems: string[] = [];
+  const outCal: (EquipmentCalibration | null)[] = [];
+  items.forEach((raw, i) => {
+    const name = (raw ?? '').trim();
+    if (!name) return; // drop blank rows; keep calibration aligned
+    outItems.push(name);
+    const c = calibration?.[i] ?? null;
+    outCal.push(
+      c && c.requires_calibration
+        ? {
+            requires_calibration: true,
+            serial_number: c.serial_number?.trim() || undefined,
+            calibration_expiry: c.calibration_expiry || undefined,
+          }
+        : null
+    );
+  });
+  const anyCal = outCal.some((c) => c);
+  return { items: outItems, text: outItems.join(', '), calibration: anyCal ? outCal : undefined };
 }
 
 /** Bump a template's version + updated_at whenever its structure changes. */
@@ -202,11 +240,12 @@ export async function addTask(
     action: string;
     equipment?: string;
     equipment_items?: string[];
+    equipment_calibration?: (EquipmentCalibration | null)[];
     image_data?: string | null;
   }
 ): Promise<TemplateTask> {
   const existing = await getTemplateTasks(templateId);
-  const eq = normalizeEquipment(params.equipment_items, params.equipment);
+  const eq = normalizeEquipmentWithCal(params.equipment_items, params.equipment_calibration, params.equipment);
   const task: TemplateTask = {
     id: newId(),
     template_id: templateId,
@@ -214,6 +253,7 @@ export async function addTask(
     action: params.action.trim(),
     equipment: eq.text,
     equipment_items: eq.items,
+    equipment_calibration: eq.calibration,
     image_data: params.image_data ?? null,
     sort_order: existing.length,
   };
@@ -225,15 +265,24 @@ export async function addTask(
 export async function updateTask(
   taskId: string,
   patch: Partial<
-    Pick<TemplateTask, 'part_name' | 'action' | 'equipment' | 'equipment_items' | 'image_data'>
+    Pick<
+      TemplateTask,
+      'part_name' | 'action' | 'equipment' | 'equipment_items' | 'equipment_calibration' | 'image_data'
+    >
   >
 ): Promise<void> {
-  // When equipment is edited, keep the list and the legacy joined string in sync.
+  // When equipment is edited, keep the list, the legacy joined string, and the
+  // per-item calibration all in sync (calibration stays aligned to the items).
   const finalPatch: Partial<TemplateTask> = { ...patch };
-  if (patch.equipment_items !== undefined || patch.equipment !== undefined) {
-    const eq = normalizeEquipment(patch.equipment_items, patch.equipment);
+  if (
+    patch.equipment_items !== undefined ||
+    patch.equipment !== undefined ||
+    patch.equipment_calibration !== undefined
+  ) {
+    const eq = normalizeEquipmentWithCal(patch.equipment_items, patch.equipment_calibration, patch.equipment);
     finalPatch.equipment_items = eq.items;
     finalPatch.equipment = eq.text;
+    finalPatch.equipment_calibration = eq.calibration;
   }
   await db.template_tasks.update(taskId, finalPatch);
   const task = await db.template_tasks.get(taskId);

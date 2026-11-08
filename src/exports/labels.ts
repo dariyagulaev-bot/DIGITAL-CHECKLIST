@@ -1,4 +1,22 @@
-import { FormStatus, RoleName, TaskResult, type CompletedForm } from '@/types';
+import { FormStatus, RoleName, TaskResult, type CompletedForm, type FaultSeverity } from '@/types';
+
+/** True when a form has at least one disabling (משביתה) fault — a severe fault. */
+export function formHasDisablingFault(
+  tasks: { result: TaskResult; fault_severity?: FaultSeverity }[]
+): boolean {
+  return tasks.some((t) => t.result === TaskResult.FAULT && t.fault_severity === 'severe');
+}
+
+/** Tailwind classes for a severity chip (light background + text). */
+export function severityChipClass(s: FaultSeverity | undefined): string {
+  return s === 'severe'
+    ? 'bg-fault-100 text-fault-700 border-fault-200'
+    : s === 'medium'
+      ? 'bg-pending-100 text-pending-700 border-pending-200'
+      : s === 'light'
+        ? 'bg-ok-100 text-ok-700 border-ok-200'
+        : 'bg-slate-100 text-slate-500 border-slate-200';
+}
 
 /**
  * Official document number in the format the client specified:

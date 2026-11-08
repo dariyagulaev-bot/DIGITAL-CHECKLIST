@@ -1,12 +1,15 @@
 import type ExcelJSType from 'exceljs';
 import { getFormBundle } from '@/services/forms';
 import { db } from '@/data/db';
-import { statusLabel, equipmentItemsOf, currentResult, formatDate } from './labels';
+import { statusLabel, equipmentItemsOf, currentResult, formatDate, formatDateDots } from './labels';
+import { calibrationState } from '@/services/calibration';
 import { evaluateTableFull, formatDuration } from '@/services/measurements';
 import {
   FormStatus,
   SignerType,
   TaskResult,
+  faultSeverityLabel,
+  type EquipmentCalibration,
   type TableConfig,
   type FieldsConfig,
   type CompletedForm,
@@ -14,12 +17,33 @@ import {
   type CompletedBlock,
 } from '@/types';
 
-/** Equipment as a bulleted, one-per-line cell value (never a comma sentence). */
-function equipmentCellValue(items: string[] | undefined, fallback: string): string {
+/** One equipment item + its calibration note (serial / expiry / validity), if any. */
+function equipmentItemLine(name: string, cal: EquipmentCalibration | null | undefined, date: string): string {
+  if (!cal?.requires_calibration) return name;
+  const bits: string[] = [];
+  if (cal.serial_number) bits.push(`מס׳ סידורי ${cal.serial_number}`);
+  if (cal.calibration_expiry) {
+    const st = calibrationState(cal.calibration_expiry, date);
+    bits.push(`תוקף כיול ${formatDateDots(cal.calibration_expiry)} (${st === 'expired' ? 'פג' : st === 'valid' ? 'בתוקף' : '—'})`);
+  } else {
+    bits.push('דורש כיול');
+  }
+  return `${name} [${bits.join(' · ')}]`;
+}
+
+/** Equipment as a bulleted, one-per-line cell value (never a comma sentence),
+ *  including per-item calibration details when present. */
+function equipmentCellValue(
+  items: string[] | undefined,
+  fallback: string,
+  calibration?: (EquipmentCalibration | null)[],
+  date = ''
+): string {
   const list = equipmentItemsOf(items, fallback);
   if (list.length === 0) return '';
-  if (list.length === 1) return list[0];
-  return list.map((s) => `• ${s}`).join('\n');
+  const lines = list.map((s, i) => equipmentItemLine(s, calibration?.[i], date));
+  if (lines.length === 1) return lines[0];
+  return lines.map((s) => `• ${s}`).join('\n');
 }
 
 const GREEN = 'FFD1FAE5';
@@ -128,7 +152,7 @@ export async function exportFormToExcel(formId: string): Promise<void> {
     const row = ws.getRow(r);
     row.getCell(1).value = t.part_name_snapshot;
     row.getCell(2).value = t.action_snapshot;
-    row.getCell(3).value = equipmentCellValue(t.equipment_items_snapshot, t.equipment_snapshot);
+    row.getCell(3).value = equipmentCellValue(t.equipment_items_snapshot, t.equipment_snapshot, t.equipment_calibration_snapshot, form.date);
     row.getCell(4).value = isOk ? '✓' : '';
     row.getCell(5).value = isFault ? '✕' : '';
     for (let c = 1; c <= 5; c++) {
@@ -157,7 +181,8 @@ export async function exportFormToExcel(formId: string): Promise<void> {
     ws.mergeCells(`A${r}:F${r}`);
     r++;
     for (const t of faultTasks) {
-      ws.getCell(`A${r}`).value = `${t.part_name_snapshot} (${t.action_snapshot})`;
+      const sev = t.fault_severity ? ` — חומרה: ${faultSeverityLabel(t.fault_severity)}` : '';
+      ws.getCell(`A${r}`).value = `${t.part_name_snapshot} (${t.action_snapshot})${sev}`;
       ws.getCell(`A${r}`).font = { bold: true };
       ws.getCell(`A${r}`).alignment = { horizontal: 'right' };
       ws.mergeCells(`B${r}:F${r}`);
@@ -517,7 +542,10 @@ function collectFormColumns(
     reg({ key, label, order: t.sort_order, kind: 'check' });
     const cur = currentResult(t);
     values.set(key, cur === TaskResult.OK ? '✓' : cur === TaskResult.FAULT ? '✕' : '');
-    if (cur === TaskResult.FAULT) faults.push(`${t.part_name_snapshot}: ${t.comment?.trim() || 'לא תקין'}`);
+    if (cur === TaskResult.FAULT) {
+      const sev = t.fault_severity ? ` [${faultSeverityLabel(t.fault_severity)}]` : '';
+      faults.push(`${t.part_name_snapshot}: ${t.comment?.trim() || 'לא תקין'}${sev}`);
+    }
   }
 
   const NUMERIC = ['number', 'decimal', 'percent'];

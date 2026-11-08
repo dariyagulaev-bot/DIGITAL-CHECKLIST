@@ -200,7 +200,13 @@ export async function addBlock(
  */
 export async function addCheckBlock(
   templateId: string,
-  params: { part_name: string; action: string; equipment_items?: string[]; image_data?: string | null }
+  params: {
+    part_name: string;
+    action: string;
+    equipment_items?: string[];
+    equipment_calibration?: (import('@/types').EquipmentCalibration | null)[];
+    image_data?: string | null;
+  }
 ): Promise<TemplateBlock> {
   await ensureBlocks(templateId);
   const task = await addTask(templateId, params);

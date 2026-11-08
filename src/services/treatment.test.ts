@@ -15,7 +15,7 @@ import {
   submitForApproval,
   updateFormMeta,
 } from '@/services/forms';
-import { finalizeApproval } from '@/services/approval';
+import { finalizeApproval, setFaultSeverity } from '@/services/approval';
 import {
   transferToTreatmentRank,
   setTreatmentPerformers,
@@ -229,7 +229,8 @@ describe('transfer-to-treatment-rank (העברה לדרג מטפל)', () => {
     form = await getForm(formId);
     expect(form!.status).toBe(FormStatus.PENDING_APPROVAL);
 
-    // Approver verifies at final approval. Original performer signatures kept.
+    // Approver verifies at final approval. Grade severity first (required).
+    await setFaultSeverity(formId, approver, faultTaskId, 'severe');
     await addSignature({ formId, signer: approver, type: SignerType.APPROVER, signatureData: SIG });
     await finalizeApproval(formId, approver);
     form = await getForm(formId);

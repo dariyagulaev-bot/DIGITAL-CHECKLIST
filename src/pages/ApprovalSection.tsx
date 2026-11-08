@@ -2,17 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { canApprove } from '@/services/rbac';
-import { finalizeApproval, returnForFix } from '@/services/approval';
+import { finalizeApproval, returnForFix, setFaultSeverity } from '@/services/approval';
 import { transferToTreatmentRank, hasEnoughTreatmentManpower } from '@/services/treatment';
 import { listRanks } from '@/services/ranks';
 import { addSignature, type FormBundle } from '@/services/forms';
 import { defineFromFault, canManageTracking } from '@/services/trackingFaults';
 import { db } from '@/data/db';
-import { FormStatus, SignerType, TaskResult, type Rank } from '@/types';
+import { FormStatus, SignerType, TaskResult, FAULT_SEVERITIES, faultSeverityLabel, type FaultSeverity, type Rank } from '@/types';
 import { SignaturePad, type SignaturePadHandle } from '@/components/SignaturePad';
 import { Modal } from '@/components/ui';
 import { Icon } from '@/components/Icon';
-import { formatDateTime } from '@/exports/labels';
+import { formatDateTime, severityChipClass } from '@/exports/labels';
 
 /**
  * Approver area — session-based.
@@ -191,6 +191,19 @@ export function ApprovalSection({
     }
   };
 
+  // Approver grades the severity of a fault (audited; performer can never do this).
+  const gradeSeverity = async (taskId: string, severity: FaultSeverity) => {
+    setBusy(true);
+    try {
+      await setFaultSeverity(form.id, user, taskId, severity);
+      await onChanged();
+    } catch (e) {
+      notify((e as Error).message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const submitReturn = async () => {
     const sections = [...checked]
       .map((taskId) => ({ taskId, note: (sectionNotes[taskId] ?? '').trim() }))
@@ -272,6 +285,56 @@ export function ApprovalSection({
           </p>
         </div>
       </div>
+
+      {/* Disabling-fault banner (clear, professional — no animation). */}
+      {faultTasks.some((t) => t.fault_severity === 'severe') && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-fault-300 bg-fault-50 px-4 py-2.5 text-[14px] font-bold text-fault-700">
+          <Icon name="alert" size={18} /> קיימת תקלה משביתה בבד״ח זה
+        </div>
+      )}
+
+      {/* Severity grading — the approver sets the severity of EVERY fault. The
+          performer never grades; a change is audited (old → new). Required before
+          approval. */}
+      {faultTasks.length > 0 && (
+        <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
+          <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] font-bold text-ink-800">
+            <Icon name="alert" size={16} className="text-fault-600" /> קביעת חומרת אי-תקינות
+            <span className="text-[12px] font-normal text-ink-500">— חובה לכל סעיף לא תקין לפני אישור</span>
+          </div>
+          <div className="space-y-2">
+            {faultTasks.map((t) => (
+              <div key={t.id} className="rounded-md border border-slate-200 bg-white px-3 py-2">
+                <div className="mb-1.5 text-[13px]">
+                  <span className="font-semibold text-ink-800">{t.part_name_snapshot}</span>
+                  {t.comment.trim() && <span className="text-ink-500"> — {t.comment}</span>}
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {FAULT_SEVERITIES.map((sev) => {
+                    const on = t.fault_severity === sev;
+                    return (
+                      <button
+                        key={sev}
+                        type="button"
+                        disabled={busy}
+                        onClick={() => gradeSeverity(t.id, sev)}
+                        className={`rounded-md border px-3 py-1.5 text-[13px] font-semibold transition-colors ${
+                          on ? `${severityChipClass(sev)} ring-1 ring-inset` : 'border-slate-300 text-ink-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {faultSeverityLabel(sev)}
+                      </button>
+                    );
+                  })}
+                  {!t.fault_severity && (
+                    <span className="mr-1 text-[12px] font-semibold text-pending-700">טרם נקבעה חומרה</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <SignaturePad ref={sigRef} onChange={setSigEmpty} />
 

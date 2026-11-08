@@ -17,7 +17,7 @@ import {
   type TemplateSnapshot,
   type UserWithRoles,
 } from '@/types';
-import { equipmentItemsOf } from '@/exports/labels';
+import { equipmentItemsOf, isResolvedFault } from '@/exports/labels';
 import { isUserCertified } from './certifications';
 import { getUserById, getUserRoles } from './auth';
 import { getEffectiveBlocks } from './blocks';
@@ -145,6 +145,7 @@ export async function createDraftForm(params: {
                 action: t.action,
                 equipment: t.equipment,
                 equipment_items: equipmentItemsOf(t.equipment_items, t.equipment),
+                equipment_calibration: t.equipment_calibration,
                 image_data: t.image_data,
               }
             : undefined,
@@ -179,11 +180,15 @@ export async function createDraftForm(params: {
       const c = n.check;
       if (!c) return;
       const items = equipmentItemsOf(c.equipment_items, c.equipment);
+      // Calibration is aligned by index with the CLEAN equipment_items the admin
+      // saved; `items` here is that same clean list, so the alignment is preserved.
+      const calibration = c.equipment_calibration;
       taskSnaps.push({
         part_name: c.part_name,
         action: c.action,
         equipment: c.equipment,
         equipment_items: items,
+        equipment_calibration: calibration,
         image_data: c.image_data,
         sort_order: i,
       });
@@ -195,6 +200,7 @@ export async function createDraftForm(params: {
         action_snapshot: c.action,
         equipment_snapshot: c.equipment,
         equipment_items_snapshot: items,
+        equipment_calibration_snapshot: calibration,
         image_snapshot: c.image_data,
         result: TaskResult.UNSET,
         comment: '',
@@ -638,6 +644,27 @@ export async function validateForSubmit(formId: string): Promise<SubmitValidatio
   );
   if (faultsMissingDetail.length)
     errors.push(`ישנם ${faultsMissingDetail.length} סעיפים לא תקינים ללא פירוט תקלה`);
+  // Calibration policy: when set to "block", a בד״ח cannot be submitted while it
+  // uses equipment whose calibration expired as of the inspection date. Under the
+  // default "warn" policy, expired calibration is surfaced as a clear warning in
+  // the UI / report but never blocks the work.
+  {
+    const { getCalibrationPolicy } = await import('./settings');
+    const policy = await getCalibrationPolicy();
+    if (policy === 'block') {
+      const { taskHasExpiredCalibration, calibratedItems, calibrationState } = await import('./calibration');
+      const blocked: string[] = [];
+      for (const t of tasks) {
+        if (!taskHasExpiredCalibration(t, form.date)) continue;
+        const expiredNames = calibratedItems(t.equipment_items_snapshot, t.equipment_calibration_snapshot)
+          .filter(({ cal }) => calibrationState(cal.calibration_expiry, form.date) === 'expired')
+          .map(({ name }) => name);
+        blocked.push(`${t.part_name_snapshot} (${expiredNames.join(', ')})`);
+      }
+      if (blocked.length)
+        errors.push(`לא ניתן להגיש בד״ח עם ציוד שפג תוקף הכיול שלו: ${blocked.join(' · ')}`);
+    }
+  }
   const perf1Sig = signatures.find((s) => s.signer_type === SignerType.PERFORMER);
   if (!perf1Sig) errors.push('חסרה חתימת מבצע 1');
   const perf2Sig = signatures.find((s) => s.signer_type === SignerType.PERFORMER2);
@@ -751,6 +778,26 @@ function sortByCreatedDesc(forms: CompletedForm[]): CompletedForm[] {
 export interface FormRowStats {
   taskCount: number;
   faultCount: number;
+  /** Fault severity breakdown (approver-graded). */
+  lightCount: number;
+  mediumCount: number;
+  severeCount: number;
+  /** A disabling (משביתה) fault exists on this form. */
+  hasDisabling: boolean;
+}
+
+/** Severity tally for a set of completed tasks (reused by stats & dashboard). */
+export function severityTally(tasks: CompletedTask[]): {
+  lightCount: number;
+  mediumCount: number;
+  severeCount: number;
+  hasDisabling: boolean;
+} {
+  const faults = tasks.filter((t) => t.result === TaskResult.FAULT);
+  const lightCount = faults.filter((t) => t.fault_severity === 'light').length;
+  const mediumCount = faults.filter((t) => t.fault_severity === 'medium').length;
+  const severeCount = faults.filter((t) => t.fault_severity === 'severe').length;
+  return { lightCount, mediumCount, severeCount, hasDisabling: severeCount > 0 };
 }
 
 export async function getFormStats(formId: string): Promise<FormRowStats> {
@@ -758,6 +805,7 @@ export async function getFormStats(formId: string): Promise<FormRowStats> {
   return {
     taskCount: tasks.length,
     faultCount: tasks.filter((t) => t.result === TaskResult.FAULT).length,
+    ...severityTally(tasks),
   };
 }
 
@@ -819,6 +867,15 @@ export interface BreakdownRow {
   faults: number;
 }
 
+/** Fault-severity totals across the (optionally filtered) set of forms. */
+export interface SeverityStats {
+  light: number;
+  medium: number;
+  severe: number; // all disabling faults
+  severeOpen: number; // disabling faults not yet resolved (פתוחות)
+  severeRepaired: number; // disabling faults repaired & verified (תוקנו)
+}
+
 export interface DashboardBreakdowns {
   bySystem: BreakdownRow[];
   byUnit: BreakdownRow[];
@@ -829,15 +886,39 @@ export interface DashboardBreakdowns {
   okItems: number;
   faultItems: number;
   totalForms: number;
+  severity: SeverityStats;
+}
+
+/** Optional filters for the dashboard (all snapshot-based so history is stable). */
+export interface DashboardFilter {
+  systemId?: string;
+  unitId?: string;
+  rankId?: string;
+  templateId?: string;
+  from?: string; // inspection date ≥ from (YYYY-MM-DD)
+  to?: string; // inspection date ≤ to
+}
+
+function matchesFilter(f: CompletedForm, flt?: DashboardFilter): boolean {
+  if (!flt) return true;
+  if (flt.systemId && (f.system_id ?? '') !== flt.systemId) return false;
+  if (flt.unitId && (f.unit_id ?? '') !== flt.unitId) return false;
+  if (flt.rankId && (f.rank_id ?? '') !== flt.rankId) return false;
+  if (flt.templateId && f.template_id !== flt.templateId) return false;
+  if (flt.from && f.date < flt.from) return false;
+  if (flt.to && f.date > flt.to) return false;
+  return true;
 }
 
 /**
  * Aggregate all completed forms into the hierarchy breakdowns the admin
  * dashboard charts. Snapshots are used so history stays stable even after a
- * system/unit/rank/template is renamed or disabled.
+ * system/unit/rank/template is renamed or disabled. An optional filter narrows
+ * the set (system / unit / rank / type / date range) — used by the severity view.
  */
-export async function getDashboardBreakdowns(): Promise<DashboardBreakdowns> {
-  const forms = await listAllForms();
+export async function getDashboardBreakdowns(filter?: DashboardFilter): Promise<DashboardBreakdowns> {
+  const forms = (await listAllForms()).filter((f) => matchesFilter(f, filter));
+  const severity: SeverityStats = { light: 0, medium: 0, severe: 0, severeOpen: 0, severeRepaired: 0 };
 
   const buckets: Record<
     'bySystem' | 'byUnit' | 'byRank' | 'byTemplate' | 'byPerformer' | 'byMonth',
@@ -873,6 +954,16 @@ export async function getDashboardBreakdowns(): Promise<DashboardBreakdowns> {
     const faults = tasks.filter((t) => t.result === TaskResult.FAULT).length;
     okItems += tasks.filter((t) => t.result === TaskResult.OK).length;
     faultItems += faults;
+    for (const t of tasks) {
+      if (t.result !== TaskResult.FAULT) continue;
+      if (t.fault_severity === 'light') severity.light += 1;
+      else if (t.fault_severity === 'medium') severity.medium += 1;
+      else if (t.fault_severity === 'severe') {
+        severity.severe += 1;
+        if (isResolvedFault(t)) severity.severeRepaired += 1;
+        else severity.severeOpen += 1;
+      }
+    }
     const approved = f.status === FormStatus.APPROVED;
     const hasFault = faults > 0;
 
@@ -905,6 +996,7 @@ export async function getDashboardBreakdowns(): Promise<DashboardBreakdowns> {
     okItems,
     faultItems,
     totalForms: forms.length,
+    severity,
   };
 }
 

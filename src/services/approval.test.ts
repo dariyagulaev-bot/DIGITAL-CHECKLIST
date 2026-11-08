@@ -11,6 +11,7 @@ import { addTask, createTemplate } from './templates';
 import {
   authenticateApprover,
   finalizeApproval,
+  setFaultSeverity,
   SELF_APPROVAL_MESSAGE,
 } from './approval';
 import { adminSetTaskResult } from './adminForms';
@@ -132,6 +133,9 @@ describe('approval & self-approval prevention', () => {
       type: SignerType.APPROVER,
       signatureData: SIG,
     });
+    // The approver must grade the severity of every fault before approval.
+    for (const t of (await getFormTasks(formId)).filter((x) => x.result === TaskResult.FAULT))
+      await setFaultSeverity(formId, a, t.id, 'medium');
     await finalizeApproval(formId, a);
 
     const finalForm = await getForm(formId);
@@ -154,6 +158,8 @@ describe('approval & self-approval prevention', () => {
       type: SignerType.APPROVER,
       signatureData: SIG,
     });
+    for (const t of (await getFormTasks(formId)).filter((x) => x.result === TaskResult.FAULT))
+      await setFaultSeverity(formId, a, t.id, 'medium');
     await finalizeApproval(formId, a);
     expect((await getForm(formId))!.status).toBe(FormStatus.APPROVED);
 

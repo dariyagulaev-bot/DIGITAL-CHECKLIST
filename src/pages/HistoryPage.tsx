@@ -14,6 +14,8 @@ import { FormStatus, type CompletedForm } from '@/types';
 interface Row extends CompletedForm {
   taskCount: number;
   faultCount: number;
+  severeCount: number;
+  hasDisabling: boolean;
 }
 
 export default function HistoryPage() {
@@ -25,6 +27,7 @@ export default function HistoryPage() {
   const [status, setStatus] = useState<string>('ALL');
   const [phase, setPhase] = useState<string>('ALL');
   const [faultsOnly, setFaultsOnly] = useState(false);
+  const [disablingOnly, setDisablingOnly] = useState(false);
   const [trackingOnly, setTrackingOnly] = useState(false);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -60,6 +63,7 @@ export default function HistoryPage() {
       if (status !== 'ALL' && r.status !== status) return false;
       if (phase !== 'ALL' && (r.phase_name_snapshot ?? '') !== phase) return false;
       if (faultsOnly && r.faultCount === 0) return false;
+      if (disablingOnly && !r.hasDisabling) return false;
       if (trackingOnly && (r.tracking_faults_snapshot?.length ?? 0) === 0) return false;
       if (from && r.date < from) return false;
       if (to && r.date > to) return false;
@@ -156,6 +160,17 @@ export default function HistoryPage() {
               <span className="text-sm font-medium text-slate-600">עם תקלות בלבד</span>
             </label>
           </div>
+          <div className="flex items-end">
+            <label className="flex cursor-pointer items-center gap-2 py-3">
+              <input
+                type="checkbox"
+                className="h-5 w-5"
+                checked={disablingOnly}
+                onChange={(e) => setDisablingOnly(e.target.checked)}
+              />
+              <span className="text-sm font-medium text-slate-600">תקלות משביתות בלבד</span>
+            </label>
+          </div>
           {anyTracking && (
             <div className="flex items-end">
               <label className="flex cursor-pointer items-center gap-2 py-3">
@@ -197,6 +212,7 @@ export default function HistoryPage() {
                 <th className="p-3 font-semibold">מאשר</th>
                 <th className="p-3 font-semibold">בדיקות</th>
                 <th className="p-3 font-semibold">תקלות</th>
+                <th className="p-3 font-semibold">משביתה</th>
                 {anyTracking && <th className="p-3 font-semibold">מעקב</th>}
                 <th className="p-3 font-semibold">סטטוס</th>
                 <th className="p-3 font-semibold">פעולות</th>
@@ -225,6 +241,15 @@ export default function HistoryPage() {
                   <td className="p-3 text-center">{r.taskCount}</td>
                   <td className={`p-3 text-center ${r.faultCount ? 'font-bold text-fault-600' : ''}`}>
                     {r.faultCount}
+                  </td>
+                  <td className="p-3 text-center">
+                    {r.hasDisabling ? (
+                      <span className="nums rounded-full bg-fault-100 px-2 py-0.5 text-[12px] font-bold text-fault-700">
+                        {r.severeCount} משביתה
+                      </span>
+                    ) : (
+                      <span className="text-ink-300">—</span>
+                    )}
                   </td>
                   {anyTracking && (
                     <td className="p-3 text-center">

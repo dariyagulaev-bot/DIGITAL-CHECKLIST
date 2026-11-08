@@ -30,7 +30,9 @@ import {
 import { fileToManagedDataUrl } from '@/services/images';
 import { listCertifiedPerformerUsers } from '@/services/certifications';
 import { FormStatus, SignerType, TaskResult, type CompletedTask, type Signature } from '@/types';
-import { equipmentItemsOf, formatDateDots, formatDateTime, formatStamp, faultTreatmentStatus } from '@/exports/labels';
+import { equipmentItemsOf, formatDateDots, formatDateTime, formatStamp, faultTreatmentStatus, formHasDisablingFault, severityChipClass } from '@/exports/labels';
+import { EquipmentCalibrationLine } from '@/components/EquipmentCalibrationLine';
+import { faultSeverityLabel } from '@/types';
 import { PerformerSelect } from '@/components/PerformerSelect';
 import { SignaturePad, type SignaturePadHandle } from '@/components/SignaturePad';
 import { Modal, Spinner, StatusBadge } from '@/components/ui';
@@ -275,11 +277,16 @@ export default function FormRunnerPage() {
       <section className="card">
         <div className="panel-head">
           <div className="min-w-0">
-            <div className="mb-1 flex items-center gap-2">
+            <div className="mb-1 flex flex-wrap items-center gap-2">
               <StatusBadge status={form.status} />
               {form.status === FormStatus.APPROVED && (
                 <span className="badge border-slate-200 bg-slate-100 text-slate-600">
                   <Icon name="lock" size={12} /> נעול
+                </span>
+              )}
+              {formHasDisablingFault(tasks) && (
+                <span className="badge border-fault-200 bg-fault-100 text-fault-700">
+                  <Icon name="alert" size={12} /> קיימת תקלה משביתה
                 </span>
               )}
             </div>
@@ -570,6 +577,7 @@ export default function FormRunnerPage() {
                         editable={editable}
                         resultsLocked={returned}
                         canReport={editable && returned}
+                        formDate={form.date}
                         onResult={(r) => onResult(task, r)}
                         onOpenFault={() => openFault(task)}
                         onReportRepair={() => setRepairTaskId(task.id)}
@@ -811,17 +819,30 @@ const PerformerSignature = forwardRef<
   );
 });
 
-/** Equipment shown as an orderly stacked list inside the single "ציוד נדרש" cell. */
-function EquipmentCell({ items, fallback }: { items?: string[]; fallback?: string }) {
+/** Equipment shown as an orderly stacked list inside the single "ציוד נדרש" cell,
+ *  with a small calibration line under any item that requires calibration. */
+function EquipmentCell({
+  items,
+  fallback,
+  calibration,
+  date,
+}: {
+  items?: string[];
+  fallback?: string;
+  calibration?: (import('@/types').EquipmentCalibration | null)[];
+  date: string;
+}) {
   const list = equipmentItemsOf(items, fallback);
   if (list.length === 0) return <span className="text-ink-400">ללא</span>;
-  if (list.length === 1) return <span>{list[0]}</span>;
   return (
-    <ul className="space-y-0.5">
+    <ul className={list.length > 1 ? 'space-y-1' : ''}>
       {list.map((it, i) => (
         <li key={i} className="flex gap-1.5">
-          <span className="mt-[1px] shrink-0 text-ink-300">•</span>
-          <span>{it}</span>
+          {list.length > 1 && <span className="mt-[1px] shrink-0 text-ink-300">•</span>}
+          <span className="min-w-0">
+            {it}
+            <EquipmentCalibrationLine cal={calibration?.[i]} date={date} />
+          </span>
         </li>
       ))}
     </ul>
@@ -833,6 +854,7 @@ function TaskRow({
   editable,
   resultsLocked,
   canReport,
+  formDate,
   onResult,
   onOpenFault,
   onReportRepair,
@@ -842,6 +864,7 @@ function TaskRow({
   editable: boolean;
   resultsLocked: boolean;
   canReport: boolean;
+  formDate: string;
   onResult: (r: TaskResult) => void;
   onOpenFault: () => void;
   onReportRepair: () => void;
@@ -861,7 +884,12 @@ function TaskRow({
         <td className="align-top font-semibold text-ink-900">{task.part_name_snapshot}</td>
         <td className="align-top text-ink-700">{task.action_snapshot}</td>
         <td className="align-top text-ink-600">
-          <EquipmentCell items={task.equipment_items_snapshot} fallback={task.equipment_snapshot} />
+          <EquipmentCell
+            items={task.equipment_items_snapshot}
+            fallback={task.equipment_snapshot}
+            calibration={task.equipment_calibration_snapshot}
+            date={formDate}
+          />
         </td>
         <td className="text-center align-top">
           {task.image_snapshot ? (
@@ -919,6 +947,11 @@ function TaskRow({
                 {hasDetail ? 'יש פירוט תקלה' : 'הוסף פירוט אי-תקינות'}
                 {hasDetail && task.fault_image && <Icon name="camera" size={15} />}
               </button>
+              {task.fault_severity && (
+                <span className={`badge ${severityChipClass(task.fault_severity)}`}>
+                  חומרה: {faultSeverityLabel(task.fault_severity)}
+                </span>
+              )}
               {hasDetail && task.comment.trim() && (
                 <span className="truncate text-[13px] text-ink-600">— {task.comment}</span>
               )}

@@ -9,8 +9,10 @@ import {
   FormStatus,
   SignerType,
   TaskResult,
+  faultSeverityLabel,
   type CompletedForm,
   type FaultEvent,
+  type FaultSeverity,
   type UserWithRoles,
 } from '@/types';
 import { getForm, getFormSignatures, getFormTasks } from './forms';
@@ -96,6 +98,13 @@ export async function finalizeApproval(
   // Final approval also VERIFIES every section that had been returned and
   // treated — stamping who verified and when onto each such section.
   const tasks = await getFormTasks(formId);
+  // The approver must grade the severity (קלה/בינונית/חמורה–משביתה) of EVERY
+  // fault before the בד״ח can be approved.
+  const ungraded = tasks.filter((t) => t.result === TaskResult.FAULT && !t.fault_severity);
+  assert(
+    ungraded.length === 0,
+    `יש לקבוע חומרת אי-תקינות לכל הסעיפים הלא תקינים לפני האישור (נותרו ${ungraded.length}).`
+  );
   await Promise.all(
     tasks
       .filter((t) => (t.returned_for_fix || t.transferred_for_treatment) && t.repair_reported)
@@ -236,4 +245,50 @@ export async function returnForFix(
     new_value: FormStatus.REJECTED,
     reason: [generalNote.trim(), ...picked.map((p) => p.note.trim())].filter(Boolean).join(' | '),
   });
+}
+
+/**
+ * Set (or change) the severity of a fault — APPROVER-ONLY. The performer never
+ * grades severity. 'severe' marks the fault as disabling (משביתה). Every change
+ * is recorded in the audit log (who, when, previous → new). No-ops when the value
+ * is unchanged. The בד״ח must be pending approval (severity is graded during the
+ * approver's review, before final approval locks the document).
+ */
+export async function setFaultSeverity(
+  formId: string,
+  approver: UserWithRoles,
+  taskId: string,
+  severity: FaultSeverity
+): Promise<void> {
+  const form = await getForm(formId);
+  assert(!!form, 'הבד״ח לא נמצא');
+  assert(form!.status === FormStatus.PENDING_APPROVAL, 'ניתן לקבוע חומרה רק בבד״ח הממתין לאישור.');
+  assert(canApprove(approver), 'רק מאשר יכול לקבוע חומרת אי-תקינות.');
+  assert(approver.id !== form!.performer_user_id, SELF_APPROVAL_MESSAGE);
+
+  const task = await db.completed_tasks.get(taskId);
+  assert(!!task && task!.completed_form_id === formId, 'הסעיף לא נמצא');
+  assert(task!.result === TaskResult.FAULT, 'ניתן לקבוע חומרה רק לסעיף שסומן "לא תקין".');
+
+  const prev = task!.fault_severity;
+  if (prev === severity) return; // no change → no audit noise
+
+  const now = nowIso();
+  await db.completed_tasks.update(taskId, {
+    fault_severity: severity,
+    severity_set_by_id: approver.id,
+    severity_set_by_name: approver.full_name,
+    severity_set_at: now,
+  });
+  await logAudit({
+    user_id: approver.id,
+    user_name: approver.full_name,
+    action: 'SET_FAULT_SEVERITY',
+    entity_type: 'completed_task',
+    entity_id: taskId,
+    field: task!.part_name_snapshot,
+    old_value: prev ? faultSeverityLabel(prev) : '—',
+    new_value: faultSeverityLabel(severity),
+  });
+  await db.completed_forms.update(formId, { updated_at: now });
 }

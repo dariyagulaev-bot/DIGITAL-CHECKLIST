@@ -110,12 +110,32 @@ export interface Performer {
   updated_at: string;
 }
 
+/**
+ * Calibration metadata for ONE required-equipment item (ציוד הדורש כיול).
+ * Stored POSITIONALLY ALIGNED with `equipment_items` — entry i describes item i;
+ * a `null` entry (or a shorter array) means that item does not require calibration.
+ * The equipment NAME is never duplicated here — it already lives in equipment_items.
+ */
+export interface EquipmentCalibration {
+  requires_calibration: boolean;
+  serial_number?: string; // מספר סידורי
+  calibration_expiry?: string; // תוקף כיול — ISO date (YYYY-MM-DD)
+}
+
+/** Validity of a calibration relative to a reference (inspection) date. */
+export type CalibrationState = 'valid' | 'expired' | 'unknown';
+
+/** Admin policy for equipment whose calibration expired, as of the בד״ח date. */
+export type CalibrationPolicy = 'warn' | 'block';
+
 /** A frozen, self-contained copy of a check block's content for publishing. */
 export interface PublishedCheckConfig {
   part_name: string;
   action: string;
   equipment: string;
   equipment_items: string[];
+  /** Per-item calibration, aligned by index with equipment_items (null = none). */
+  equipment_calibration?: (EquipmentCalibration | null)[];
   image_data: string | null;
 }
 
@@ -214,6 +234,8 @@ export interface TemplateTask {
   /** Required equipment as an ordered list of items. Source of truth going
    *  forward; `equipment` mirrors it (joined) for backward compatibility. */
   equipment_items?: string[];
+  /** Per-item calibration, aligned by index with equipment_items (null = none). */
+  equipment_calibration?: (EquipmentCalibration | null)[];
   image_data: string | null; // data URL (managed copy, not original path)
   sort_order: number;
 }
@@ -224,6 +246,7 @@ export interface TaskSnapshot {
   action: string;
   equipment: string;
   equipment_items?: string[];
+  equipment_calibration?: (EquipmentCalibration | null)[];
   image_data: string | null;
   sort_order: number;
 }
@@ -575,6 +598,22 @@ export interface CompletedForm {
   treatment_performer2_name?: string;
 }
 
+/**
+ * Severity of a fault (חומרת אי־תקינות), graded by the APPROVER after the
+ * performer reports "לא תקין". 'severe' is a disabling fault (תקלה משביתה).
+ */
+export type FaultSeverity = 'light' | 'medium' | 'severe';
+
+/** Human labels + ordering for fault severities (highest last). */
+export const FAULT_SEVERITIES: FaultSeverity[] = ['light', 'medium', 'severe'];
+export function faultSeverityLabel(s: FaultSeverity | undefined): string {
+  return s === 'light' ? 'קלה' : s === 'medium' ? 'בינונית' : s === 'severe' ? 'חמורה – משביתה' : '—';
+}
+/** True when the fault is a disabling one (משביתה). */
+export function isDisablingSeverity(s: FaultSeverity | undefined): boolean {
+  return s === 'severe';
+}
+
 /** A single, immutable event in a task's fault-handling lifecycle. */
 export type FaultEventType =
   | 'discovered' // תקלה התגלתה (marked "לא תקין")
@@ -683,11 +722,24 @@ export interface CompletedTask {
   action_snapshot: string;
   equipment_snapshot: string; // legacy single-string fallback
   equipment_items_snapshot?: string[]; // frozen equipment list at execution time
+  /** Frozen per-item calibration (serial + expiry + requires flag), aligned by
+   *  index with equipment_items_snapshot. Immutable — a later admin edit to the
+   *  template never changes this historical בד״ח. Validity is derived from the
+   *  frozen expiry vs the frozen form date, so it too is stable. */
+  equipment_calibration_snapshot?: (EquipmentCalibration | null)[];
   image_snapshot: string | null; // reference image (data URL)
   result: TaskResult; // ORIGINAL inspection result — never changed by a later repair
   comment: string; // fault detail (original description of the fault)
   fault_image: string | null; // data URL of fault photo (before)
   sort_order: number;
+
+  // ---- Fault severity (חומרת אי־תקינות) — set by the APPROVER only ----
+  // The performer never sets severity. 'severe' = disabling (משביתה). Every
+  // change is audited (old → new). Absent = the approver has not graded it yet.
+  fault_severity?: FaultSeverity;
+  severity_set_by_id?: string;
+  severity_set_by_name?: string;
+  severity_set_at?: string;
 
   // ---- Fault-handling lifecycle (all optional; only set for faulty items) ----
   // Discovery — who found the fault and exactly when (kept forever).

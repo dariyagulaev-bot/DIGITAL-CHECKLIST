@@ -12,7 +12,7 @@ import {
   validateForSubmit,
 } from './forms';
 import { addTask, createTemplate } from './templates';
-import { finalizeApproval, returnForFix } from './approval';
+import { finalizeApproval, returnForFix, setFaultSeverity } from './approval';
 import { currentResult } from '@/exports/labels';
 import { FormStatus, RoleName, SignerType, TaskResult, type UserWithRoles } from '@/types';
 import { ensureRoles, makeUser, resetDb, certifyAllSystems } from '@/test/helpers';
@@ -105,7 +105,8 @@ describe('fault-handling lifecycle', () => {
     await submitForApproval(formId, performer.id);
     expect((await getForm(formId))!.status).toBe(FormStatus.PENDING_APPROVAL);
 
-    // Final approval verifies the treated section.
+    // Final approval verifies the treated section. Grade severity first (required).
+    await setFaultSeverity(formId, approver, faultTaskId, 'severe');
     await addSignature({ formId, signer: approver, type: SignerType.APPROVER, signatureData: SIG });
     await finalizeApproval(formId, approver);
     task = (await getFormTasks(formId)).find((t) => t.id === faultTaskId)!;

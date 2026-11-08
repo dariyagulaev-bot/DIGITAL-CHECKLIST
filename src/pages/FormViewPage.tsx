@@ -21,9 +21,12 @@ import {
   formFooterNumber,
   statusLabel,
   equipmentItemsOf,
+  formHasDisablingFault,
+  severityChipClass,
 } from '@/exports/labels';
 import { FaultTimeline } from '@/components/FaultTimeline';
-import { FormStatus, SignerType, TaskResult, type Signature, type CompletedTask } from '@/types';
+import { EquipmentCalibrationLine } from '@/components/EquipmentCalibrationLine';
+import { FormStatus, SignerType, TaskResult, faultSeverityLabel, type Signature, type CompletedTask } from '@/types';
 
 export default function FormViewPage() {
   const { id } = useParams<{ id: string }>();
@@ -146,6 +149,13 @@ export default function FormViewPage() {
           סטטוס הבד״ח: {statusLabel(form.status)}
           {approved ? '' : ' — טרם אושר'}
         </div>
+
+        {/* Disabling-fault indicator — clear and prominent in the official document. */}
+        {formHasDisablingFault(tasks) && (
+          <div className="avoid-break mb-4 flex items-center justify-center gap-2 rounded-md border-2 border-fault-300 bg-fault-50 px-4 py-2 text-[15px] font-bold text-fault-700">
+            <Icon name="alert" size={18} /> קיימת תקלה משביתה
+          </div>
+        )}
 
         {/* Tracking faults active AT execution (frozen snapshot) — kept in the
             official document even after the tracking is later closed. */}
@@ -272,7 +282,12 @@ export default function FormViewPage() {
                           <td className="border border-slate-300 p-2 align-top font-medium">{t.part_name_snapshot}</td>
                           <td className="border border-slate-300 p-2 align-top">{t.action_snapshot}</td>
                           <td className="border border-slate-300 p-2 align-top">
-                            <ReportEquipment items={t.equipment_items_snapshot} fallback={t.equipment_snapshot} />
+                            <ReportEquipment
+                              items={t.equipment_items_snapshot}
+                              fallback={t.equipment_snapshot}
+                              calibration={t.equipment_calibration_snapshot}
+                              date={form.date}
+                            />
                           </td>
                           <td className="border border-slate-300 p-2 text-center text-lg font-bold text-ok-600">{isOk ? '✓' : ''}</td>
                           <td className="border border-slate-300 p-2 text-center text-lg font-bold text-fault-600">{isFault ? '✕' : ''}</td>
@@ -409,9 +424,14 @@ function FaultReportCard({ task: t }: { task: CompletedTask }) {
     <div className="fault-card rounded-lg border border-fault-200 bg-fault-50 p-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline gap-x-2">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="font-semibold text-slate-800">{t.part_name_snapshot}</span>
             <span className="text-xs text-slate-500">{t.action_snapshot}</span>
+            {t.fault_severity && (
+              <span className={`rounded border px-1.5 py-0.5 text-[11px] font-bold ${severityChipClass(t.fault_severity)}`}>
+                חומרה: {faultSeverityLabel(t.fault_severity)}
+              </span>
+            )}
             {treated && (
               <span
                 className={`rounded px-1.5 py-0.5 text-[11px] font-bold ${
@@ -488,16 +508,28 @@ function FaultReportCard({ task: t }: { task: CompletedTask }) {
 
 /** Equipment rendered as an orderly list inside the report's "ציוד נדרש" column
  *  (wraps and grows the row automatically; never breaks the table). */
-function ReportEquipment({ items, fallback }: { items?: string[]; fallback?: string }) {
+function ReportEquipment({
+  items,
+  fallback,
+  calibration,
+  date,
+}: {
+  items?: string[];
+  fallback?: string;
+  calibration?: (import('@/types').EquipmentCalibration | null)[];
+  date: string;
+}) {
   const list = equipmentItemsOf(items, fallback);
   if (list.length === 0) return <span>ללא</span>;
-  if (list.length === 1) return <span>{list[0]}</span>;
   return (
-    <ul className="space-y-0.5">
+    <ul className={list.length > 1 ? 'space-y-1' : ''}>
       {list.map((it, i) => (
         <li key={i} className="flex gap-1.5">
-          <span className="shrink-0">•</span>
-          <span>{it}</span>
+          {list.length > 1 && <span className="shrink-0">•</span>}
+          <span className="min-w-0">
+            {it}
+            <EquipmentCalibrationLine cal={calibration?.[i]} date={date} compact />
+          </span>
         </li>
       ))}
     </ul>

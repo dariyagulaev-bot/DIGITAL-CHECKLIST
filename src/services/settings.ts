@@ -1,4 +1,5 @@
 import { db } from '@/data/db';
+import type { CalibrationPolicy } from '@/types';
 
 /**
  * Settings service. Key/value store for configurable options
@@ -11,6 +12,7 @@ export const SettingKeys = {
   ORG_NAME: 'org_name',
   CERT_VALIDITY_MONTHS: 'cert_validity_months', // default certification validity
   MEASURE_DURATION_DEFAULTS: 'measure_duration_defaults', // JSON {sysId|rankId: minutes}
+  CALIBRATION_POLICY: 'calibration_policy', // 'warn' (default) | 'block'
 } as const;
 
 export async function getSetting(key: string): Promise<string | null> {
@@ -42,6 +44,20 @@ export async function getCertValidityMonths(): Promise<number> {
 
 export async function setCertValidityMonths(months: number): Promise<void> {
   await setSetting(SettingKeys.CERT_VALIDITY_MONTHS, String(Math.max(1, Math.round(months))));
+}
+
+/**
+ * Behaviour when a required-calibration item has an EXPIRED calibration as of the
+ * בד״ח date: 'warn' (default) shows a clear warning to the performer & approver
+ * but allows the work; 'block' additionally prevents submitting the בד״ח for
+ * approval while an expired-calibration item is present.
+ */
+export async function getCalibrationPolicy(): Promise<CalibrationPolicy> {
+  const v = await getSetting(SettingKeys.CALIBRATION_POLICY);
+  return v === 'block' ? 'block' : 'warn';
+}
+export async function setCalibrationPolicy(policy: CalibrationPolicy): Promise<void> {
+  await setSetting(SettingKeys.CALIBRATION_POLICY, policy === 'block' ? 'block' : 'warn');
 }
 
 const durKey = (systemId: string | null, rankId: string | null) => `${systemId ?? ''}|${rankId ?? ''}`;

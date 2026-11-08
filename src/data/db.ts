@@ -383,6 +383,13 @@ export class ChecklistDB extends Dexie {
     this.version(15).stores({
       tracking_faults: 'id, unit_id, system_id, tracking_status, source_form_id',
     });
+
+    // v16: (a) per-equipment-item calibration (ציוד הדורש כיול) on template tasks
+    // and their completed snapshots; (b) approver-set fault severity (חומרת
+    // אי־תקינות) on completed tasks. All fields are OPTIONAL and data-only (no new
+    // indexes), so this is fully additive and backward-compatible: existing forms
+    // and templates keep working unchanged (absent = no calibration / not graded).
+    this.version(16).stores({});
   }
 }
 
