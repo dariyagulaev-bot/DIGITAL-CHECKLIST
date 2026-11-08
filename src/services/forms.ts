@@ -568,6 +568,43 @@ export async function setTaskFaultImage(
 }
 
 /**
+ * Record the PERFORMER-entered calibration data (serial number + expiry) for one
+ * required-calibration equipment item (by index) of a check section. Stamps who
+ * entered it and when. Only items the admin flagged as "דורש כיול" accept data;
+ * clearing both fields removes the entry. Autosaved; frozen in the בד״ח history.
+ */
+export async function setTaskCalibration(
+  formId: string,
+  userId: string,
+  taskId: string,
+  index: number,
+  data: { serial_number: string; calibration_expiry: string }
+): Promise<void> {
+  const form = await assertEditable(formId, userId);
+  const task = await db.completed_tasks.get(taskId);
+  if (!task || task.completed_form_id !== formId) throw new Error('הסעיף לא נמצא');
+  const items = task.equipment_items_snapshot ?? [];
+  const req = task.equipment_calibration_snapshot ?? [];
+  if (!req[index]?.requires_calibration) throw new Error('פריט ציוד זה אינו דורש כיול.');
+  const entries = [...(task.equipment_calibration_entries ?? [])];
+  while (entries.length < items.length) entries.push(null);
+  const serial = data.serial_number.trim();
+  const expiry = (data.calibration_expiry || '').trim();
+  entries[index] =
+    serial || expiry
+      ? {
+          serial_number: serial,
+          calibration_expiry: expiry,
+          entered_by_id: form.performer_user_id,
+          entered_by_name: form.performer_name,
+          entered_at: nowIso(),
+        }
+      : null;
+  await db.completed_tasks.update(taskId, { equipment_calibration_entries: entries });
+  await touchInProgress(form);
+}
+
+/**
  * Add (or replace) a signature of a given type for a form. The signer identity
  * (id + name) is taken from the system, not typed by hand. Each signature is
  * stored separately with its signer identity and timestamp.
@@ -644,22 +681,31 @@ export async function validateForSubmit(formId: string): Promise<SubmitValidatio
   );
   if (faultsMissingDetail.length)
     errors.push(`ישנם ${faultsMissingDetail.length} סעיפים לא תקינים ללא פירוט תקלה`);
-  // Calibration policy: when set to "block", a בד״ח cannot be submitted while it
-  // uses equipment whose calibration expired as of the inspection date. Under the
-  // default "warn" policy, expired calibration is surfaced as a clear warning in
-  // the UI / report but never blocks the work.
+  // Calibration: for every equipment item the admin flagged "דורש כיול", the
+  // performer MUST enter the physical item's serial number + calibration expiry
+  // before the section can be completed (always enforced). Additionally, when the
+  // admin policy is "block", a בד״ח using equipment whose entered calibration is
+  // expired (as of the inspection date) cannot be submitted; under the default
+  // "warn" policy the expiry is surfaced as a clear warning but never blocks.
   {
+    const { taskMissingCalibrationEntry, taskHasExpiredCalibration, taskCalibrationViews } = await import('./calibration');
+    const missing: string[] = [];
+    for (const t of tasks) {
+      const m = taskMissingCalibrationEntry(t);
+      if (m.length) missing.push(`${t.part_name_snapshot} (${m.join(', ')})`);
+    }
+    if (missing.length)
+      errors.push(`יש להזין מספר סידורי ותוקף כיול לכל ציוד הדורש כיול: ${missing.join(' · ')}`);
+
     const { getCalibrationPolicy } = await import('./settings');
-    const policy = await getCalibrationPolicy();
-    if (policy === 'block') {
-      const { taskHasExpiredCalibration, calibratedItems, calibrationState } = await import('./calibration');
+    if ((await getCalibrationPolicy()) === 'block') {
       const blocked: string[] = [];
       for (const t of tasks) {
         if (!taskHasExpiredCalibration(t, form.date)) continue;
-        const expiredNames = calibratedItems(t.equipment_items_snapshot, t.equipment_calibration_snapshot)
-          .filter(({ cal }) => calibrationState(cal.calibration_expiry, form.date) === 'expired')
-          .map(({ name }) => name);
-        blocked.push(`${t.part_name_snapshot} (${expiredNames.join(', ')})`);
+        const names = taskCalibrationViews(t, form.date)
+          .filter((v) => v.required && v.state === 'expired')
+          .map((v) => v.name);
+        blocked.push(`${t.part_name_snapshot} (${names.join(', ')})`);
       }
       if (blocked.length)
         errors.push(`לא ניתן להגיש בד״ח עם ציוד שפג תוקף הכיול שלו: ${blocked.join(' · ')}`);

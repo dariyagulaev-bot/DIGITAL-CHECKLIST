@@ -111,15 +111,31 @@ export interface Performer {
 }
 
 /**
- * Calibration metadata for ONE required-equipment item (ציוד הדורש כיול).
- * Stored POSITIONALLY ALIGNED with `equipment_items` — entry i describes item i;
- * a `null` entry (or a shorter array) means that item does not require calibration.
- * The equipment NAME is never duplicated here — it already lives in equipment_items.
+ * ADMIN-defined calibration REQUIREMENT for ONE required-equipment item
+ * (ציוד הדורש כיול). At template-build time the admin only declares WHETHER the
+ * equipment type needs calibration — never a specific serial number or expiry,
+ * because the physical item is not known until the בד״ח is performed. Stored
+ * POSITIONALLY ALIGNED with `equipment_items` (entry i describes item i; a null
+ * entry means item i does not require calibration). The equipment NAME is never
+ * duplicated here — it already lives in equipment_items.
  */
 export interface EquipmentCalibration {
   requires_calibration: boolean;
-  serial_number?: string; // מספר סידורי
-  calibration_expiry?: string; // תוקף כיול — ISO date (YYYY-MM-DD)
+}
+
+/**
+ * PERFORMER-entered calibration DATA for one required-equipment item, captured at
+ * execution time (the physical item actually used). Frozen onto the completed
+ * בד״ח, POSITIONALLY ALIGNED with `equipment_items_snapshot`. Records who entered
+ * it and when, so the document shows exactly which item was used — never a value
+ * pre-defined by the admin.
+ */
+export interface CalibrationEntry {
+  serial_number: string; // מספר סידורי — entered by the performer
+  calibration_expiry: string; // תוקף כיול — ISO date (YYYY-MM-DD)
+  entered_by_id: string;
+  entered_by_name: string;
+  entered_at: string; // ISO with seconds
 }
 
 /** Validity of a calibration relative to a reference (inspection) date. */
@@ -722,11 +738,15 @@ export interface CompletedTask {
   action_snapshot: string;
   equipment_snapshot: string; // legacy single-string fallback
   equipment_items_snapshot?: string[]; // frozen equipment list at execution time
-  /** Frozen per-item calibration (serial + expiry + requires flag), aligned by
-   *  index with equipment_items_snapshot. Immutable — a later admin edit to the
-   *  template never changes this historical בד״ח. Validity is derived from the
-   *  frozen expiry vs the frozen form date, so it too is stable. */
+  /** Frozen ADMIN requirement per item (requires_calibration), aligned by index
+   *  with equipment_items_snapshot. Immutable — a later template edit never
+   *  changes this historical בד״ח. */
   equipment_calibration_snapshot?: (EquipmentCalibration | null)[];
+  /** PERFORMER-entered calibration data (serial + expiry + who/when) for each
+   *  required-calibration item, captured at execution time and aligned by index
+   *  with equipment_items_snapshot. This is the physical item actually used —
+   *  never a value pre-defined by the admin. */
+  equipment_calibration_entries?: (CalibrationEntry | null)[];
   image_snapshot: string | null; // reference image (data URL)
   result: TaskResult; // ORIGINAL inspection result — never changed by a later repair
   comment: string; // fault detail (original description of the fault)

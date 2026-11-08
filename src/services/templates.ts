@@ -40,16 +40,10 @@ function normalizeEquipmentWithCal(
     const name = (raw ?? '').trim();
     if (!name) return; // drop blank rows; keep calibration aligned
     outItems.push(name);
+    // Admin only declares the REQUIREMENT; serial/expiry are entered by the
+    // performer at execution time (never stored on the template).
     const c = calibration?.[i] ?? null;
-    outCal.push(
-      c && c.requires_calibration
-        ? {
-            requires_calibration: true,
-            serial_number: c.serial_number?.trim() || undefined,
-            calibration_expiry: c.calibration_expiry || undefined,
-          }
-        : null
-    );
+    outCal.push(c && c.requires_calibration ? { requires_calibration: true } : null);
   });
   const anyCal = outCal.some((c) => c);
   return { items: outItems, text: outItems.join(', '), calibration: anyCal ? outCal : undefined };

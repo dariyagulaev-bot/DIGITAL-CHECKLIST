@@ -20,6 +20,7 @@ import {
   setBlockTimer,
   setTaskComment,
   setTaskFaultImage,
+  setTaskCalibration,
   setTaskResult,
   setFormPhase,
   submitForApproval,
@@ -32,6 +33,7 @@ import { listCertifiedPerformerUsers } from '@/services/certifications';
 import { FormStatus, SignerType, TaskResult, type CompletedTask, type Signature } from '@/types';
 import { equipmentItemsOf, formatDateDots, formatDateTime, formatStamp, faultTreatmentStatus, formHasDisablingFault, severityChipClass } from '@/exports/labels';
 import { EquipmentCalibrationLine } from '@/components/EquipmentCalibrationLine';
+import { calibrationState, taskCalibrationViews } from '@/services/calibration';
 import { faultSeverityLabel } from '@/types';
 import { PerformerSelect } from '@/components/PerformerSelect';
 import { SignaturePad, type SignaturePadHandle } from '@/components/SignaturePad';
@@ -69,6 +71,10 @@ export default function FormRunnerPage() {
   // persisted to the DB (autosave) via a short debounce per block.
   const [tableCells, setTableCells] = useState<Record<string, Record<string, string>>>({});
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  // Live overlay of performer-entered calibration (serial/expiry) per
+  // `${taskId}|${itemIndex}`, autosaved to the DB with a short debounce.
+  const [calDraft, setCalDraft] = useState<Record<string, { serial: string; expiry: string }>>({});
+  const calTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const sig1 = useRef<PerfSigHandle>(null);
   const sig2 = useRef<PerfSigHandle>(null);
@@ -83,6 +89,19 @@ export default function FormRunnerPage() {
       if (blk.type === 'table') seed[blk.id] = { ...(blk.data?.cells ?? {}) };
     }
     setTableCells(seed);
+    // Seed the calibration overlay from the stored performer entries.
+    const calSeed: Record<string, { serial: string; expiry: string }> = {};
+    for (const t of b?.tasks ?? []) {
+      const req = t.equipment_calibration_snapshot ?? [];
+      const entries = t.equipment_calibration_entries ?? [];
+      (t.equipment_items_snapshot ?? []).forEach((_, i) => {
+        if (req[i]?.requires_calibration) {
+          const e = entries[i];
+          calSeed[`${t.id}|${i}`] = { serial: e?.serial_number ?? '', expiry: e?.calibration_expiry ?? '' };
+        }
+      });
+    }
+    setCalDraft(calSeed);
     setLoading(false);
   }, [id]);
 
@@ -221,6 +240,24 @@ export default function FormRunnerPage() {
     } catch (e) {
       notify((e as Error).message, 'error');
     }
+  };
+
+  // Performer enters calibration (serial/expiry) for a required item. Live overlay
+  // + debounced persist (who/when stamped in the service). No reload — the badge
+  // updates from the live draft so typing stays smooth.
+  const onCalChange = (taskId: string, index: number, patch: Partial<{ serial: string; expiry: string }>) => {
+    const key = `${taskId}|${index}`;
+    setCalDraft((prev) => {
+      const next = { ...(prev[key] ?? { serial: '', expiry: '' }), ...patch };
+      if (calTimers.current[key]) clearTimeout(calTimers.current[key]);
+      calTimers.current[key] = setTimeout(() => {
+        setTaskCalibration(form.id, user.id, taskId, index, {
+          serial_number: next.serial,
+          calibration_expiry: next.expiry,
+        }).catch((e) => notify((e as Error).message, 'error'));
+      }, 400);
+      return { ...prev, [key]: next };
+    });
   };
 
   const saveSig = async (type: SignerType, signer: { id: string; full_name: string }, dataUrl: string) => {
@@ -578,6 +615,8 @@ export default function FormRunnerPage() {
                         resultsLocked={returned}
                         canReport={editable && returned}
                         formDate={form.date}
+                        calDraft={calDraft}
+                        onCalChange={onCalChange}
                         onResult={(r) => onResult(task, r)}
                         onOpenFault={() => openFault(task)}
                         onReportRepair={() => setRepairTaskId(task.id)}
@@ -819,32 +858,76 @@ const PerformerSignature = forwardRef<
   );
 });
 
-/** Equipment shown as an orderly stacked list inside the single "ציוד נדרש" cell,
- *  with a small calibration line under any item that requires calibration. */
+/** Equipment list inside the "ציוד נדרש" cell. For any item the admin flagged
+ *  "דורש כיול", the performer enters the physical item's serial number + expiry
+ *  here (required), with a live validity badge against the inspection date. */
 function EquipmentCell({
-  items,
-  fallback,
-  calibration,
-  date,
+  task,
+  formDate,
+  editable,
+  calDraft,
+  onCalChange,
 }: {
-  items?: string[];
-  fallback?: string;
-  calibration?: (import('@/types').EquipmentCalibration | null)[];
-  date: string;
+  task: CompletedTask;
+  formDate: string;
+  editable: boolean;
+  calDraft: Record<string, { serial: string; expiry: string }>;
+  onCalChange: (taskId: string, index: number, patch: Partial<{ serial: string; expiry: string }>) => void;
 }) {
-  const list = equipmentItemsOf(items, fallback);
+  const list = equipmentItemsOf(task.equipment_items_snapshot, task.equipment_snapshot);
+  const req = task.equipment_calibration_snapshot ?? [];
+  const views = taskCalibrationViews(task, formDate);
   if (list.length === 0) return <span className="text-ink-400">ללא</span>;
   return (
-    <ul className={list.length > 1 ? 'space-y-1' : ''}>
-      {list.map((it, i) => (
-        <li key={i} className="flex gap-1.5">
-          {list.length > 1 && <span className="mt-[1px] shrink-0 text-ink-300">•</span>}
-          <span className="min-w-0">
-            {it}
-            <EquipmentCalibrationLine cal={calibration?.[i]} date={date} />
-          </span>
-        </li>
-      ))}
+    <ul className="space-y-1.5">
+      {list.map((it, i) => {
+        const required = !!req[i]?.requires_calibration;
+        const key = `${task.id}|${i}`;
+        const draft = calDraft[key] ?? { serial: views[i]?.serial ?? '', expiry: views[i]?.expiry ?? '' };
+        const state = required ? calibrationState(draft.expiry, formDate) : 'unknown';
+        return (
+          <li key={i} className={list.length > 1 ? 'flex gap-1.5' : ''}>
+            {list.length > 1 && <span className="mt-[1px] shrink-0 text-ink-300">•</span>}
+            <span className="min-w-0 flex-1">
+              <span className="font-medium text-ink-800">{it}</span>
+              {required && (
+                <span className="mr-1.5 align-middle text-[10.5px] font-semibold text-brand-600">· דורש כיול</span>
+              )}
+              {required && editable ? (
+                <div className="mt-1 rounded-md border border-slate-200 bg-slate-50/70 p-1.5">
+                  <div className="grid gap-1.5 sm:grid-cols-2">
+                    <input
+                      className="input !min-h-0 !py-1 text-[12.5px]"
+                      value={draft.serial}
+                      placeholder="מספר סידורי"
+                      onChange={(e) => onCalChange(task.id, i, { serial: e.target.value })}
+                    />
+                    <input
+                      type="date"
+                      className="input !min-h-0 !py-1 text-[12.5px]"
+                      value={draft.expiry}
+                      title="תוקף כיול"
+                      onChange={(e) => onCalChange(task.id, i, { expiry: e.target.value })}
+                    />
+                  </div>
+                  {draft.expiry && (
+                    <div
+                      className={`mt-1 flex items-center gap-1 text-[11px] font-semibold ${
+                        state === 'expired' ? 'text-fault-700' : 'text-ok-700'
+                      }`}
+                    >
+                      {state === 'expired' ? <Icon name="alert" size={12} /> : <Icon name="check" size={12} />}
+                      {state === 'expired' ? 'תוקף הכיול פג' : 'כיול בתוקף'}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <EquipmentCalibrationLine view={views[i]} />
+              )}
+            </span>
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -855,6 +938,8 @@ function TaskRow({
   resultsLocked,
   canReport,
   formDate,
+  calDraft,
+  onCalChange,
   onResult,
   onOpenFault,
   onReportRepair,
@@ -865,6 +950,8 @@ function TaskRow({
   resultsLocked: boolean;
   canReport: boolean;
   formDate: string;
+  calDraft: Record<string, { serial: string; expiry: string }>;
+  onCalChange: (taskId: string, index: number, patch: Partial<{ serial: string; expiry: string }>) => void;
   onResult: (r: TaskResult) => void;
   onOpenFault: () => void;
   onReportRepair: () => void;
@@ -885,10 +972,11 @@ function TaskRow({
         <td className="align-top text-ink-700">{task.action_snapshot}</td>
         <td className="align-top text-ink-600">
           <EquipmentCell
-            items={task.equipment_items_snapshot}
-            fallback={task.equipment_snapshot}
-            calibration={task.equipment_calibration_snapshot}
-            date={formDate}
+            task={task}
+            formDate={formDate}
+            editable={editable}
+            calDraft={calDraft}
+            onCalChange={onCalChange}
           />
         </td>
         <td className="text-center align-top">

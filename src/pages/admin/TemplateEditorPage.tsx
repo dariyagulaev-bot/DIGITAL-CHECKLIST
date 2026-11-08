@@ -907,7 +907,9 @@ function CheckEditor({
                     <button type="button" className="btn-ghost !min-h-0 !px-1.5 !py-1.5" onClick={() => moveItem(i, 1)} disabled={i === equipmentItems.length - 1}><Icon name="down" size={15} /></button>
                     <button type="button" className="btn-ghost !min-h-0 !px-1.5 !py-1.5 text-fault-600" onClick={() => removeItem(i)}><Icon name="trash" size={15} /></button>
                   </div>
-                  {/* Calibration — attaches to THIS item; the name above is reused. */}
+                  {/* Calibration — the admin only declares WHETHER this equipment
+                      type needs calibration. The performer enters the physical
+                      item's serial number + expiry when running the בד״ח. */}
                   <label className="mt-1.5 flex cursor-pointer items-center gap-2 text-[13px] text-ink-700">
                     <input
                       type="checkbox"
@@ -920,25 +922,8 @@ function CheckEditor({
                     דורש כיול
                   </label>
                   {needsCal && (
-                    <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
-                      <div>
-                        <span className="mb-0.5 block text-[11.5px] font-medium text-ink-500">מספר סידורי</span>
-                        <input
-                          className="input !min-h-0 !py-1.5 text-[13px]"
-                          value={c?.serial_number ?? ''}
-                          placeholder="לדוגמה: 45821"
-                          onChange={(e) => patchCal(i, { serial_number: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <span className="mb-0.5 block text-[11.5px] font-medium text-ink-500">תוקף כיול</span>
-                        <input
-                          type="date"
-                          className="input !min-h-0 !py-1.5 text-[13px]"
-                          value={c?.calibration_expiry ?? ''}
-                          onChange={(e) => patchCal(i, { calibration_expiry: e.target.value })}
-                        />
-                      </div>
+                    <div className="mt-1 pr-6 text-[11.5px] text-ink-400">
+                      המבצע יזין מספר סידורי ותוקף כיול בעת ביצוע הבד״ח (שדות חובה).
                     </div>
                   )}
                 </div>

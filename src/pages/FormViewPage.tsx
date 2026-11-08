@@ -26,6 +26,7 @@ import {
 } from '@/exports/labels';
 import { FaultTimeline } from '@/components/FaultTimeline';
 import { EquipmentCalibrationLine } from '@/components/EquipmentCalibrationLine';
+import { taskCalibrationViews } from '@/services/calibration';
 import { FormStatus, SignerType, TaskResult, faultSeverityLabel, type Signature, type CompletedTask } from '@/types';
 
 export default function FormViewPage() {
@@ -282,12 +283,7 @@ export default function FormViewPage() {
                           <td className="border border-slate-300 p-2 align-top font-medium">{t.part_name_snapshot}</td>
                           <td className="border border-slate-300 p-2 align-top">{t.action_snapshot}</td>
                           <td className="border border-slate-300 p-2 align-top">
-                            <ReportEquipment
-                              items={t.equipment_items_snapshot}
-                              fallback={t.equipment_snapshot}
-                              calibration={t.equipment_calibration_snapshot}
-                              date={form.date}
-                            />
+                            <ReportEquipment task={t} date={form.date} />
                           </td>
                           <td className="border border-slate-300 p-2 text-center text-lg font-bold text-ok-600">{isOk ? '✓' : ''}</td>
                           <td className="border border-slate-300 p-2 text-center text-lg font-bold text-fault-600">{isFault ? '✕' : ''}</td>
@@ -508,18 +504,9 @@ function FaultReportCard({ task: t }: { task: CompletedTask }) {
 
 /** Equipment rendered as an orderly list inside the report's "ציוד נדרש" column
  *  (wraps and grows the row automatically; never breaks the table). */
-function ReportEquipment({
-  items,
-  fallback,
-  calibration,
-  date,
-}: {
-  items?: string[];
-  fallback?: string;
-  calibration?: (import('@/types').EquipmentCalibration | null)[];
-  date: string;
-}) {
-  const list = equipmentItemsOf(items, fallback);
+function ReportEquipment({ task, date }: { task: CompletedTask; date: string }) {
+  const list = equipmentItemsOf(task.equipment_items_snapshot, task.equipment_snapshot);
+  const views = taskCalibrationViews(task, date);
   if (list.length === 0) return <span>ללא</span>;
   return (
     <ul className={list.length > 1 ? 'space-y-1' : ''}>
@@ -528,7 +515,7 @@ function ReportEquipment({
           {list.length > 1 && <span className="shrink-0">•</span>}
           <span className="min-w-0">
             {it}
-            <EquipmentCalibrationLine cal={calibration?.[i]} date={date} compact />
+            <EquipmentCalibrationLine view={views[i]} compact />
           </span>
         </li>
       ))}
