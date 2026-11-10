@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { getSetting, setSetting, SettingKeys, getCalibrationPolicy, setCalibrationPolicy } from '@/services/settings';
+import {
+  getSetting,
+  setSetting,
+  SettingKeys,
+  getCalibrationPolicy,
+  setCalibrationPolicy,
+  getCertifierRequireOwnCompetency,
+  setCertifierRequireOwnCompetency,
+} from '@/services/settings';
 import { hashPassword } from '@/services/auth';
 import { useToast } from '@/context/ToastContext';
 import { useUnsavedGuard } from '@/context/NavGuardContext';
@@ -14,7 +22,14 @@ export default function SettingsPage() {
   const [orgName, setOrgName] = useState('');
   const [autoLogout, setAutoLogout] = useState('10');
   const [calPolicy, setCalPolicy] = useState<CalibrationPolicy>('warn');
-  const initial = useRef({ mode: 'personal_accounts', orgName: '', autoLogout: '10', calPolicy: 'warn' as CalibrationPolicy });
+  const [certifierOwnComp, setCertifierOwnComp] = useState(false);
+  const initial = useRef({
+    mode: 'personal_accounts',
+    orgName: '',
+    autoLogout: '10',
+    calPolicy: 'warn' as CalibrationPolicy,
+    certifierOwnComp: false,
+  });
 
   useEffect(() => {
     (async () => {
@@ -23,11 +38,19 @@ export default function SettingsPage() {
       const org = (await getSetting(SettingKeys.ORG_NAME)) ?? '';
       const al = (await getSetting(SettingKeys.ADMIN_AUTOLOGOUT_MIN)) ?? '10';
       const cp = await getCalibrationPolicy();
+      const coc = await getCertifierRequireOwnCompetency();
       setMode(resolvedMode);
       setOrgName(org);
       setAutoLogout(al);
       setCalPolicy(cp);
-      initial.current = { mode: resolvedMode, orgName: org.trim(), autoLogout: String(parseInt(al, 10) || 10), calPolicy: cp };
+      setCertifierOwnComp(coc);
+      initial.current = {
+        mode: resolvedMode,
+        orgName: org.trim(),
+        autoLogout: String(parseInt(al, 10) || 10),
+        calPolicy: cp,
+        certifierOwnComp: coc,
+      };
       setLoading(false);
     })();
   }, []);
@@ -37,11 +60,18 @@ export default function SettingsPage() {
     await setSetting(SettingKeys.ORG_NAME, orgName.trim());
     await setSetting(SettingKeys.ADMIN_AUTOLOGOUT_MIN, String(parseInt(autoLogout, 10) || 10));
     await setCalibrationPolicy(calPolicy);
+    await setCertifierRequireOwnCompetency(certifierOwnComp);
     if (mode === 'shared_password' && sharedPw) {
       await setSetting(SettingKeys.APPROVER_SHARED_HASH, await hashPassword(sharedPw));
     }
     setSharedPw('');
-    initial.current = { mode, orgName: orgName.trim(), autoLogout: String(parseInt(autoLogout, 10) || 10), calPolicy };
+    initial.current = {
+      mode,
+      orgName: orgName.trim(),
+      autoLogout: String(parseInt(autoLogout, 10) || 10),
+      calPolicy,
+      certifierOwnComp,
+    };
     notify('ההגדרות נשמרו', 'ok');
   };
 
@@ -51,6 +81,7 @@ export default function SettingsPage() {
     orgName.trim() !== initial.current.orgName ||
     String(parseInt(autoLogout, 10) || 10) !== initial.current.autoLogout ||
     calPolicy !== initial.current.calPolicy ||
+    certifierOwnComp !== initial.current.certifierOwnComp ||
     sharedPw.length > 0;
   useUnsavedGuard(() => dirty, save);
 
@@ -149,6 +180,30 @@ export default function SettingsPage() {
             </div>
           </label>
         </div>
+      </section>
+
+      <section className="card p-5">
+        <h2 className="mb-1 text-lg font-bold text-slate-700">הסמכות (מסמיך)</h2>
+        <p className="mb-4 text-sm text-slate-500">
+          מדיניות ביצוע הסמכות על ידי בעלי הרשאת מסמיך.
+        </p>
+        <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-3">
+          <input
+            type="checkbox"
+            className="mt-1 h-5 w-5"
+            checked={certifierOwnComp}
+            onChange={(e) => setCertifierOwnComp(e.target.checked)}
+          />
+          <div>
+            <div className="font-semibold text-slate-800">
+              מסמיך חייב להיות מוסמך בעצמו במערכת ובדרג
+            </div>
+            <div className="text-sm text-slate-500">
+              כאשר מופעל — מסמיך יוכל להסמיך עובד במערכת ודרג מסוימים רק אם הוא עצמו
+              מחזיק בהסמכה פעילה (בתוקף) לאותם מערכת ודרג.
+            </div>
+          </div>
+        </label>
       </section>
 
       <button className="btn-primary btn-lg" onClick={save}>

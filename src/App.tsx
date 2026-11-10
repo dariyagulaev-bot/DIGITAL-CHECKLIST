@@ -5,7 +5,7 @@ import { ToastProvider } from './context/ToastContext';
 import { NavGuardProvider } from './context/NavGuardContext';
 import { Layout } from './components/Layout';
 import { Spinner } from './components/ui';
-import { canApprove, isAdmin } from './services/rbac';
+import { canApprove, isAdmin, isCertifier } from './services/rbac';
 import type { UserWithRoles } from './types';
 
 import LoginPage from './pages/LoginPage';
@@ -28,6 +28,7 @@ import ExamsListPage from './pages/ExamsListPage';
 import ExamTakePage from './pages/ExamTakePage';
 import ExamResultPage from './pages/ExamResultPage';
 import MyCertificationsPage from './pages/MyCertificationsPage';
+import CertifyPage from './pages/CertifyPage';
 import RenewalsApprovalPage from './pages/RenewalsApprovalPage';
 import TrackingFaultsPage from './pages/TrackingFaultsPage';
 import SystemsPage from './pages/admin/SystemsPage';
@@ -103,6 +104,7 @@ function AppRoutes() {
       <Route path="/exam/take/:attemptId" element={<RequireAuth><Layout><ExamTakePage /></Layout></RequireAuth>} />
       <Route path="/exam/result/:attemptId" element={<RequireAuth><Layout><ExamResultPage /></Layout></RequireAuth>} />
       <Route path="/my-certifications" element={<RequireAuth><Layout><MyCertificationsPage /></Layout></RequireAuth>} />
+      <Route path="/certify" element={<RequireAuth check={isCertifier}><Layout><CertifyPage /></Layout></RequireAuth>} />
       <Route path="/renewals" element={<RequireAuth><Layout><RenewalsApprovalPage /></Layout></RequireAuth>} />
       <Route path="/tracking" element={<RequireAuth><Layout><TrackingFaultsPage /></Layout></RequireAuth>} />
       <Route

@@ -917,7 +917,9 @@ export interface RankCertification {
   // Certifier snapshot (never a manual free-text name — pulled from the actor).
   certifier_user_id: string;
   certifier_name_snapshot: string;
-  signature_id?: string; // links to the Signature captured at certification
+  // Certifier signature captured via the existing signature pad (PNG data URL),
+  // tied to THIS certification. Offline — embedded, not a remote reference.
+  signature_data?: string;
   created_at: string;
   updated_at: string;
 }

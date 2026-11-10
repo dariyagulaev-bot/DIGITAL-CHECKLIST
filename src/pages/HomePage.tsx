@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { canApprove, canPerform, isAdmin } from '@/services/rbac';
+import { canApprove, canPerform, isAdmin, isCertifier } from '@/services/rbac';
 import {
   getUserSummary,
   listDrafts,
@@ -259,6 +259,14 @@ export default function HomePage() {
             desc="מצב ההסמכות ורענון"
             icon="shield-check"
           />
+          {isCertifier(user) && (
+            <ActionRow
+              to="/certify"
+              title="ביצוע הסמכה"
+              desc="הסמכה / רענון לעובד לפי מערכת ודרג"
+              icon="shield-check"
+            />
+          )}
           {isAdmin(user) && (
             <>
               <ActionRow

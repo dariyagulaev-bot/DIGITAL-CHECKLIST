@@ -13,6 +13,9 @@ export const SettingKeys = {
   CERT_VALIDITY_MONTHS: 'cert_validity_months', // default certification validity
   MEASURE_DURATION_DEFAULTS: 'measure_duration_defaults', // JSON {sysId|rankId: minutes}
   CALIBRATION_POLICY: 'calibration_policy', // 'warn' (default) | 'block'
+  // §15: optionally require a certifier to be certified themselves (effectively
+  // active) for the (system, rank) before they may certify someone in it.
+  CERTIFIER_REQUIRE_OWN_COMPETENCY: 'certifier_require_own_competency', // '1' | '0' (default off)
 } as const;
 
 export async function getSetting(key: string): Promise<string | null> {
@@ -44,6 +47,15 @@ export async function getCertValidityMonths(): Promise<number> {
 
 export async function setCertValidityMonths(months: number): Promise<void> {
   await setSetting(SettingKeys.CERT_VALIDITY_MONTHS, String(Math.max(1, Math.round(months))));
+}
+
+/** §15: must a certifier be certified themselves for the (system, rank)? default false. */
+export async function getCertifierRequireOwnCompetency(): Promise<boolean> {
+  return (await getSetting(SettingKeys.CERTIFIER_REQUIRE_OWN_COMPETENCY)) === '1';
+}
+
+export async function setCertifierRequireOwnCompetency(on: boolean): Promise<void> {
+  await setSetting(SettingKeys.CERTIFIER_REQUIRE_OWN_COMPETENCY, on ? '1' : '0');
 }
 
 /**
