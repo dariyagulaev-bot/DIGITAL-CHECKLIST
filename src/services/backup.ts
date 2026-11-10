@@ -28,6 +28,8 @@ import type {
   RenewalApprover,
   TrackingFault,
   CertifierAuthorization,
+  RankCertification,
+  SystemRankPrerequisite,
 } from '@/types';
 
 /**
@@ -75,6 +77,8 @@ export interface FullBackup {
     renewal_approvers?: RenewalApprover[];
     tracking_faults?: TrackingFault[];
     certifier_authorizations?: CertifierAuthorization[];
+    rank_certifications?: RankCertification[];
+    system_rank_prerequisites?: SystemRankPrerequisite[];
   };
 }
 
@@ -134,6 +138,8 @@ async function collectAll() {
     renewal_approvers,
     tracking_faults,
     certifier_authorizations,
+    rank_certifications,
+    system_rank_prerequisites,
   ] = await Promise.all([
     db.users.toArray(),
     db.roles.toArray(),
@@ -160,6 +166,8 @@ async function collectAll() {
     db.renewal_approvers.toArray(),
     db.tracking_faults.toArray(),
     db.certifier_authorizations.toArray(),
+    db.rank_certifications.toArray(),
+    db.system_rank_prerequisites.toArray(),
   ]);
   return {
     users,
@@ -187,6 +195,8 @@ async function collectAll() {
     renewal_approvers,
     tracking_faults,
     certifier_authorizations,
+    rank_certifications,
+    system_rank_prerequisites,
   };
 }
 
@@ -242,6 +252,8 @@ export async function restoreFullBackup(
       db.renewal_approvers,
       db.tracking_faults,
       db.certifier_authorizations,
+      db.rank_certifications,
+      db.system_rank_prerequisites,
     ],
     async () => {
       await Promise.all([
@@ -270,6 +282,8 @@ export async function restoreFullBackup(
         db.renewal_approvers.clear(),
         db.tracking_faults.clear(),
         db.certifier_authorizations.clear(),
+        db.rank_certifications.clear(),
+        db.system_rank_prerequisites.clear(),
       ]);
       await Promise.all([
         db.users.bulkAdd(d.users),
@@ -297,6 +311,8 @@ export async function restoreFullBackup(
         db.renewal_approvers.bulkAdd(d.renewal_approvers ?? []),
         db.tracking_faults.bulkAdd(d.tracking_faults ?? []),
         db.certifier_authorizations.bulkAdd(d.certifier_authorizations ?? []),
+        db.rank_certifications.bulkAdd(d.rank_certifications ?? []),
+        db.system_rank_prerequisites.bulkAdd(d.system_rank_prerequisites ?? []),
       ]);
     }
   );

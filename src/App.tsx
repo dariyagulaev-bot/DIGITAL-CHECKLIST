@@ -33,6 +33,7 @@ import TrackingFaultsPage from './pages/TrackingFaultsPage';
 import SystemsPage from './pages/admin/SystemsPage';
 import UnitsPage from './pages/admin/UnitsPage';
 import RanksPage from './pages/admin/RanksPage';
+import HierarchyPage from './pages/admin/HierarchyPage';
 import TemplatesPage from './pages/admin/TemplatesPage';
 import TemplateEditorPage from './pages/admin/TemplateEditorPage';
 import AuditPage from './pages/admin/AuditPage';
@@ -146,6 +147,7 @@ function AppRoutes() {
         <Route path="systems" element={<SystemsPage />} />
         <Route path="units" element={<UnitsPage />} />
         <Route path="ranks" element={<RanksPage />} />
+        <Route path="hierarchy" element={<HierarchyPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="certifications" element={<CertificationsPage />} />
         <Route path="exams" element={<ExamsPage />} />

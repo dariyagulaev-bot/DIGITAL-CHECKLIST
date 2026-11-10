@@ -28,6 +28,8 @@ import type {
   RenewalApprover,
   TrackingFault,
   CertifierAuthorization,
+  RankCertification,
+  SystemRankPrerequisite,
 } from '@/types';
 
 /**
@@ -64,6 +66,8 @@ export class ChecklistDB extends Dexie {
   renewal_approvers!: Table<RenewalApprover, string>;
   tracking_faults!: Table<TrackingFault, string>;
   certifier_authorizations!: Table<CertifierAuthorization, string>;
+  rank_certifications!: Table<RankCertification, string>;
+  system_rank_prerequisites!: Table<SystemRankPrerequisite, string>;
 
   constructor(name = 'digital_checklist') {
     super(name);
@@ -409,6 +413,21 @@ export class ChecklistDB extends Dexie {
           await tx.table('roles').add({ id: crypto.randomUUID(), name: 'CERTIFIER' });
         }
       });
+
+    // v18: granular certification layer.
+    //  (a) rank_certifications — per-(user, system, RANK) grant with its own
+    //      validity window + certifier snapshot (initial/renewal). The legacy
+    //      user_system_ranks row remains as a derived max-rank projection, so
+    //      VERO gating / pickers / dashboard keep working unchanged.
+    //  (b) system_rank_prerequisites — admin-configured, per-system prerequisite
+    //      edges between existing ranks (acyclic; enforced in the service).
+    // Both are additive new tables; no existing data is touched or migrated.
+    this.version(18).stores({
+      rank_certifications:
+        'id, user_id, system_id, rank_id, certifier_user_id, [user_id+system_id], [user_id+system_id+rank_id]',
+      system_rank_prerequisites:
+        'id, system_id, rank_id, prerequisite_rank_id, [system_id+rank_id]',
+    });
   }
 }
 

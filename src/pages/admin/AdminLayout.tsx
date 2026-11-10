@@ -20,6 +20,7 @@ const groups: NavGroup[] = [
       { to: '/admin/systems', label: 'סוגי מערכת', icon: 'database' },
       { to: '/admin/units', label: 'מספרי מערכת', icon: 'layers' },
       { to: '/admin/ranks', label: 'דרגי בדיקה', icon: 'shield-check' },
+      { to: '/admin/hierarchy', label: 'היררכיית דרגים', icon: 'layers' },
     ],
   },
   {

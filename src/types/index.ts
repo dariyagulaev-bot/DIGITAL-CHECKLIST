@@ -883,6 +883,60 @@ export interface UserSystemRank {
 /** Validity status of a certification, derived from dates at runtime. */
 export type CertStatus = 'valid' | 'needs_renewal' | 'expired' | 'none';
 
+/**
+ * EFFECTIVE competency status for a (user, system, rank), used by the
+ * certification mechanism and by VERO's gating. It extends the date-only
+ * {@link CertStatus} with 'inactive_prereq' — the rank WAS certified, but a
+ * prerequisite rank is no longer effectively active, so the higher rank is not
+ * usable until the prerequisite is renewed (auto-recovers; history is kept).
+ *   valid           → מוסמך ופעיל
+ *   needs_renewal   → מוסמך — עומד לפוג
+ *   expired         → פג תוקף
+ *   inactive_prereq → לא פעיל עקב פגות תנאי קדם
+ *   none            → לא הוסמך
+ */
+export type EffectiveCertStatus = CertStatus | 'inactive_prereq';
+
+/**
+ * A per-(user, system, RANK) certification grant — the granular layer added on
+ * top of {@link UserSystemRank}. The legacy row stays as a derived max-rank
+ * projection for backward compatibility (VERO gating, pickers, dashboard); this
+ * layer records each rank's OWN validity window, who certified it, and the
+ * initial-vs-renewal action, so certificates and effective-competency checks can
+ * be rank-exact. Rows are never deleted on expiry — history is preserved.
+ */
+export interface RankCertification {
+  id: string;
+  user_id: string;
+  system_id: string;
+  rank_id: string;
+  action_type: 'initial' | 'renewal'; // הסמכה ראשונית / רענון
+  issued_at: string; // תאריך הסמכה/רענון (YYYY-MM-DD)
+  validity_months: number;
+  expires_at: string; // issued_at + validity_months
+  // Certifier snapshot (never a manual free-text name — pulled from the actor).
+  certifier_user_id: string;
+  certifier_name_snapshot: string;
+  signature_id?: string; // links to the Signature captured at certification
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * A prerequisite edge in a system's rank hierarchy: to be certified for
+ * (system_id, rank_id), the user must hold an effectively-active certification
+ * for `prerequisite_rank_id`. The hierarchy is admin-configured PER SYSTEM (not
+ * hard-coded) and must stay acyclic (cycle detection on save). Uses the existing
+ * ranks — no new rank entities.
+ */
+export interface SystemRankPrerequisite {
+  id: string;
+  system_id: string;
+  rank_id: string;
+  prerequisite_rank_id: string;
+  created_at: string;
+}
+
 /** Convenience view model: a user with resolved role names. */
 export interface UserWithRoles extends User {
   roles: RoleName[];

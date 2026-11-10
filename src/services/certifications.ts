@@ -223,10 +223,13 @@ export async function certifiedSystemIds(userId: string): Promise<Set<string>> {
 }
 
 /**
- * Is the user certified to run an inspection of (system, rank)?
+ * Is the user EFFECTIVELY certified to run an inspection of (system, rank)?
  *  - systemId null → no system context to gate (legacy/defensive): allowed.
- *  - rankId null → the system has no meaningful rank; any certification suffices.
- * Ranks include inactive ones here so the hierarchy order is stable over time.
+ *  - rankId null → any effectively-active rank in the system suffices.
+ * Goes through the effective-competency engine, so it honours BOTH the date
+ * validity AND the prerequisite hierarchy ("effective current competency", not
+ * merely "was ever certified"). With no prerequisites configured this reduces
+ * exactly to the legacy max-rank + expiry check, so existing data is unaffected.
  */
 export async function isUserCertified(
   userId: string,
@@ -234,14 +237,9 @@ export async function isUserCertified(
   rankId: string | null
 ): Promise<boolean> {
   if (!systemId) return true;
-  const cert = await getCertRow(userId, systemId);
-  if (!cert) return false;
-  // An expired certification is NOT usable for new work (enforced here, in the
-  // business layer — never only hidden in the UI).
-  if (certStatus(cert) === 'expired') return false;
-  if (!rankId) return true;
-  const ranks = await listRanks(true);
-  return allowedRankIds(cert.max_rank_id, ranks).has(rankId);
+  const { effectiveMaxActiveRankId, isEffectivelyCertified } = await import('./competency');
+  if (!rankId) return (await effectiveMaxActiveRankId(userId, systemId)) !== null;
+  return isEffectivelyCertified(userId, systemId, rankId);
 }
 
 /**
@@ -258,24 +256,45 @@ export async function listCertifiedPerformerUsers(
   const users = (await listUsersWithRoles()).filter(
     (u) => u.active && u.roles.includes(RoleName.PERFORMER)
   );
-  const ranks = await listRanks(true);
-  const certs = await listAllCertifications();
-  // Key → the full cert row, so we can enforce BOTH the rank hierarchy AND that
-  // the certification is still in force (expired certs are excluded from new
-  // work — part of the business-layer enforcement, not just UI hiding).
-  const byKey = new Map(certs.map((c) => [c.user_id + '|' + c.system_id, c]));
   const out: Array<{ id: string; full_name: string }> = [];
+  if (!systemId) {
+    for (const u of users) {
+      if (excludeUserId && u.id === excludeUserId) continue;
+      out.push({ id: u.id, full_name: u.full_name });
+    }
+    return out.sort((a, b) => a.full_name.localeCompare(b.full_name, 'he'));
+  }
+
+  // Batch-load everything for this system once, then compute EFFECTIVE competency
+  // per user (date validity + prerequisite hierarchy) with the pure engine. This
+  // enforces, in the business layer, that a performer whose prerequisite lapsed
+  // is excluded from new work — not merely hidden in the UI.
+  const { computeSystemCompetency, isActiveStatus } = await import('./competency');
+  const [ranks, allLegacy, allRankCerts, prereqEdges] = await Promise.all([
+    listRanks(true),
+    db.user_system_ranks.where('system_id').equals(systemId).toArray(),
+    db.rank_certifications.where('system_id').equals(systemId).toArray(),
+    db.system_rank_prerequisites.where('system_id').equals(systemId).toArray(),
+  ]);
+  const legacyByUser = new Map(allLegacy.map((c) => [c.user_id, c]));
+  const rankCertsByUser = new Map<string, typeof allRankCerts>();
+  for (const rc of allRankCerts) {
+    if (!rankCertsByUser.has(rc.user_id)) rankCertsByUser.set(rc.user_id, []);
+    rankCertsByUser.get(rc.user_id)!.push(rc);
+  }
+
   for (const u of users) {
     if (excludeUserId && u.id === excludeUserId) continue;
-    if (!systemId) {
-      out.push({ id: u.id, full_name: u.full_name });
-      continue;
-    }
-    const cert = byKey.get(u.id + '|' + systemId);
-    if (!cert) continue;
-    if (certStatus(cert) === 'expired') continue;
-    if (rankId && !allowedRankIds(cert.max_rank_id, ranks).has(rankId)) continue;
-    out.push({ id: u.id, full_name: u.full_name });
+    const { effective } = computeSystemCompetency({
+      ranksAsc: ranks,
+      legacy: legacyByUser.get(u.id) ?? null,
+      rankCerts: rankCertsByUser.get(u.id) ?? [],
+      prereqEdges,
+    });
+    let ok: boolean;
+    if (rankId) ok = isActiveStatus(effective.get(rankId) ?? 'none');
+    else ok = [...effective.values()].some((s) => isActiveStatus(s));
+    if (ok) out.push({ id: u.id, full_name: u.full_name });
   }
   return out.sort((a, b) => a.full_name.localeCompare(b.full_name, 'he'));
 }
