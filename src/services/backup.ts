@@ -30,6 +30,7 @@ import type {
   CertifierAuthorization,
   RankCertification,
   SystemRankPrerequisite,
+  Certificate,
 } from '@/types';
 
 /**
@@ -79,6 +80,7 @@ export interface FullBackup {
     certifier_authorizations?: CertifierAuthorization[];
     rank_certifications?: RankCertification[];
     system_rank_prerequisites?: SystemRankPrerequisite[];
+    certificates?: Certificate[];
   };
 }
 
@@ -140,6 +142,7 @@ async function collectAll() {
     certifier_authorizations,
     rank_certifications,
     system_rank_prerequisites,
+    certificates,
   ] = await Promise.all([
     db.users.toArray(),
     db.roles.toArray(),
@@ -168,6 +171,7 @@ async function collectAll() {
     db.certifier_authorizations.toArray(),
     db.rank_certifications.toArray(),
     db.system_rank_prerequisites.toArray(),
+    db.certificates.toArray(),
   ]);
   return {
     users,
@@ -197,6 +201,7 @@ async function collectAll() {
     certifier_authorizations,
     rank_certifications,
     system_rank_prerequisites,
+    certificates,
   };
 }
 
@@ -254,6 +259,7 @@ export async function restoreFullBackup(
       db.certifier_authorizations,
       db.rank_certifications,
       db.system_rank_prerequisites,
+      db.certificates,
     ],
     async () => {
       await Promise.all([
@@ -284,6 +290,7 @@ export async function restoreFullBackup(
         db.certifier_authorizations.clear(),
         db.rank_certifications.clear(),
         db.system_rank_prerequisites.clear(),
+        db.certificates.clear(),
       ]);
       await Promise.all([
         db.users.bulkAdd(d.users),
@@ -313,6 +320,7 @@ export async function restoreFullBackup(
         db.certifier_authorizations.bulkAdd(d.certifier_authorizations ?? []),
         db.rank_certifications.bulkAdd(d.rank_certifications ?? []),
         db.system_rank_prerequisites.bulkAdd(d.system_rank_prerequisites ?? []),
+        db.certificates.bulkAdd(d.certificates ?? []),
       ]);
     }
   );

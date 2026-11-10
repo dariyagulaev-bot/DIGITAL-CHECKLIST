@@ -267,6 +267,14 @@ export default function HomePage() {
               icon="shield-check"
             />
           )}
+          {(isCertifier(user) || isAdmin(user)) && (
+            <ActionRow
+              to="/certificates"
+              title="תעודות הסמכה"
+              desc="היסטוריית תעודות והדפסה חוזרת"
+              icon="file"
+            />
+          )}
           {isAdmin(user) && (
             <>
               <ActionRow

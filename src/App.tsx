@@ -29,6 +29,9 @@ import ExamTakePage from './pages/ExamTakePage';
 import ExamResultPage from './pages/ExamResultPage';
 import MyCertificationsPage from './pages/MyCertificationsPage';
 import CertifyPage from './pages/CertifyPage';
+import CertificatesPage from './pages/CertificatesPage';
+import CertificatePrintPage from './pages/CertificatePrintPage';
+import CertificateTemplatesPage from './pages/admin/CertificateTemplatesPage';
 import RenewalsApprovalPage from './pages/RenewalsApprovalPage';
 import TrackingFaultsPage from './pages/TrackingFaultsPage';
 import SystemsPage from './pages/admin/SystemsPage';
@@ -105,6 +108,8 @@ function AppRoutes() {
       <Route path="/exam/result/:attemptId" element={<RequireAuth><Layout><ExamResultPage /></Layout></RequireAuth>} />
       <Route path="/my-certifications" element={<RequireAuth><Layout><MyCertificationsPage /></Layout></RequireAuth>} />
       <Route path="/certify" element={<RequireAuth check={isCertifier}><Layout><CertifyPage /></Layout></RequireAuth>} />
+      <Route path="/certificates" element={<RequireAuth><Layout><CertificatesPage /></Layout></RequireAuth>} />
+      <Route path="/certificate/:id" element={<RequireAuth><Layout><CertificatePrintPage /></Layout></RequireAuth>} />
       <Route path="/renewals" element={<RequireAuth><Layout><RenewalsApprovalPage /></Layout></RequireAuth>} />
       <Route path="/tracking" element={<RequireAuth><Layout><TrackingFaultsPage /></Layout></RequireAuth>} />
       <Route
@@ -152,6 +157,7 @@ function AppRoutes() {
         <Route path="hierarchy" element={<HierarchyPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="certifications" element={<CertificationsPage />} />
+        <Route path="certificate-templates" element={<CertificateTemplatesPage />} />
         <Route path="exams" element={<ExamsPage />} />
         <Route path="exams/:id" element={<ExamEditorPage />} />
         <Route path="renewals" element={<RenewalAdminPage />} />

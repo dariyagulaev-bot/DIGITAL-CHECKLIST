@@ -884,6 +884,58 @@ export interface UserSystemRank {
 export type CertStatus = 'valid' | 'needs_renewal' | 'expired' | 'none';
 
 /**
+ * Designer-editable certificate layout (תבנית תעודה). All assets are embedded
+ * (logo as a data URL, fonts from a fixed LOCAL set) so rendering is fully
+ * offline. Separate designs exist for initial vs renewal certificates. Body
+ * lines may contain dynamic field tokens such as [שם מלא], [מערכת], [דרג].
+ */
+export interface CertificateDesign {
+  logo_data?: string | null; // embedded PNG/JPEG data URL (optional)
+  title: string;
+  subtitle?: string;
+  body_lines: string[]; // each line may contain [tokens]
+  footer?: string;
+  accent_color: string; // hex
+  text_color: string; // hex
+  bg_color: string; // hex
+  font_key: string; // key into the LOCAL font set (never a remote font)
+  show_signature: boolean; // render the certifier signature block
+}
+
+export type CertificateActionType = 'initial' | 'renewal';
+
+/**
+ * An ISSUED certificate — an immutable snapshot taken at issuance. The employee
+ * and certification data, the certifier, the signature AND the design are all
+ * frozen here, so a historical certificate never changes even if the user,
+ * ranks, or the template design are edited later. Reprint uses this snapshot.
+ */
+export interface Certificate {
+  id: string;
+  number: string; // running serial, e.g. VERO-CERT-000042
+  action_type: CertificateActionType;
+  // ---- frozen employee + certification snapshot ----
+  user_id: string;
+  user_name_snapshot: string;
+  system_id: string;
+  system_name_snapshot: string;
+  rank_id: string;
+  rank_name_snapshot: string;
+  issued_at: string; // certification issue/renewal date
+  expires_at: string;
+  // ---- certifier snapshot ----
+  certifier_user_id: string;
+  certifier_name_snapshot: string;
+  signature_data?: string;
+  // ---- protected identity snapshot (only when the design uses it) ----
+  id_type_snapshot?: IdentityType;
+  id_number_snapshot?: string;
+  // ---- frozen design ----
+  design_snapshot: CertificateDesign;
+  created_at: string;
+}
+
+/**
  * EFFECTIVE competency status for a (user, system, rank), used by the
  * certification mechanism and by VERO's gating. It extends the date-only
  * {@link CertStatus} with 'inactive_prereq' — the rank WAS certified, but a

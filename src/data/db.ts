@@ -30,6 +30,7 @@ import type {
   CertifierAuthorization,
   RankCertification,
   SystemRankPrerequisite,
+  Certificate,
 } from '@/types';
 
 /**
@@ -68,6 +69,7 @@ export class ChecklistDB extends Dexie {
   certifier_authorizations!: Table<CertifierAuthorization, string>;
   rank_certifications!: Table<RankCertification, string>;
   system_rank_prerequisites!: Table<SystemRankPrerequisite, string>;
+  certificates!: Table<Certificate, string>;
 
   constructor(name = 'digital_checklist') {
     super(name);
@@ -427,6 +429,14 @@ export class ChecklistDB extends Dexie {
         'id, user_id, system_id, rank_id, certifier_user_id, [user_id+system_id], [user_id+system_id+rank_id]',
       system_rank_prerequisites:
         'id, system_id, rank_id, prerequisite_rank_id, [system_id+rank_id]',
+    });
+
+    // v19: issued certificates (תעודות הסמכה) — immutable snapshots. Each row
+    // freezes the employee + certification + certifier + signature + the design
+    // used, so a historical certificate never changes and reprint is exact.
+    // The editable templates live in `settings` (JSON), not here.
+    this.version(19).stores({
+      certificates: 'id, number, user_id, system_id, rank_id, action_type, [user_id+system_id]',
     });
   }
 }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { PageHeader } from '@/components/Layout';
@@ -10,6 +11,7 @@ import { listSystems } from '@/services/systems';
 import { listRanks } from '@/services/ranks';
 import { certifierScope } from '@/services/certifiers';
 import { performCertification, missingPrerequisites } from '@/services/certify';
+import { issueCertificate } from '@/services/certificates';
 import { effectiveRankStatus, effectiveStatusLabel } from '@/services/competency';
 import type { EffectiveCertStatus, Rank, System, UserWithRoles } from '@/types';
 
@@ -37,7 +39,12 @@ export default function CertifyPage() {
   const [status, setStatus] = useState<EffectiveCertStatus | null>(null);
   const [missingNames, setMissingNames] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<{ employee: string; system: string; rank: string } | null>(null);
+  const [done, setDone] = useState<{
+    employee: string;
+    system: string;
+    rank: string;
+    certificateId: string;
+  } | null>(null);
 
   const padRef = useRef<SignaturePadHandle>(null);
 
@@ -102,19 +109,32 @@ export default function CertifyPage() {
     }
     setBusy(true);
     try {
-      await performCertification({
+      const { rankCertification } = await performCertification({
         employeeUserId: employeeId,
         systemId,
         rankId,
         actionType,
         certifier,
         signatureData: sig.toDataURL(),
+        certificateIssued: true,
       });
-      const empName = users.find((u) => u.id === employeeId)?.full_name ?? '';
+      const employee = users.find((u) => u.id === employeeId);
+      const empName = employee?.full_name ?? '';
       const sysName = systems.find((s) => s.id === systemId)?.name ?? '';
       const rnkName = nameById.get(rankId) ?? '';
-      setDone({ employee: empName, system: sysName, rank: rnkName });
-      notify('ההסמכה בוצעה ונשמרה', 'ok');
+      // Issue the certificate (snapshot of design + data). Identity is passed so
+      // it can be snapshotted ONLY if the chosen design references it.
+      const certificate = await issueCertificate({
+        rankCertification,
+        userName: empName,
+        systemName: sysName,
+        rankName: rnkName,
+        certifier,
+        idType: employee?.id_type,
+        idNumber: employee?.id_number,
+      });
+      setDone({ employee: empName, system: sysName, rank: rnkName, certificateId: certificate.id });
+      notify('ההסמכה בוצעה והתעודה הונפקה', 'ok');
     } catch (err) {
       notify((err as Error).message, 'error');
     } finally {
@@ -144,8 +164,11 @@ export default function CertifyPage() {
               {done.employee} — {done.system} / {done.rank} ({actionType === 'renewal' ? 'רענון' : 'הסמכה ראשונית'})
             </span>
           </div>
-          <div className="flex gap-2 pt-2">
-            <button className="btn-primary" onClick={reset}>
+          <div className="flex flex-wrap gap-2 pt-2">
+            <Link className="btn-primary gap-1.5" to={`/certificate/${done.certificateId}`}>
+              <Icon name="printer" size={16} /> צפה בתעודה / הדפס
+            </Link>
+            <button className="btn-ghost" onClick={reset}>
               הסמכה נוספת
             </button>
           </div>

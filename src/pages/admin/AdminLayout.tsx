@@ -32,6 +32,7 @@ const groups: NavGroup[] = [
     items: [
       { to: '/admin/users', label: 'משתמשים', icon: 'users' },
       { to: '/admin/certifications', label: 'ניהול הסמכות', icon: 'shield-check' },
+      { to: '/admin/certificate-templates', label: 'עיצוב תעודות', icon: 'file' },
       { to: '/admin/exams', label: 'מבחני הסמכה', icon: 'clipboard-check' },
       { to: '/admin/renewals', label: 'רענונים', icon: 'refresh' },
     ],
