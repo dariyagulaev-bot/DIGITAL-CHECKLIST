@@ -905,6 +905,87 @@ export interface CertificateDesign {
 export type CertificateActionType = 'initial' | 'renewal';
 
 /**
+ * ---- WYSIWYG canvas certificate design (A4 document editor) ----
+ * A free-canvas, absolutely-positioned document (like a simplified Word/Canva
+ * page) measured in MILLIMETRES so the on-screen A4 preview matches the printed
+ * PDF exactly. Fully offline: images are embedded data URLs, fonts come from a
+ * fixed LOCAL set (Heebo is bundled). This REPLACES the token-only design going
+ * forward; legacy {@link CertificateDesign} snapshots still render for old certs.
+ */
+export type CertOrientation = 'portrait' | 'landscape';
+
+export type CertElementType = 'text' | 'field' | 'image' | 'line' | 'rect' | 'signature';
+
+/** How a date dynamic-field is shown. */
+export type CertDateMode = 'gregorian' | 'hebrew' | 'both';
+
+export interface CertElement {
+  id: string;
+  type: CertElementType;
+  // Geometry in millimetres (top-left origin), so preview == print.
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  z: number; // layer order (higher = front)
+  locked?: boolean;
+  // ---- text / field ----
+  text?: string; // literal text for 'text'
+  field?: string; // dynamic token key for 'field', e.g. '[שם מלא]'
+  date_mode?: CertDateMode; // for date fields
+  font_key?: string; // key into the LOCAL font set
+  font_size?: number; // points
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  color?: string;
+  align?: 'right' | 'center' | 'left';
+  valign?: 'top' | 'middle' | 'bottom';
+  bg_color?: string | null;
+  border_color?: string | null;
+  border_width?: number; // mm
+  // ---- image / signature ----
+  src?: string | null; // embedded data URL (image); signature is filled at issuance
+  keep_aspect?: boolean;
+  // ---- line ----
+  line_color?: string;
+  line_width?: number; // mm
+  // ---- rect / shape ----
+  fill_color?: string | null;
+}
+
+export interface CertCanvasDesign {
+  kind: 'canvas';
+  orientation: CertOrientation; // default 'portrait'
+  width_mm: number; // 210 for A4 portrait
+  height_mm: number; // 297 for A4 portrait
+  margin_mm: number; // safe print area inset
+  bg_color: string;
+  elements: CertElement[];
+  version: string; // e.g. "1.0"
+}
+
+/** A design snapshot on an issued certificate is either legacy or canvas. */
+export type AnyCertDesign = CertificateDesign | CertCanvasDesign;
+
+/**
+ * A versioned certificate template row. Each (type) has ONE editable draft plus
+ * any number of published versions (history). Issued certificates snapshot the
+ * PUBLISHED design, so changing a template never alters certificates already
+ * issued — a change is a new version (1.0 → 1.1).
+ */
+export interface CertificateTemplateRow {
+  id: string;
+  type: CertificateActionType;
+  status: 'draft' | 'published';
+  version: string; // "1.0", "1.1", ...
+  design: CertCanvasDesign;
+  created_at: string;
+  updated_at: string;
+  published_at?: string;
+}
+
+/**
  * An ISSUED certificate — an immutable snapshot taken at issuance. The employee
  * and certification data, the certifier, the signature AND the design are all
  * frozen here, so a historical certificate never changes even if the user,
@@ -930,8 +1011,10 @@ export interface Certificate {
   // ---- protected identity snapshot (only when the design uses it) ----
   id_type_snapshot?: IdentityType;
   id_number_snapshot?: string;
-  // ---- frozen design ----
-  design_snapshot: CertificateDesign;
+  // ---- frozen design (legacy token design OR the new A4 canvas design) ----
+  design_snapshot: AnyCertDesign;
+  template_version?: string; // which published template version produced it
+  certifier_role_snapshot?: string; // תפקיד המסמיך at issuance (for [תפקיד המסמיך])
   created_at: string;
 }
 

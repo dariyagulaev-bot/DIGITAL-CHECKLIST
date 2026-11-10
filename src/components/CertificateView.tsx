@@ -1,12 +1,35 @@
 import { fontCss, renderTokens, type CertificateFieldData } from '@/services/certificates';
-import type { CertificateDesign } from '@/types';
+import { ScaledSheet } from './CertificateCanvasView';
+import type { AnyCertDesign, CertificateDesign } from '@/types';
 
 /**
- * Pure, offline certificate renderer shared by the live designer preview and the
- * printable certificate. All styling comes from the design (embedded logo, local
- * font, colors); dynamic [tokens] are substituted from `data`. No network assets.
+ * Issued-certificate renderer. Branches on the snapshot kind: the new A4 canvas
+ * design renders via {@link ScaledSheet}; legacy token designs keep their
+ * original layout so previously-issued certificates are unchanged. Offline only.
  */
 export function CertificateView({
+  design,
+  data,
+  signatureData,
+}: {
+  design: AnyCertDesign;
+  data: CertificateFieldData;
+  signatureData?: string;
+}) {
+  if ('kind' in design && design.kind === 'canvas') {
+    return <ScaledSheet design={design} data={data} signatureData={signatureData} />;
+  }
+  return (
+    <LegacyCertificateView
+      design={design as CertificateDesign}
+      data={data}
+      signatureData={signatureData}
+    />
+  );
+}
+
+/** The original token-template renderer (kept for legacy issued certificates). */
+function LegacyCertificateView({
   design,
   data,
   signatureData,

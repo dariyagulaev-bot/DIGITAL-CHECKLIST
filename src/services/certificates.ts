@@ -4,6 +4,7 @@ import { logAudit } from './audit';
 import { getSetting, setSetting } from './settings';
 import { formatDateDots } from '@/exports/labels';
 import { identityTypeLabel } from './identity';
+import { formatHebrewDate } from './hebrewDate';
 import type {
   Certificate,
   CertificateActionType,
@@ -42,7 +43,10 @@ export interface CertificateFieldData {
   actionLabel: string;
   issuedAt: string; // YYYY-MM-DD
   expiresAt: string; // YYYY-MM-DD
+  issuedHebrew: string; // Hebrew date string
+  expiresHebrew: string; // Hebrew date string
   certifierName: string;
+  certifierRole: string; // תפקיד המסמיך
   number: string;
   idType?: string;
   idNumber?: string;
@@ -67,18 +71,25 @@ export function designUsesIdentity(d: CertificateDesign): boolean {
   return all.includes('[מספר זיהוי]') || all.includes('[סוג זיהוי]');
 }
 
-/** Substitute dynamic tokens in a single string. */
+/** Substitute dynamic tokens in a single string (legacy + canvas tokens). */
 export function renderTokens(text: string, data: CertificateFieldData): string {
   return text
     .replaceAll('[שם מלא]', data.fullName)
     .replaceAll('[מערכת]', data.systemName)
     .replaceAll('[דרג]', data.rankName)
     .replaceAll('[סוג פעולה]', data.actionLabel)
+    .replaceAll('[סוג הסמכה]', data.actionLabel)
     .replaceAll('[תאריך הסמכה]', formatDateDots(data.issuedAt))
+    .replaceAll('[תאריך לועזי]', formatDateDots(data.issuedAt))
+    .replaceAll('[תאריך עברי]', data.issuedHebrew)
     .replaceAll('[תוקף עד]', formatDateDots(data.expiresAt))
+    .replaceAll('[תוקף הסמכה]', formatDateDots(data.expiresAt))
+    .replaceAll('[תוקף עברי]', data.expiresHebrew)
     .replaceAll('[שם המסמיך]', data.certifierName)
+    .replaceAll('[תפקיד המסמיך]', data.certifierRole)
     .replaceAll('[מספר תעודה]', data.number)
     .replaceAll('[סוג זיהוי]', data.idType ?? '')
+    .replaceAll('[מספר אישי / ת"ז]', data.idNumber ?? '')
     .replaceAll('[מספר זיהוי]', data.idNumber ?? '');
 }
 
@@ -187,9 +198,18 @@ export interface IssueCertificateInput {
  */
 export async function issueCertificate(input: IssueCertificateInput): Promise<Certificate> {
   const rc = input.rankCertification;
-  const design = await getCertificateTemplate(rc.action_type);
+  // Prefer a PUBLISHED A4 canvas template; fall back to the legacy token default
+  // when no canvas template has been published yet (backward compatible).
+  const { getPublishedTemplate, designUsesIdentity: canvasUsesId } = await import(
+    './certificateTemplates'
+  );
+  const published = await getPublishedTemplate(rc.action_type);
+  const design = published ? published.design : await getCertificateTemplate(rc.action_type);
+  const templateVersion = published?.version;
+  const usesId = published
+    ? canvasUsesId(published.design)
+    : designUsesIdentity(design as import('@/types').CertificateDesign);
   const number = await nextCertificateNumber();
-  const usesId = designUsesIdentity(design);
   const cert: Certificate = {
     id: newId(),
     number,
@@ -204,10 +224,12 @@ export async function issueCertificate(input: IssueCertificateInput): Promise<Ce
     expires_at: rc.expires_at,
     certifier_user_id: rc.certifier_user_id,
     certifier_name_snapshot: rc.certifier_name_snapshot,
+    certifier_role_snapshot: 'מסמיך',
     signature_data: rc.signature_data,
     id_type_snapshot: usesId ? input.idType : undefined,
     id_number_snapshot: usesId ? input.idNumber : undefined,
     design_snapshot: design,
+    template_version: templateVersion,
     created_at: nowIso(),
   };
   await db.certificates.add(cert);
@@ -218,7 +240,7 @@ export async function issueCertificate(input: IssueCertificateInput): Promise<Ce
     entity_type: 'certificate',
     entity_id: cert.id,
     field: `${rc.system_id}|${rc.rank_id}`,
-    new_value: `number=${number};employee=${input.userName};action=${rc.action_type}`,
+    new_value: `number=${number};employee=${input.userName};action=${rc.action_type};template=${templateVersion ?? 'legacy'}`,
   });
   return cert;
 }
@@ -246,9 +268,21 @@ export function certificateFieldData(cert: Certificate): CertificateFieldData {
     actionLabel: cert.action_type === 'renewal' ? 'רענון הסמכה' : 'הסמכה ראשונית',
     issuedAt: cert.issued_at,
     expiresAt: cert.expires_at,
+    issuedHebrew: safeHebrew(cert.issued_at),
+    expiresHebrew: safeHebrew(cert.expires_at),
     certifierName: cert.certifier_name_snapshot,
+    certifierRole: cert.certifier_role_snapshot ?? 'מסמיך',
     number: cert.number,
     idType: cert.id_type_snapshot ? identityTypeLabel(cert.id_type_snapshot) : undefined,
     idNumber: cert.id_number_snapshot,
   };
+}
+
+function safeHebrew(iso: string | undefined): string {
+  if (!iso) return '';
+  try {
+    return formatHebrewDate(iso);
+  } catch {
+    return '';
+  }
 }

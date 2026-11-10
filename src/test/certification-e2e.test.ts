@@ -90,7 +90,7 @@ describe('certification lifecycle (E2E)', () => {
     const tmpl = await getCertificateTemplate('initial');
     await saveCertificateTemplate('initial', { ...tmpl, title: 'שונה' }, adminActor());
     const reprinted = await getCertificate(cert.id);
-    expect(reprinted?.design_snapshot.title).not.toBe('שונה');
+    expect((reprinted?.design_snapshot as { title?: string }).title).not.toBe('שונה');
   });
 
   it('ADMIN and APPROVER cannot certify without an explicit certifier authorization', async () => {

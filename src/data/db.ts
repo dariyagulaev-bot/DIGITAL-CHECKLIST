@@ -31,6 +31,7 @@ import type {
   RankCertification,
   SystemRankPrerequisite,
   Certificate,
+  CertificateTemplateRow,
 } from '@/types';
 
 /**
@@ -70,6 +71,7 @@ export class ChecklistDB extends Dexie {
   rank_certifications!: Table<RankCertification, string>;
   system_rank_prerequisites!: Table<SystemRankPrerequisite, string>;
   certificates!: Table<Certificate, string>;
+  certificate_templates!: Table<CertificateTemplateRow, string>;
 
   constructor(name = 'digital_checklist') {
     super(name);
@@ -437,6 +439,14 @@ export class ChecklistDB extends Dexie {
     // The editable templates live in `settings` (JSON), not here.
     this.version(19).stores({
       certificates: 'id, number, user_id, system_id, rank_id, action_type, [user_id+system_id]',
+    });
+
+    // v20: versioned WYSIWYG certificate templates (A4 canvas documents). One
+    // editable draft per type plus published versions (history). Issued
+    // certificates snapshot the published design, so templates never alter the
+    // past. Additive table; legacy token designs keep rendering.
+    this.version(20).stores({
+      certificate_templates: 'id, type, status, [type+status]',
     });
   }
 }

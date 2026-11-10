@@ -87,7 +87,9 @@ describe('certificate issuance (immutable snapshot)', () => {
   it('issues a certificate with a running number and frozen design', async () => {
     const c1 = await issueCertificate(issueInput());
     expect(c1.number).toBe('VERO-CERT-000001');
-    expect(c1.design_snapshot.title).toBe(defaultDesign('initial').title);
+    expect((c1.design_snapshot as ReturnType<typeof defaultDesign>).title).toBe(
+      defaultDesign('initial').title
+    );
     expect(c1.signature_data).toBe('data:image/png;base64,SIG');
     const c2 = await issueCertificate(issueInput());
     expect(c2.number).toBe('VERO-CERT-000002');
@@ -99,7 +101,9 @@ describe('certificate issuance (immutable snapshot)', () => {
     const d = await getCertificateTemplate('initial');
     await saveCertificateTemplate('initial', { ...d, title: 'שונה לגמרי' }, admin);
     const reloaded = await getCertificate(c.id);
-    expect(reloaded?.design_snapshot.title).toBe(defaultDesign('initial').title); // frozen
+    expect((reloaded?.design_snapshot as ReturnType<typeof defaultDesign>).title).toBe(
+      defaultDesign('initial').title
+    ); // frozen
   });
 
   it('snapshots the protected identity ONLY when the design uses it', async () => {
@@ -142,7 +146,10 @@ describe('token rendering', () => {
     actionLabel: 'הסמכה ראשונית',
     issuedAt: '2026-01-02',
     expiresAt: '2027-01-02',
+    issuedHebrew: '',
+    expiresHebrew: '',
     certifierName: 'יוסי',
+    certifierRole: 'מסמיך',
     number: 'VERO-CERT-000009',
   };
 
