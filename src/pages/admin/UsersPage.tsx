@@ -11,14 +11,16 @@ import { logAudit } from '@/services/audit';
 import { listSystems } from '@/services/systems';
 import { listRanks } from '@/services/ranks';
 import { listCertifications, setCertification } from '@/services/certifications';
+import { certifierScope, setCertifierAuthorizations } from '@/services/certifiers';
+import { identityTypeLabel, validateIdentity } from '@/services/identity';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { Modal, Spinner } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { roleLabel } from '@/exports/labels';
-import { RoleName, type Rank, type System, type UserWithRoles } from '@/types';
+import { RoleName, type IdentityType, type Rank, type System, type UserWithRoles } from '@/types';
 
-const ALL_ROLES = [RoleName.PERFORMER, RoleName.APPROVER, RoleName.ADMIN];
+const ALL_ROLES = [RoleName.PERFORMER, RoleName.APPROVER, RoleName.ADMIN, RoleName.CERTIFIER];
 
 export default function UsersPage() {
   const { user: admin } = useAuth();
@@ -128,6 +130,9 @@ function UserEditor({
   const [username, setUsername] = useState(user?.username ?? '');
   const [password, setPassword] = useState('');
   const [roles, setRoles] = useState<RoleName[]>(user?.roles ?? [RoleName.PERFORMER]);
+  // Protected identity (admin-only). Never used as username/login/display.
+  const [idType, setIdType] = useState<IdentityType>(user?.id_type ?? 'personal');
+  const [idNumber, setIdNumber] = useState(user?.id_number ?? '');
   const [busy, setBusy] = useState(false);
 
   const toggleRole = (r: RoleName) =>
@@ -143,14 +148,35 @@ function UserEditor({
       notify('סיסמה של 4 תווים לפחות', 'error');
       return;
     }
+    // Identity is OPTIONAL, but if a number was entered it must be valid for its type.
+    const idTrim = idNumber.trim();
+    if (idTrim) {
+      const idErr = validateIdentity(idType, idTrim);
+      if (idErr) {
+        notify(idErr, 'error');
+        return;
+      }
+    }
     setBusy(true);
     try {
       if (user) {
-        await updateUserProfile(user.id, { full_name: fullName, username });
+        await updateUserProfile(user.id, {
+          full_name: fullName,
+          username,
+          id_type: idType,
+          id_number: idTrim,
+        });
         await setUserRoles(user.id, roles);
         if (password) await resetPassword(user.id, password);
       } else {
-        await createUser({ username, full_name: fullName, password, roles });
+        await createUser({
+          username,
+          full_name: fullName,
+          password,
+          roles,
+          id_type: idType,
+          id_number: idTrim || undefined,
+        });
       }
       if (admin)
         await logAudit({
@@ -215,8 +241,45 @@ function UserEditor({
           </div>
         </div>
 
+        {admin && (
+          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+            <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+              <Icon name="shield-check" size={16} />
+              זיהוי מוגן (מסמך הסמכה בלבד)
+            </div>
+            <p className="mb-2 text-xs text-slate-500">
+              משמש אך ורק למנגנון ההסמכה והנפקת תעודות. אינו שם משתמש/סיסמה/כניסה,
+              ואינו מוצג במסכים, בבד״חים, בחתימות, בייצוא או בחיפוש הרגילים.
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <select
+                className="input sm:w-44"
+                value={idType}
+                onChange={(e) => setIdType(e.target.value as IdentityType)}
+              >
+                <option value="personal">{identityTypeLabel('personal')}</option>
+                <option value="national">{identityTypeLabel('national')}</option>
+              </select>
+              <input
+                className="input flex-1"
+                inputMode="numeric"
+                placeholder={idType === 'national' ? '9 ספרות' : '3–10 ספרות'}
+                value={idNumber}
+                onChange={(e) => setIdNumber(e.target.value.replace(/\D/g, ''))}
+              />
+            </div>
+          </div>
+        )}
+
         {user && admin && (
           <UserCertifications
+            userId={user.id}
+            actor={{ id: admin.id, full_name: admin.full_name }}
+          />
+        )}
+
+        {user && admin && roles.includes(RoleName.CERTIFIER) && (
+          <CertifierAuthorizations
             userId={user.id}
             actor={{ id: admin.id, full_name: admin.full_name }}
           />
@@ -328,6 +391,116 @@ function UserCertifications({
               </div>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * CERTIFIER (מסמיך) authorization matrix. The CERTIFIER role alone grants
+ * nothing — the user may only certify in the exact (system, rank) pairs ticked
+ * here. ADMIN/APPROVER are never implicitly certifiers. Each save replaces the
+ * whole set and is audited (CERTIFIER_AUTH_CHANGE). Removing a tick never
+ * affects certifications/certificates already issued — only future actions.
+ */
+function CertifierAuthorizations({
+  userId,
+  actor,
+}: {
+  userId: string;
+  actor: { id: string; full_name: string };
+}) {
+  const { notify } = useToast();
+  const [systems, setSystems] = useState<System[] | null>(null);
+  const [ranks, setRanks] = useState<Rank[]>([]);
+  const [scope, setScope] = useState<Map<string, Set<string>>>(new Map());
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const [sys, rnk, sc] = await Promise.all([
+        listSystems(false),
+        listRanks(false),
+        certifierScope(userId),
+      ]);
+      setSystems(sys);
+      setRanks([...rnk].sort((a, b) => a.sort_order - b.sort_order));
+      setScope(sc);
+    })().catch(() => setSystems([]));
+  }, [userId]);
+
+  const allows = (sysId: string, rankId: string) => !!scope.get(sysId)?.has(rankId);
+
+  const toggle = async (sysId: string, rankId: string) => {
+    // Build next scope, then persist the full pair list (replace-set).
+    const next = new Map<string, Set<string>>();
+    for (const [s, set] of scope) next.set(s, new Set(set));
+    if (!next.has(sysId)) next.set(sysId, new Set());
+    const set = next.get(sysId)!;
+    if (set.has(rankId)) set.delete(rankId);
+    else set.add(rankId);
+    const pairs: Array<{ system_id: string; rank_id: string }> = [];
+    for (const [s, rk] of next) for (const r of rk) pairs.push({ system_id: s, rank_id: r });
+    setSaving(true);
+    try {
+      await setCertifierAuthorizations(userId, pairs, actor);
+      setScope(next);
+    } catch (err) {
+      notify((err as Error).message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-brand-200 bg-brand-50/40 p-3">
+      <div className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+        <Icon name="shield-check" size={16} />
+        הרשאות הסמכה (מסמיך) — לפי מערכת ודרג
+      </div>
+      {systems === null ? (
+        <Spinner />
+      ) : systems.length === 0 || ranks.length === 0 ? (
+        <p className="text-sm text-slate-500">יש להגדיר מערכות ודרגים תחילה.</p>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-xs text-slate-500">
+            המשתמש יוכל להסמיך אך ורק בצירופי מערכת+דרג המסומנים. היות ומשתמש הוא בעל
+            הרשאת מסמיך אינו מקנה הרשאה אוטומטית לכל המערכות/הדרגים.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="text-right text-sm">
+              <thead>
+                <tr className="text-slate-600">
+                  <th className="p-2" />
+                  {ranks.map((r) => (
+                    <th key={r.id} className="p-2 font-medium">
+                      {r.name}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {systems.map((s) => (
+                  <tr key={s.id} className="border-t border-slate-100">
+                    <td className="p-2 font-medium text-slate-700">{s.name}</td>
+                    {ranks.map((r) => (
+                      <td key={r.id} className="p-2 text-center">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 accent-brand-600"
+                          disabled={saving}
+                          checked={allows(s.id, r.id)}
+                          onChange={() => toggle(s.id, r.id)}
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

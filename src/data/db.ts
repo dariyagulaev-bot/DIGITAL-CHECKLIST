@@ -27,6 +27,7 @@ import type {
   CertRenewal,
   RenewalApprover,
   TrackingFault,
+  CertifierAuthorization,
 } from '@/types';
 
 /**
@@ -62,6 +63,7 @@ export class ChecklistDB extends Dexie {
   cert_renewals!: Table<CertRenewal, string>;
   renewal_approvers!: Table<RenewalApprover, string>;
   tracking_faults!: Table<TrackingFault, string>;
+  certifier_authorizations!: Table<CertifierAuthorization, string>;
 
   constructor(name = 'digital_checklist') {
     super(name);
@@ -390,6 +392,23 @@ export class ChecklistDB extends Dexie {
     // indexes), so this is fully additive and backward-compatible: existing forms
     // and templates keep working unchanged (absent = no calibration / not graded).
     this.version(16).stores({});
+
+    // v17: Certification mechanism extension.
+    //  (a) CERTIFIER role (מסמיך) — ensure the role row exists so it can be
+    //      assigned. (b) certifier_authorizations — explicit per-(system, rank)
+    //      permission to certify (holding the role alone never suffices).
+    //  (c) protected user identity (id_type / id_number) is a data-only field
+    //      (no index), added additively. Fully backward-compatible.
+    this.version(17)
+      .stores({
+        certifier_authorizations: 'id, user_id, system_id, rank_id, [user_id+system_id]',
+      })
+      .upgrade(async (tx) => {
+        const roles = await tx.table('roles').toArray();
+        if (!roles.some((r: Role) => r.name === 'CERTIFIER')) {
+          await tx.table('roles').add({ id: crypto.randomUUID(), name: 'CERTIFIER' });
+        }
+      });
   }
 }
 

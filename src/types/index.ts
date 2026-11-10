@@ -8,6 +8,23 @@ export enum RoleName {
   PERFORMER = 'PERFORMER', // מבצע בדיקות
   APPROVER = 'APPROVER', // מאשר בדיקות
   ADMIN = 'ADMIN', // מנהל מערכת
+  CERTIFIER = 'CERTIFIER', // מסמיך — may certify others (scoped per system+rank)
+}
+
+/** Identity document kind for a user (protected / admin-only field). */
+export type IdentityType = 'personal' | 'national'; // מספר אישי / תעודת זהות
+
+/**
+ * Explicit authorization for a CERTIFIER to certify in a specific (system, rank).
+ * Holding the CERTIFIER role is NOT enough on its own — an authorization row per
+ * (system, rank) is required. Being ADMIN/APPROVER never grants this implicitly.
+ */
+export interface CertifierAuthorization {
+  id: string;
+  user_id: string;
+  system_id: string;
+  rank_id: string;
+  created_at: string;
 }
 
 /** Lifecycle status of a completed form (בד״ח). */
@@ -43,6 +60,12 @@ export interface User {
   password_hash: string;
   active: boolean;
   created_at: string; // ISO
+  // ---- Protected identity (ת״ז / מספר אישי) — admin-managed, PRIVATE ----
+  // NEVER used as a username/login/display name, and never shown across the app
+  // (dashboards, forms, approver screens, history, PDF/Excel, signatures, search).
+  // Used only by the certification mechanism and certificate issuance.
+  id_type?: IdentityType;
+  id_number?: string;
 }
 
 export interface Role {

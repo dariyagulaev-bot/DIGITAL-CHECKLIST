@@ -22,6 +22,15 @@ export function isApprover(user: UserWithRoles | null): boolean {
   return hasRole(user, RoleName.APPROVER);
 }
 
+/**
+ * Holds the CERTIFIER role (מסמיך). NOTE: this is necessary but NOT sufficient to
+ * certify — an explicit per-(system, rank) authorization is also required (see
+ * certifiers service). Being ADMIN/APPROVER never implies CERTIFIER.
+ */
+export function isCertifier(user: UserWithRoles | null): boolean {
+  return hasRole(user, RoleName.CERTIFIER);
+}
+
 /** Can this user open/create new inspection forms? */
 export function canPerform(user: UserWithRoles | null): boolean {
   return isPerformer(user) || isAdmin(user);

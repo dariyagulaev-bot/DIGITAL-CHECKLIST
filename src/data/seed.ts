@@ -37,7 +37,7 @@ async function ensureRoles(): Promise<Record<RoleName, string>> {
   const existing = await db.roles.toArray();
   const byName = new Map(existing.map((r) => [r.name, r.id]));
   const map: Partial<Record<RoleName, string>> = {};
-  for (const name of [RoleName.PERFORMER, RoleName.APPROVER, RoleName.ADMIN]) {
+  for (const name of [RoleName.PERFORMER, RoleName.APPROVER, RoleName.ADMIN, RoleName.CERTIFIER]) {
     let id = byName.get(name);
     if (!id) {
       id = newId();

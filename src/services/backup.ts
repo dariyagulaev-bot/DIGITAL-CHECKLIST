@@ -27,6 +27,7 @@ import type {
   CertRenewal,
   RenewalApprover,
   TrackingFault,
+  CertifierAuthorization,
 } from '@/types';
 
 /**
@@ -73,6 +74,7 @@ export interface FullBackup {
     cert_renewals?: CertRenewal[];
     renewal_approvers?: RenewalApprover[];
     tracking_faults?: TrackingFault[];
+    certifier_authorizations?: CertifierAuthorization[];
   };
 }
 
@@ -131,6 +133,7 @@ async function collectAll() {
     cert_renewals,
     renewal_approvers,
     tracking_faults,
+    certifier_authorizations,
   ] = await Promise.all([
     db.users.toArray(),
     db.roles.toArray(),
@@ -156,6 +159,7 @@ async function collectAll() {
     db.cert_renewals.toArray(),
     db.renewal_approvers.toArray(),
     db.tracking_faults.toArray(),
+    db.certifier_authorizations.toArray(),
   ]);
   return {
     users,
@@ -182,6 +186,7 @@ async function collectAll() {
     cert_renewals,
     renewal_approvers,
     tracking_faults,
+    certifier_authorizations,
   };
 }
 
@@ -236,6 +241,7 @@ export async function restoreFullBackup(
       db.cert_renewals,
       db.renewal_approvers,
       db.tracking_faults,
+      db.certifier_authorizations,
     ],
     async () => {
       await Promise.all([
@@ -263,6 +269,7 @@ export async function restoreFullBackup(
         db.cert_renewals.clear(),
         db.renewal_approvers.clear(),
         db.tracking_faults.clear(),
+        db.certifier_authorizations.clear(),
       ]);
       await Promise.all([
         db.users.bulkAdd(d.users),
@@ -289,6 +296,7 @@ export async function restoreFullBackup(
         db.cert_renewals.bulkAdd(d.cert_renewals ?? []),
         db.renewal_approvers.bulkAdd(d.renewal_approvers ?? []),
         db.tracking_faults.bulkAdd(d.tracking_faults ?? []),
+        db.certifier_authorizations.bulkAdd(d.certifier_authorizations ?? []),
       ]);
     }
   );

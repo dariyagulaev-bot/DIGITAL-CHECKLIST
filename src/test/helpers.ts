@@ -13,7 +13,7 @@ export async function resetDb(): Promise<void> {
 export async function ensureRoles(): Promise<void> {
   const existing = await db.roles.toArray();
   const names = new Set(existing.map((r) => r.name));
-  for (const name of [RoleName.PERFORMER, RoleName.APPROVER, RoleName.ADMIN]) {
+  for (const name of [RoleName.PERFORMER, RoleName.APPROVER, RoleName.ADMIN, RoleName.CERTIFIER]) {
     if (!names.has(name)) await db.roles.add({ id: newId(), name });
   }
 }

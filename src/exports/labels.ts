@@ -91,6 +91,8 @@ export function roleLabel(role: RoleName): string {
       return 'מאשר';
     case RoleName.ADMIN:
       return 'מנהל';
+    case RoleName.CERTIFIER:
+      return 'מסמיך';
     default:
       return role;
   }

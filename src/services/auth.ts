@@ -1,7 +1,8 @@
 import bcrypt from 'bcryptjs';
 import { db } from '@/data/db';
 import { newId, nowIso } from './ids';
-import { RoleName, type User, type UserWithRoles } from '@/types';
+import { RoleName, type IdentityType, type User, type UserWithRoles } from '@/types';
+import { validateIdentity } from './identity';
 
 const SALT_ROUNDS = 10;
 
@@ -55,10 +56,23 @@ export async function createUser(params: {
   password: string;
   roles: RoleName[];
   active?: boolean;
+  id_type?: IdentityType;
+  id_number?: string;
 }): Promise<User> {
   const uname = params.username.trim().toLowerCase();
   const existing = await db.users.where('username').equals(uname).first();
   if (existing) throw new Error('שם המשתמש כבר קיים במערכת');
+  // Protected identity (optional). When a number is given, it must be valid for
+  // the chosen type. It is NEVER the username/login — that stays `username`.
+  let idType: IdentityType | undefined;
+  let idNumber: string | undefined;
+  const rawNum = (params.id_number ?? '').trim();
+  if (rawNum) {
+    idType = params.id_type ?? 'personal';
+    const err = validateIdentity(idType, rawNum);
+    if (err) throw new Error(err);
+    idNumber = rawNum;
+  }
   const user: User = {
     id: newId(),
     username: uname,
@@ -66,6 +80,8 @@ export async function createUser(params: {
     password_hash: await hashPassword(params.password),
     active: params.active ?? true,
     created_at: nowIso(),
+    id_type: idType,
+    id_number: idNumber,
   };
   await db.users.add(user);
   await setUserRoles(user.id, params.roles);
@@ -94,7 +110,7 @@ export async function resetPassword(userId: string, newPassword: string): Promis
 
 export async function updateUserProfile(
   userId: string,
-  patch: Partial<Pick<User, 'full_name' | 'username'>>
+  patch: Partial<Pick<User, 'full_name' | 'username' | 'id_type' | 'id_number'>>
 ): Promise<void> {
   const clean: Partial<User> = {};
   if (patch.full_name !== undefined) clean.full_name = patch.full_name.trim();
@@ -103,6 +119,20 @@ export async function updateUserProfile(
     const existing = await db.users.where('username').equals(uname).first();
     if (existing && existing.id !== userId) throw new Error('שם המשתמש כבר קיים במערכת');
     clean.username = uname;
+  }
+  // Protected identity edit (admin-only path). An empty number clears it.
+  if (patch.id_number !== undefined || patch.id_type !== undefined) {
+    const rawNum = (patch.id_number ?? '').trim();
+    if (rawNum) {
+      const idType: IdentityType = patch.id_type ?? 'personal';
+      const err = validateIdentity(idType, rawNum);
+      if (err) throw new Error(err);
+      clean.id_type = idType;
+      clean.id_number = rawNum;
+    } else if (patch.id_number !== undefined) {
+      clean.id_type = undefined;
+      clean.id_number = undefined;
+    }
   }
   await db.users.update(userId, clean);
 }
