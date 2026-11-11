@@ -31,7 +31,7 @@ import MyCertificationsPage from './pages/MyCertificationsPage';
 import CertifyPage from './pages/CertifyPage';
 import CertificatesPage from './pages/CertificatesPage';
 import CertificatePrintPage from './pages/CertificatePrintPage';
-import CertificateTemplatesPage from './pages/admin/CertificateTemplatesPage';
+import CertificateDesignerPage from './pages/admin/CertificateDesignerPage';
 import RenewalsApprovalPage from './pages/RenewalsApprovalPage';
 import TrackingFaultsPage from './pages/TrackingFaultsPage';
 import SystemsPage from './pages/admin/SystemsPage';
@@ -157,7 +157,7 @@ function AppRoutes() {
         <Route path="hierarchy" element={<HierarchyPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="certifications" element={<CertificationsPage />} />
-        <Route path="certificate-templates" element={<CertificateTemplatesPage />} />
+        <Route path="certificate-templates" element={<CertificateDesignerPage />} />
         <Route path="exams" element={<ExamsPage />} />
         <Route path="exams/:id" element={<ExamEditorPage />} />
         <Route path="renewals" element={<RenewalAdminPage />} />
