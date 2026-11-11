@@ -673,6 +673,35 @@
     margin: 0 4px;
     color: #b0bccd;
   }
+
+  /* Certificate: the real-mm A4 sheet prints on its own full-bleed A4 page.
+     A named page gives it a zero margin without affecting the בד״ח report's
+     @page rule above. */
+  .cert-print-sheet {
+    position: static !important;
+    left: 0 !important;
+    top: 0 !important;
+    page: cert;
+  }
+  .cert-print-sheet .certificate-sheet {
+    box-shadow: none !important;
+  }
+  @page cert {
+    size: A4 portrait;
+    margin: 0;
+  }
+}
+
+/* On screen the real-mm certificate sheet is rendered OFF-screen (so html2canvas
+   can capture it for the PDF export) while the visible preview is the scaled
+   sheet. In print the rule above promotes it to a full A4 page. */
+@media screen {
+  .cert-print-sheet {
+    position: fixed;
+    left: -10000px;
+    top: 0;
+    pointer-events: none;
+  }
 }
 
 /* ============================================================================
