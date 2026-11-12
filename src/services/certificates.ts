@@ -50,6 +50,13 @@ export interface CertificateFieldData {
   number: string;
   idType?: string;
   idNumber?: string;
+  /** Ready-made "ת״ז: 123…" / "מספר אישי: 123…" line, or '' when no identity. */
+  identityLine: string;
+}
+
+/** Short identity label for the certificate line ("ת״ז" / "מספר אישי"). */
+export function identityShortLabel(type: import('@/types').IdentityType | undefined): string {
+  return type === 'national' ? 'ת״ז' : 'מספר אישי';
 }
 
 export const CERTIFICATE_TOKENS: { token: string; desc: string }[] = [
@@ -90,7 +97,8 @@ export function renderTokens(text: string, data: CertificateFieldData): string {
     .replaceAll('[מספר תעודה]', data.number)
     .replaceAll('[סוג זיהוי]', data.idType ?? '')
     .replaceAll('[מספר אישי / ת"ז]', data.idNumber ?? '')
-    .replaceAll('[מספר זיהוי]', data.idNumber ?? '');
+    .replaceAll('[מספר זיהוי]', data.idNumber ?? '')
+    .replaceAll('[זיהוי]', data.identityLine ?? '');
 }
 
 export function defaultDesign(type: CertificateActionType): CertificateDesign {
@@ -275,6 +283,9 @@ export function certificateFieldData(cert: Certificate): CertificateFieldData {
     number: cert.number,
     idType: cert.id_type_snapshot ? identityTypeLabel(cert.id_type_snapshot) : undefined,
     idNumber: cert.id_number_snapshot,
+    identityLine: cert.id_number_snapshot
+      ? `${identityShortLabel(cert.id_type_snapshot)}: ${cert.id_number_snapshot}`
+      : '',
   };
 }
 

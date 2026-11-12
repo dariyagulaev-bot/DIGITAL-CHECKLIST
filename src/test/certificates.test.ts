@@ -151,6 +151,7 @@ describe('token rendering', () => {
     certifierName: 'יוסי',
     certifierRole: 'מסמיך',
     number: 'VERO-CERT-000009',
+    identityLine: '',
   };
 
   it('substitutes tokens', () => {
@@ -166,6 +167,24 @@ describe('token rendering', () => {
     const d = defaultDesign('initial');
     expect(designUsesIdentity(d)).toBe(false);
     expect(designUsesIdentity({ ...d, footer: '[מספר זיהוי]' })).toBe(true);
+  });
+
+  it('builds the identity line from the snapshot (ת״ז / מספר אישי) or empty', () => {
+    const national = {
+      ...makeRankCert(),
+      user_name_snapshot: 'דני',
+      system_name_snapshot: 's',
+      rank_name_snapshot: 'r',
+      id_type_snapshot: 'national',
+      id_number_snapshot: '123456789',
+    } as unknown as Parameters<typeof certificateFieldData>[0];
+    expect(certificateFieldData(national).identityLine).toBe('ת״ז: 123456789');
+
+    const personal = { ...national, id_type_snapshot: 'personal', id_number_snapshot: '1234567' } as typeof national;
+    expect(certificateFieldData(personal).identityLine).toBe('מספר אישי: 1234567');
+
+    const none = { ...national, id_type_snapshot: undefined, id_number_snapshot: undefined } as typeof national;
+    expect(certificateFieldData(none).identityLine).toBe('');
   });
 
   it('certificateFieldData maps a certificate snapshot', () => {

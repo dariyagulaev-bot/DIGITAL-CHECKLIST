@@ -117,10 +117,19 @@ describe('canvas certificate templates (versioned draft/publish)', () => {
     expect(back.design.bg_color).toBe('#ffffff');
   });
 
-  it('designUsesIdentity detects identity field tokens', () => {
+  it('the default design includes the identity line and so uses identity', () => {
     const d = defaultCanvasDesign('initial');
-    expect(designUsesIdentity(d)).toBe(false);
-    d.elements.push({ id: 'id', type: 'field', x: 0, y: 0, w: 10, h: 10, z: 5, field: '[מספר אישי / ת"ז]' });
+    expect(d.elements.some((e) => e.field === '[זיהוי]')).toBe(true);
     expect(designUsesIdentity(d)).toBe(true);
+  });
+
+  it('designUsesIdentity detects all identity tokens', () => {
+    const base = { ...defaultCanvasDesign('initial'), elements: [] as never[] };
+    expect(designUsesIdentity({ ...base })).toBe(false);
+    for (const field of ['[זיהוי]', '[מספר אישי / ת"ז]', '[סוג זיהוי]']) {
+      expect(
+        designUsesIdentity({ ...base, elements: [{ id: 'x', type: 'field', x: 0, y: 0, w: 10, h: 10, z: 1, field }] })
+      ).toBe(true);
+    }
   });
 });

@@ -33,6 +33,7 @@ export function certFontCss(key?: string): string {
 /** Dynamic field tokens available on the canvas. */
 export const CERT_FIELD_TOKENS: { token: string; label: string }[] = [
   { token: '[שם מלא]', label: 'שם מלא' },
+  { token: '[זיהוי]', label: 'זיהוי (סוג + מספר, אוטומטי)' },
   { token: '[סוג זיהוי]', label: 'סוג זיהוי' },
   { token: '[מספר אישי / ת"ז]', label: 'מספר אישי / ת״ז' },
   { token: '[מערכת]', label: 'מערכת' },
@@ -50,10 +51,11 @@ export const CERT_FIELD_TOKENS: { token: string; label: string }[] = [
 
 /** Tokens that reference the protected identity. */
 export function designUsesIdentity(design: CertCanvasDesign): boolean {
+  const idTokens = ['[מספר אישי / ת"ז]', '[סוג זיהוי]', '[זיהוי]', '[מספר זיהוי]'];
   return design.elements.some(
     (e) =>
-      (e.field === '[מספר אישי / ת"ז]' || e.field === '[סוג זיהוי]') ||
-      (!!e.text && (e.text.includes('[מספר אישי / ת"ז]') || e.text.includes('[סוג זיהוי]')))
+      (e.field != null && idTokens.includes(e.field)) ||
+      (!!e.text && idTokens.some((t) => e.text!.includes(t)))
   );
 }
 
@@ -94,13 +96,16 @@ export function defaultCanvasDesign(type: CertificateActionType): CertCanvasDesi
     // Divider.
     mk({ type: 'line', x: A4.width / 2 - 20, y: 66, w: 40, h: 0, line_color: accent, line_width: 0.8 }),
     // Grant line + name field.
-    mk({ type: 'text', x: margin, y: 92, w: contentW, h: 8, text: 'מוענקת בזאת ל־', ...centered, font_size: 15 }),
-    mk({ type: 'field', x: margin, y: 100, w: contentW, h: 12, field: '[שם מלא]', ...centered, font_size: 24, bold: true, color: accent }),
+    mk({ type: 'text', x: margin, y: 90, w: contentW, h: 8, text: 'מוענקת בזאת ל־', ...centered, font_size: 15 }),
+    mk({ type: 'field', x: margin, y: 98, w: contentW, h: 12, field: '[שם מלא]', ...centered, font_size: 24, bold: true, color: accent }),
+    // Identity line under the name (ת״ז / מספר אישי — pulled from the profile;
+    // renders nothing when the employee has no identity on file).
+    mk({ type: 'field', x: margin, y: 112, w: contentW, h: 7, field: '[זיהוי]', ...centered, font_size: 13, color: '#475569' }),
     // Body description.
-    mk({ type: 'text', x: margin, y: 122, w: contentW, h: 10, text: isRenewal ? 'אישור רענון ההסמכה לביצוע בדיקות במערכת [מערכת] בדרג [דרג].' : 'אישור הסמכה לביצוע בדיקות במערכת [מערכת] בדרג [דרג].', ...centered, font_size: 15 }),
-    // Dates (Gregorian + Hebrew).
-    mk({ type: 'text', x: margin, y: 140, w: contentW, h: 8, text: 'תאריך הסמכה: [תאריך הסמכה]   ·   בתוקף עד: [תוקף הסמכה]', ...centered, font_size: 13 }),
-    mk({ type: 'field', x: margin, y: 150, w: contentW, h: 7, field: '[תאריך עברי]', date_mode: 'hebrew', ...centered, font_size: 12, color: '#64748b' }),
+    mk({ type: 'text', x: margin, y: 126, w: contentW, h: 12, text: isRenewal ? 'אישור רענון ההסמכה לביצוע בדיקות במערכת [מערכת] בדרג [דרג].' : 'אישור הסמכה לביצוע בדיקות במערכת [מערכת] בדרג [דרג].', ...centered, font_size: 15 }),
+    // Dates — Gregorian line + Hebrew line, each on its own row (never cramped).
+    mk({ type: 'text', x: margin, y: 146, w: contentW, h: 8, text: 'תאריך הסמכה: [תאריך הסמכה]   ·   בתוקף עד: [תוקף הסמכה]', ...centered, font_size: 13 }),
+    mk({ type: 'field', x: margin, y: 156, w: contentW, h: 7, field: '[תאריך עברי]', date_mode: 'hebrew', ...centered, font_size: 12, color: '#64748b' }),
     // Signature block near the bottom.
     mk({ type: 'signature', x: A4.width / 2 - 28, y: 220, w: 56, h: 22 }),
     mk({ type: 'line', x: A4.width / 2 - 30, y: 244, w: 60, h: 0, line_color: ink, line_width: 0.3 }),

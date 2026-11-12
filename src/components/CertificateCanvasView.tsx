@@ -56,7 +56,11 @@ function TextLike({ el, data }: { el: CertElement; data: CertificateFieldData })
     border: el.border_color ? `${el.border_width ?? 0.3}mm solid ${el.border_color}` : 'none',
     lineHeight: 1.35,
     whiteSpace: 'pre-line',
-    overflow: 'hidden',
+    // Allow a long value (long system name, long description) to WRAP to another
+    // line and remain visible rather than being clipped. Horizontal wrapping is
+    // bounded by the element's own width, which stays inside the page.
+    overflowWrap: 'break-word',
+    wordBreak: 'break-word',
     padding: '0 1mm',
   };
   return (
@@ -126,12 +130,16 @@ export const CertificateSheet = forwardRef<HTMLDivElement, {
     <div
       ref={ref}
       className="certificate-sheet"
+      dir="ltr"
       style={{
         position: 'relative',
         width: `${design.width_mm}mm`,
         height: `${design.height_mm}mm`,
         background: design.bg_color,
         overflow: 'hidden',
+        // Geometry is LTR (absolute mm coords are physical); each text element
+        // sets its own dir="rtl". This keeps positions identical to the editor.
+        direction: 'ltr',
       }}
     >
       {els.map((el) => {
@@ -173,13 +181,27 @@ export function ScaledSheet({
     return () => window.removeEventListener('resize', update);
   }, [sheetWpx, maxWidthPx]);
 
+  // IMPORTANT: the scaling wrappers are forced to `direction: ltr`. The page is
+  // RTL globally, and an un-scaled child wider than its clip box would otherwise
+  // be anchored to the RIGHT and overflow LEFT; combined with a physical
+  // `transform-origin: top left` that shifted the whole sheet left and clipped
+  // it. With LTR geometry the child anchors to the physical left and scales into
+  // place exactly. Element TEXT keeps its own dir="rtl" inside CertificateSheet.
   return (
-    <div ref={wrapRef} style={{ width: '100%' }}>
+    <div ref={wrapRef} style={{ width: '100%', direction: 'ltr' }}>
       <div
         className="mx-auto shadow-soft"
-        style={{ width: sheetWpx * scale, height: sheetHpx * scale, overflow: 'hidden' }}
+        style={{ width: sheetWpx * scale, height: sheetHpx * scale, overflow: 'hidden', direction: 'ltr' }}
       >
-        <div style={{ transform: `scale(${scale})`, transformOrigin: 'top left', width: sheetWpx, height: sheetHpx }}>
+        <div
+          style={{
+            transform: `scale(${scale})`,
+            transformOrigin: 'top left',
+            width: sheetWpx,
+            height: sheetHpx,
+            direction: 'ltr',
+          }}
+        >
           <CertificateSheet design={design} data={data} signatureData={signatureData} />
         </div>
       </div>

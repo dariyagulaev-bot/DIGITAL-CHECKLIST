@@ -42,6 +42,7 @@ const SAMPLE: CertificateFieldData = {
   number: 'VERO-CERT-000123',
   idType: 'מספר אישי',
   idNumber: '1234567',
+  identityLine: 'מספר אישי: 1234567',
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -702,7 +703,8 @@ function ElementVisual({ el, scale }: { el: CertElement; scale: number }) {
         border: el.border_color ? `${(el.border_width ?? 0.3) * scale}px solid ${el.border_color}` : 'none',
         lineHeight: 1.35,
         whiteSpace: 'pre-line',
-        overflow: 'hidden',
+        overflowWrap: 'break-word',
+        wordBreak: 'break-word',
         padding: `0 ${1 * scale}px`,
       }}
     >
