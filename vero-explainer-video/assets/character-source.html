@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<style>
+  :root{
+    --skin:#EAB18A; --skin2:#DCA074; --skinLine:#C9875C;
+    --hair:#3C2E3C; --hair2:#4D3C4E;
+    --shirt:#2E86A8; --shirt2:#256F8D; --collar:#215E78; --shirtHi:#4FA3C4;
+    --pants:#2B3D62; --pants2:#243352; --belt:#1B2740;
+    --shoe:#20293B; --white:#fff; --ink:#1B2335;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{background:#EEF3F9;font-family:Arial,Helvetica,sans-serif}
+  .sheet{width:1680px;height:1040px;position:relative;
+    background:radial-gradient(1200px 520px at 50% -6%, #ffffff, #E7EEF6 65%);overflow:hidden}
+  header{position:absolute;top:34px;right:48px;left:48px;display:flex;align-items:center;justify-content:space-between}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand b{font-size:26px;color:#0B1E3D;letter-spacing:1px}
+  .sub{font-size:16px;color:#55708F;font-weight:700}
+  .row{position:absolute;top:150px;left:0;right:0;display:flex;justify-content:space-around;align-items:flex-end}
+  .fig{display:flex;flex-direction:column;align-items:center}
+  .stage{width:330px;height:720px;position:relative;display:flex;align-items:flex-end;justify-content:center}
+  .floor{position:absolute;bottom:40px;width:190px;height:30px;left:50%;transform:translateX(-50%);
+    background:radial-gradient(closest-side, rgba(20,40,70,.20), rgba(20,40,70,0));border-radius:50%}
+  .label{margin-top:6px;font-size:17px;font-weight:800;color:#1E3A5F}
+  .cap{font-size:13px;color:#6B7F98}
+  .palette{position:absolute;bottom:30px;right:48px;display:flex;gap:10px;align-items:center}
+  .sw{width:28px;height:28px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+  .pl{font-size:13px;color:#55708F;font-weight:700;margin-left:6px}
+  svg{display:block}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <header>
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 48 48"><path d="M10 10 L24 38 L38 10 L31 10 L24 25 L17 10 Z" fill="#2563EB"/></svg>
+      <b>VERO</b>
+    </div>
+    <div class="sub">עיצוב דמות · Turnaround 360°</div>
+  </header>
+  <div class="row" id="row"></div>
+  <div class="palette">
+    <span class="pl">פלטה</span>
+    <div class="sw" style="background:#2E86A8"></div><div class="sw" style="background:#2B3D62"></div>
+    <div class="sw" style="background:#38BDF8"></div><div class="sw" style="background:#EAB18A"></div>
+    <div class="sw" style="background:#3C2E3C"></div>
+  </div>
+</div>
+<script>
+const HEAD_CX = 165;
+function head(view){
+  if(view==='back'){
+    return `
+      <rect x="150" y="150" width="30" height="26" rx="12" fill="var(--skin2)"/>
+      <path d="M116 110 C116 40 214 40 214 110 C214 150 206 172 198 184 L132 184 C124 172 116 150 116 110 Z" fill="var(--hair)"/>
+      <path d="M150 158 q15 -7 30 0 q12 74 -3 150 q-12 9 -24 0 q-13 -78 -3 -150 Z" fill="var(--hair2)"/>
+      <ellipse cx="165" cy="150" rx="20" ry="16" fill="var(--hair)"/>
+    `;
+  }
+  if(view==='side'){
+    return `
+      <path d="M150 150 q18 -8 30 0 q12 70 -3 150 q-12 8 -22 0 q-12 -78 -5 -150 Z" fill="var(--hair2)"/>
+      <rect x="150" y="150" width="24" height="26" rx="11" fill="var(--skin)"/>
+      <path d="M150 54 q44 2 46 54 q1 30 -16 48 q-4 10 -4 22 l-14 2 q-26 -2 -28 -26 q-14 -2 -9 -20 q2 -7 9 -6 q-2 -40 36 -48 Z" fill="var(--skin)"/>
+      <!-- hair hood over crown/back (solid, no gap) -->
+      <path d="M138 100 C128 44 210 40 208 104 C208 140 198 150 190 156 L178 150 C186 128 184 104 176 92 C168 80 150 78 138 100 Z" fill="var(--hair)"/>
+      <ellipse cx="133" cy="118" rx="11" ry="6" fill="#F1BB9C" opacity=".6"/>
+      <circle cx="150" cy="104" r="4" fill="var(--ink)"/>
+      <path d="M140 96 q10 -4 17 0" fill="none" stroke="var(--hair)" stroke-width="3" stroke-linecap="round"/>
+      <path d="M125 112 q-6 7 1 12" fill="none" stroke="var(--skinLine)" stroke-width="2.2" stroke-linecap="round"/>
+      <path d="M134 134 q9 5 18 1" fill="none" stroke="#B5633F" stroke-width="2.8" stroke-linecap="round"/>
+      <ellipse cx="170" cy="112" rx="6" ry="9" fill="var(--skin2)"/>
+    `;
+  }
+  // front / 3q
+  const d = view==='3q' ? 11 : 0;
+  const pony = view==='3q'
+    ? '<path d="M120 138 q-36 18 -30 92 q3 24 15 40 l22 -10 q-13 -20 -13 -46 q0 -44 24 -66 Z" fill="var(--hair2)"/>'
+    : '';
+  return `
+    ${pony}
+    <rect x="150" y="150" width="30" height="26" rx="12" fill="var(--skin2)"/>
+    <!-- hair dome (solid, behind face) -->
+    <path d="M108 160 C98 44 232 44 222 160 Q165 178 108 160 Z" fill="var(--hair)"/>
+    <!-- face on top (reveals hairline at ~y104) -->
+    <path d="M126 104 q39 -16 78 0 q9 44 -5 80 q-11 26 -35 29 q-24 -3 -35 -29 q-14 -38 -3 -80 Z" fill="var(--skin)"/>
+    <!-- side hair strands framing the face -->
+    <path d="M122 108 q-8 42 0 76 l17 -5 q-8 -36 -5 -66 Z" fill="var(--hair)"/>
+    <path d="M208 108 q8 42 0 76 l-17 -5 q8 -36 5 -66 Z" fill="var(--hair)"/>
+    <!-- ears -->
+    <ellipse cx="124" cy="132" rx="7.5" ry="10.5" fill="var(--skin2)"/>
+    <ellipse cx="206" cy="132" rx="7.5" ry="10.5" fill="var(--skin2)"/>
+    <!-- cheeks -->
+    <ellipse cx="${136+d}" cy="150" rx="10" ry="6.5" fill="#F2BC9D" opacity=".55"/>
+    <ellipse cx="${194+d}" cy="150" rx="10" ry="6.5" fill="#F2BC9D" opacity=".55"/>
+    <!-- brows -->
+    <path d="M${124+d} 122 q12 -6 24 -2" fill="none" stroke="var(--hair)" stroke-width="3" stroke-linecap="round"/>
+    <path d="M${182+d} 120 q12 -4 24 2" fill="none" stroke="var(--hair)" stroke-width="3" stroke-linecap="round"/>
+    <!-- eyes -->
+    <ellipse cx="${137+d}" cy="135" rx="5" ry="5.8" fill="var(--ink)"/>
+    <ellipse cx="${193+d}" cy="135" rx="5" ry="5.8" fill="var(--ink)"/>
+    <circle cx="${139+d}" cy="133" r="1.6" fill="#fff"/><circle cx="${195+d}" cy="133" r="1.6" fill="#fff"/>
+    <path d="M${131+d} 131 q6 -3 12 0" fill="none" stroke="var(--ink)" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M${187+d} 131 q6 -3 12 0" fill="none" stroke="var(--ink)" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- nose -->
+    <path d="M${165+d} 143 q3 6 -2 10" fill="none" stroke="var(--skinLine)" stroke-width="2" stroke-linecap="round"/>
+    <!-- smile -->
+    <path d="M${151+d} 162 q14 10 28 0" fill="none" stroke="#B5633F" stroke-width="2.6" stroke-linecap="round"/>
+  `;
+}
+function body(view){
+  const back = view==='back', side = view==='side';
+  const shade = view==='3q'
+    ? '<path d="M165 178 l0 220 q-34 -2 -56 -14 l-7 -150 q3 -30 24 -40 q18 -11 39 -16 Z" fill="var(--shirt2)" opacity=".30"/>'
+    : '';
+  if(back){
+    return `
+      <path d="M116 184 q49 -22 98 0 q22 10 26 42 l-7 150 q-68 20 -136 0 l-7 -150 q4 -32 26 -42 Z" fill="var(--shirt)"/>
+      <path d="M116 184 q49 -20 98 0 q-13 13 -49 13 q-36 0 -49 -13 Z" fill="var(--collar)"/>
+      <path d="M116 186 q-32 10 -40 74 l28 12 q12 -48 28 -66 Z" fill="var(--shirt2)"/>
+      <path d="M214 186 q32 10 40 74 l-28 12 q-12 -48 -28 -66 Z" fill="var(--shirt2)"/>
+      <path d="M80 258 q-8 56 0 108 q14 6 26 0 q6 -50 -2 -100 Z" fill="var(--skin)"/>
+      <path d="M250 258 q8 56 0 108 q-14 6 -26 0 q-6 -50 2 -100 Z" fill="var(--skin)"/>
+      <path d="M122 372 q43 16 86 0 l8 20 l-14 232 l-32 0 l-13 -158 l-13 158 l-32 0 l-14 -232 Z" fill="var(--pants)"/>
+      <rect x="122" y="370" width="86" height="16" rx="6" fill="var(--belt)"/>
+      <line x1="165" y1="392" x2="165" y2="620" stroke="var(--pants2)" stroke-width="2"/>
+      <path d="M134 618 q6 14 -2 22 l-30 0 q-4 -16 2 -26 Z" fill="var(--shoe)"/>
+      <path d="M196 618 q-6 14 2 22 l30 0 q4 -16 -2 -26 Z" fill="var(--shoe)"/>
+    `;
+  }
+  if(side){
+    return `
+      <path d="M140 180 q42 -14 58 10 q16 16 14 50 l-6 140 q-40 16 -78 2 l0 -150 q-2 -40 12 -52 Z" fill="var(--shirt)"/>
+      <path d="M150 182 q26 -8 42 6 q-10 15 -42 11 Z" fill="var(--collar)"/>
+      <path d="M150 190 q-26 8 -30 64 q14 30 38 34 l6 -22 q-16 -6 -22 -20 q4 -32 18 -44 Z" fill="var(--shirt2)"/>
+      <path d="M152 282 q16 22 42 24 l2 20 q-34 0 -56 -24 Z" fill="var(--skin)"/>
+      <ellipse cx="196" cy="304" rx="13" ry="12" fill="var(--skin2)"/>
+      <path d="M134 366 q40 14 74 0 l4 20 q-4 118 -14 232 l-28 0 q-3 -122 -7 -182 q-9 60 -11 182 l-28 0 q-10 -152 -8 -232 Z" fill="var(--pants)"/>
+      <rect x="134" y="364" width="78" height="16" rx="6" fill="var(--belt)"/>
+      <path d="M150 616 q42 -2 56 8 l0 16 l-64 0 Z" fill="var(--shoe)"/>
+    `;
+  }
+  return `
+    <g transform="${view==='3q'?'translate(5,0)':''}">
+    <path d="M116 184 q49 -24 98 0 q23 10 27 42 l-8 150 q-68 20 -136 0 l-8 -150 q4 -32 27 -42 Z" fill="var(--shirt)"/>
+    ${shade}
+    <path d="M134 184 q31 24 62 0 l-11 27 q-20 10 -40 0 Z" fill="var(--collar)"/>
+    <rect x="162" y="208" width="6" height="150" rx="3" fill="var(--shirt2)"/>
+    <circle cx="165" cy="236" r="3" fill="#e9f3f7"/><circle cx="165" cy="270" r="3" fill="#e9f3f7"/><circle cx="165" cy="304" r="3" fill="#e9f3f7"/>
+    <rect x="195" y="240" width="30" height="26" rx="4" fill="none" stroke="var(--shirt2)" stroke-width="2.2"/>
+    <path d="M116 186 q-33 10 -41 76 l29 12 q12 -50 29 -68 Z" fill="var(--shirt2)"/>
+    <path d="M214 186 q33 10 41 76 l-29 12 q-12 -50 -29 -68 Z" fill="var(--shirt2)"/>
+    <path d="M79 260 q-8 56 0 108 q14 6 27 0 q6 -50 -2 -100 Z" fill="var(--skin)"/>
+    <path d="M251 260 q8 56 0 108 q-14 6 -27 0 q-6 -50 2 -100 Z" fill="var(--skin)"/>
+    <ellipse cx="92" cy="376" rx="15" ry="14" fill="var(--skin2)"/>
+    <ellipse cx="238" cy="376" rx="15" ry="14" fill="var(--skin2)"/>
+    <path d="M122 374 q43 16 86 0 l8 20 l-14 232 l-32 0 l-13 -158 l-13 158 l-32 0 l-14 -232 Z" fill="var(--pants)"/>
+    <rect x="122" y="372" width="86" height="16" rx="6" fill="var(--belt)"/>
+    <rect x="156" y="386" width="18" height="7" rx="3" fill="#C9A24A"/>
+    <line x1="165" y1="394" x2="165" y2="622" stroke="var(--pants2)" stroke-width="2"/>
+    <path d="M134 618 q6 14 -2 22 l-30 0 q-4 -16 2 -26 Z" fill="var(--shoe)"/>
+    <path d="M196 618 q-6 14 2 22 l30 0 q4 -16 -2 -26 Z" fill="var(--shoe)"/>
+    </g>
+  `;
+}
+const views = [['front','חזית','0°'],['3q','שלושת־רבעי','45°'],['side','פרופיל','90°'],['back','גב','180°']];
+document.getElementById('row').innerHTML = views.map(([v,l,c])=>`
+  <div class="fig"><div class="stage"><div class="floor"></div>
+    <svg width="330" height="680" viewBox="0 0 330 680">${body(v)}${head(v)}</svg>
+  </div><div class="label">${l}</div><div class="cap">${c}</div></div>`).join('');
+</script>
+</body>
+</html>
