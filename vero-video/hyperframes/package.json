@@ -1,0 +1,17 @@
+{
+  "name": "hyperframes",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "hyperframes preview",
+    "check": "hyperframes check",
+    "render": "hyperframes render",
+    "doctor": "hyperframes doctor"
+  },
+  "devDependencies": {
+    "hyperframes": "^0.9.91"
+  },
+  "dependencies": {
+    "gsap": "^3.15.0"
+  }
+}
