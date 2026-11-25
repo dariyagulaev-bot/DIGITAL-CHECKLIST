@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDb, ensureRoles, makeUser } from '@/test/helpers';
 import { db } from '@/data/db';
 import { nowIso } from '@/services/ids';
@@ -6,8 +6,10 @@ import { todayStr, addMonths } from '@/services/dates';
 import { RoleName, type ExamAttempt, type UserSystemRank, type UserWithRoles } from '@/types';
 import {
   onAttemptSubmitted, addApprover, canApprove, listPendingRenewals, approveRenewal, rejectRenewal, listRenewalsForUser,
+  reissueRenewalCertificate,
 } from '@/services/certRenewals';
 import { getCertRow } from '@/services/certifications';
+import { listCertificatesForUser } from '@/services/certificates';
 
 const S = 'sysX';
 const R = 'rankB';
@@ -46,6 +48,10 @@ describe('certification renewal flow', () => {
     user = await makeUser('isr', 'ישראל', [RoleName.PERFORMER]);
     approver = await makeUser('cmd', 'מפקד א׳', [RoleName.APPROVER]);
     cert = await seedCert(user.id);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('pass creates ONE pending renewal; fail creates none; idempotent per attempt', async () => {
@@ -95,6 +101,65 @@ describe('certification renewal flow', () => {
     expect(after!.expires_at).toBe(addMonths(todayStr(), 12)); // renewed from today + validity
     expect(after!.expires_at).not.toBe(before!.expires_at);
     expect(approved.new_expires_at).toBe(after!.expires_at);
+  });
+
+  it('approval AUTO-ISSUES a renewal certificate (snapshot) pulling user/cert/approver data', async () => {
+    await onAttemptSubmitted(renewalAttempt(user, cert, true, 91));
+    const r = (await listRenewalsForUser(user.id))[0];
+    await addApprover({ user_id: approver.id, system_id: S });
+
+    const approved = await approveRenewal(r.id, approver, 'data:image/png;base64,SIG', 'מפקד');
+    expect(approved.certificate_status).toBe('issued');
+    expect(approved.certificate_id).toBeTruthy();
+
+    const certs = await listCertificatesForUser(user.id);
+    expect(certs).toHaveLength(1);
+    const c = certs[0];
+    expect(c.id).toBe(approved.certificate_id);
+    expect(c.action_type).toBe('renewal'); // VERO picked the renewal type automatically
+    expect(c.user_name_snapshot).toBe('ישראל'); // pulled from the profile
+    expect(c.system_name_snapshot).toBe('מערכת X');
+    expect(c.rank_name_snapshot).toBe('דרג ב׳');
+    expect(c.certifier_name_snapshot).toBe('מפקד א׳'); // the approver is the certifier
+    expect(c.issued_at).toBe(todayStr());
+    expect(c.expires_at).toBe(addMonths(todayStr(), 12));
+  });
+
+  it('§8: certificate failure NEVER voids the renewal — stays approved, status failed, re-issuable', async () => {
+    await onAttemptSubmitted(renewalAttempt(user, cert, true, 91));
+    const r = (await listRenewalsForUser(user.id))[0];
+    await addApprover({ user_id: approver.id, system_id: S });
+
+    // Force the certificate write to fail exactly once (simulated PDF/storage error).
+    const spy = vi.spyOn(db.certificates, 'add').mockRejectedValueOnce(new Error('boom'));
+    const approved = await approveRenewal(r.id, approver, null, 'מפקד');
+    // The RENEWAL itself succeeded regardless of the document failure.
+    expect(approved.status).toBe('approved');
+    expect(approved.certificate_status).toBe('failed');
+    expect(approved.certificate_id).toBeFalsy();
+    const after = await getCertRow(user.id, S);
+    expect(after!.expires_at).toBe(addMonths(todayStr(), 12)); // expiry still extended
+    expect(await listCertificatesForUser(user.id)).toHaveLength(0);
+    spy.mockRestore();
+
+    // Retry issuance later → certificate produced and linked, renewal untouched.
+    const res = await reissueRenewalCertificate(r.id, approver);
+    expect(res.ok).toBe(true);
+    const reloaded = (await listRenewalsForUser(user.id)).find((x) => x.id === r.id)!;
+    expect(reloaded.certificate_status).toBe('issued');
+    expect(reloaded.certificate_id).toBe(res.certificate!.id);
+    expect(await listCertificatesForUser(user.id)).toHaveLength(1);
+  });
+
+  it('reissue is a no-op when a certificate already exists (no duplicate)', async () => {
+    await onAttemptSubmitted(renewalAttempt(user, cert, true, 91));
+    const r = (await listRenewalsForUser(user.id))[0];
+    await addApprover({ user_id: approver.id, system_id: S });
+    const approved = await approveRenewal(r.id, approver, null, 'מפקד');
+    const res = await reissueRenewalCertificate(r.id, approver);
+    expect(res.ok).toBe(true);
+    expect(res.certificate!.id).toBe(approved.certificate_id);
+    expect(await listCertificatesForUser(user.id)).toHaveLength(1); // still one
   });
 
   it('unauthorized approver is rejected; revoked certification cannot be renewed', async () => {

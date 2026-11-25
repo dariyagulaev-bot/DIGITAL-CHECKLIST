@@ -4,10 +4,12 @@ import { logAudit } from './audit';
 import { todayStr } from './dates';
 import { getCertRow, renewCertification, certStatus } from './certifications';
 import { startAttempt } from './exams';
+import { issueCertificateSafe, type IssueResult } from './certificates';
 import type {
   CertRenewal,
   Exam,
   ExamAttempt,
+  RankCertification,
   RenewalApprover,
   UserSystemRank,
   UserWithRoles,
@@ -155,6 +157,94 @@ export async function listAllRenewals(): Promise<CertRenewal[]> {
   return (await db.cert_renewals.toArray()).sort((a, b) => b.submitted_at.localeCompare(a.submitted_at));
 }
 
+// ===== automatic certificate issuance (on approval / retry) ================
+
+/**
+ * Issue the RENEWAL certificate for an approved renewal. VERO picks the published
+ * 'renewal' template automatically and pulls every field from the source of
+ * truth — the employee profile (name + identity), the renewed certification
+ * (system, rank, dates) and the approving certifier (name + signature). No
+ * manual typing or re-design. Non-throwing: a failure here never rolls back the
+ * approval (§8). `signatureDataUrl` defaults to the renewal's stored approver
+ * signature so a retry still carries the right certifier signature.
+ */
+async function issueRenewalCertificate(
+  r: CertRenewal,
+  cert: UserSystemRank,
+  approver: { id: string; full_name: string },
+  signatureDataUrl: string | null,
+  role?: string
+): Promise<IssueResult> {
+  const now = nowIso();
+  const employee = await db.users.get(r.user_id);
+  const rankId = r.rank_id ?? cert.max_rank_id;
+  const rankName = r.rank_name ?? (rankId ? (await db.ranks.get(rankId))?.name : undefined) ?? '';
+  const systemName = r.system_name ?? (await db.systems.get(r.system_id))?.name ?? '';
+  // A certification-shaped snapshot for the issuer (renewal = certifier is the
+  // approver). The certificate itself snapshots all of this immutably (§6).
+  const rc: RankCertification = {
+    id: cert.id,
+    user_id: r.user_id,
+    system_id: r.system_id,
+    rank_id: rankId ?? '',
+    action_type: 'renewal',
+    issued_at: cert.issued_at ?? todayStr(),
+    validity_months: cert.validity_months ?? 0,
+    expires_at: cert.expires_at ?? '',
+    certifier_user_id: approver.id,
+    certifier_name_snapshot: approver.full_name,
+    signature_data: signatureDataUrl ?? r.approver_signature ?? undefined,
+    created_at: now,
+    updated_at: now,
+  };
+  return issueCertificateSafe({
+    rankCertification: rc,
+    userName: employee?.full_name ?? r.user_name,
+    systemName,
+    rankName,
+    certifier: { ...(approver as UserWithRoles), full_name: approver.full_name },
+    idType: employee?.id_type,
+    idNumber: employee?.id_number,
+    certifierRole: role ?? r.approved_by_role ?? 'מסמיך',
+  });
+}
+
+/**
+ * Re-issue a renewal certificate that failed to generate on approval (§8). The
+ * renewal must already be approved; this never re-approves or changes validity —
+ * it only produces the missing certificate and links it.
+ */
+export async function reissueRenewalCertificate(
+  renewalId: string,
+  actor: UserWithRoles
+): Promise<IssueResult> {
+  const r = await db.cert_renewals.get(renewalId);
+  if (!r) throw new Error('רשומת הרענון לא נמצאה');
+  if (r.status !== 'approved') throw new Error('ניתן להפיק תעודה רק לרענון מאושר.');
+  if (r.certificate_id) {
+    return { ok: true, certificate: await db.certificates.get(r.certificate_id) };
+  }
+  const cert = await getCertRow(r.user_id, r.system_id);
+  if (!cert) throw new Error('ההסמכה אינה קיימת — לא ניתן להפיק תעודה.');
+  const approver = { id: r.approved_by_id ?? actor.id, full_name: r.approved_by_name ?? actor.full_name };
+  const result = await issueRenewalCertificate(r, cert, approver, r.approver_signature ?? null, r.approved_by_role ?? undefined);
+  await db.cert_renewals.update(renewalId, {
+    certificate_id: result.ok ? result.certificate!.id : null,
+    certificate_status: result.ok ? 'issued' : 'failed',
+    updated_at: nowIso(),
+  });
+  await logAudit({
+    user_id: actor.id,
+    user_name: actor.full_name,
+    action: result.ok ? 'RENEWAL_CERT_REISSUED' : 'RENEWAL_CERT_REISSUE_FAILED',
+    entity_type: 'cert_renewal',
+    entity_id: r.cert_id,
+    field: r.system_id,
+    new_value: result.ok ? result.certificate!.number : (result.error ?? 'שגיאה'),
+  });
+  return result;
+}
+
 // ===== approve / reject ====================================================
 
 export async function approveRenewal(renewalId: string, approver: UserWithRoles, signatureDataUrl: string | null, role?: string): Promise<CertRenewal> {
@@ -170,6 +260,12 @@ export async function approveRenewal(renewalId: string, approver: UserWithRoles,
   await renewCertification(r.user_id, r.system_id, newIssued, { id: approver.id, full_name: approver.full_name });
   const renewed = await getCertRow(r.user_id, r.system_id);
   const now = nowIso();
+
+  // Auto-issue the renewal certificate. This is wrapped so a document-generation
+  // failure NEVER voids the approved renewal (§8): the renewal stays approved and
+  // valid, and the certificate can be re-issued later.
+  const issue = await issueRenewalCertificate(r, renewed ?? cert, approver, signatureDataUrl, role);
+
   const patch: Partial<CertRenewal> = {
     status: 'approved',
     approved_by_id: approver.id,
@@ -178,10 +274,15 @@ export async function approveRenewal(renewalId: string, approver: UserWithRoles,
     approver_signature: signatureDataUrl ?? null,
     approved_at: now,
     new_expires_at: renewed?.expires_at ?? null,
+    certificate_id: issue.ok ? issue.certificate!.id : null,
+    certificate_status: issue.ok ? 'issued' : 'failed',
     updated_at: now,
   };
   await db.cert_renewals.update(renewalId, patch);
   await logAudit({ user_id: approver.id, user_name: approver.full_name, action: 'RENEWAL_APPROVED', entity_type: 'cert_renewal', entity_id: r.cert_id, field: r.system_id, old_value: r.prev_expires_at ?? '', new_value: renewed?.expires_at ?? '' });
+  if (!issue.ok) {
+    await logAudit({ user_id: approver.id, user_name: approver.full_name, action: 'RENEWAL_CERT_FAILED', entity_type: 'cert_renewal', entity_id: r.cert_id, field: r.system_id, new_value: issue.error ?? 'שגיאה בהפקת התעודה' });
+  }
   return { ...r, ...patch } as CertRenewal;
 }
 

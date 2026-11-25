@@ -466,40 +466,46 @@ function CertifierAuthorizations({
       ) : (
         <div className="space-y-2">
           <p className="text-xs text-slate-500">
-            המשתמש יוכל להסמיך אך ורק בצירופי מערכת+דרג המסומנים. היות ומשתמש הוא בעל
-            הרשאת מסמיך אינו מקנה הרשאה אוטומטית לכל המערכות/הדרגים.
+            לכל מערכת סמנו את הדרגים שבהם המשתמש רשאי להסמיך. היות ומשתמש הוא בעל הרשאת
+            מסמיך אינו מקנה הרשאה אוטומטית לכל המערכות/הדרגים.
           </p>
-          <div className="overflow-x-auto">
-            <table className="text-right text-sm">
-              <thead>
-                <tr className="text-slate-600">
-                  <th className="p-2" />
-                  {ranks.map((r) => (
-                    <th key={r.id} className="p-2 font-medium">
-                      {r.name}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {systems.map((s) => (
-                  <tr key={s.id} className="border-t border-slate-100">
-                    <td className="p-2 font-medium text-slate-700">{s.name}</td>
-                    {ranks.map((r) => (
-                      <td key={r.id} className="p-2 text-center">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 accent-brand-600"
+          <div className="space-y-2">
+            {systems.map((s) => {
+              const count = scope.get(s.id)?.size ?? 0;
+              return (
+                <div key={s.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className="text-sm font-semibold text-slate-800">{s.name}</span>
+                    {count > 0 && (
+                      <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-700">
+                        {count} דרגים מורשים
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ranks.map((r) => {
+                      const on = allows(s.id, r.id);
+                      return (
+                        <button
+                          key={r.id}
+                          type="button"
                           disabled={saving}
-                          checked={allows(s.id, r.id)}
-                          onChange={() => toggle(s.id, r.id)}
-                        />
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                          onClick={() => toggle(s.id, r.id)}
+                          className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[13px] font-medium transition-colors disabled:opacity-60 ${
+                            on
+                              ? 'border-brand-500 bg-brand-500 text-white'
+                              : 'border-slate-300 bg-white text-slate-600 hover:border-brand-300'
+                          }`}
+                        >
+                          {on && <Icon name="check" size={13} />}
+                          {r.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

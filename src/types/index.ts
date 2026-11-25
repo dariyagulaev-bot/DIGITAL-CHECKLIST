@@ -1246,6 +1246,14 @@ export interface CertRenewal {
   approver_signature?: string | null; // data URL — reuses the signature mechanism
   approved_at?: string | null;
   reject_reason?: string | null;
+  /**
+   * The renewal certificate issued automatically on approval. A renewal that was
+   * approved but whose certificate generation failed carries
+   * `certificate_status: 'failed'` with no `certificate_id` — the renewal itself
+   * stays valid and the certificate can be re-issued later (never re-approved).
+   */
+  certificate_id?: string | null;
+  certificate_status?: 'issued' | 'failed' | null;
   device_id: string;
   created_at: string;
   updated_at: string;

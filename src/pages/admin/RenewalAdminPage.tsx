@@ -7,12 +7,16 @@ import { listSystems } from '@/services/systems';
 import { listRanks } from '@/services/ranks';
 import {
   renewalDashboard, listApprovers, addApprover, removeApprover, listAllRenewals,
+  reissueRenewalCertificate,
   type RenewalDashboard,
 } from '@/services/certRenewals';
+import { useAuth } from '@/context/AuthContext';
 import type { CertRenewal, Rank, RenewalApprover, System, UserWithRoles } from '@/types';
 
 export default function RenewalAdminPage() {
   const { notify } = useToast();
+  const { user } = useAuth();
+  const [reissuing, setReissuing] = useState<string | null>(null);
   const [dash, setDash] = useState<RenewalDashboard | null>(null);
   const [approvers, setApprovers] = useState<RenewalApprover[]>([]);
   const [renewals, setRenewals] = useState<CertRenewal[]>([]);
@@ -44,6 +48,21 @@ export default function RenewalAdminPage() {
     await addApprover({ user_id: nu, user_name: uName(nu), system_id: ns || null, rank_id: nr || null });
     setNu(''); setNs(''); setNr('');
     await load();
+  };
+
+  const reissue = async (r: CertRenewal) => {
+    if (!user) return;
+    setReissuing(r.id);
+    try {
+      const res = await reissueRenewalCertificate(r.id, user);
+      if (res.ok) notify('התעודה הופקה בהצלחה', 'ok');
+      else notify(`הפקת התעודה נכשלה שוב: ${res.error ?? ''}`, 'error');
+      await load();
+    } catch (e) {
+      notify((e as Error).message, 'error');
+    } finally {
+      setReissuing(null);
+    }
   };
 
   const shown = renewals.filter((r) => filter === 'all' || r.status === filter);
@@ -123,7 +142,7 @@ export default function RenewalAdminPage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[620px] text-right text-[13px]">
               <thead><tr className="border-b border-slate-200 text-ink-500">
-                <th className="p-2 font-semibold">משתמש</th><th className="p-2 font-semibold">מערכת / דרג</th><th className="p-2 font-semibold">ציון</th><th className="p-2 font-semibold">תאריך</th><th className="p-2 font-semibold">סטטוס</th><th className="p-2 font-semibold">מאשר</th>
+                <th className="p-2 font-semibold">משתמש</th><th className="p-2 font-semibold">מערכת / דרג</th><th className="p-2 font-semibold">ציון</th><th className="p-2 font-semibold">תאריך</th><th className="p-2 font-semibold">סטטוס</th><th className="p-2 font-semibold">מאשר</th><th className="p-2 font-semibold">תעודה</th>
               </tr></thead>
               <tbody>
                 {shown.map((r) => (
@@ -134,6 +153,17 @@ export default function RenewalAdminPage() {
                     <td className="p-2 text-ink-600">{fmt(r.submitted_at)}</td>
                     <td className="p-2"><Badge s={r.status} /></td>
                     <td className="p-2 text-ink-600">{r.approved_by_name ?? '—'}</td>
+                    <td className="p-2">
+                      {r.status !== 'approved' ? (
+                        <span className="text-ink-400">—</span>
+                      ) : r.certificate_id ? (
+                        <Link to={`/certificate/${r.certificate_id}`} className="link inline-flex items-center gap-1 text-[12.5px]"><Icon name="printer" size={14} /> צפה / הדפס</Link>
+                      ) : (
+                        <button className="btn-secondary btn-sm gap-1" disabled={reissuing === r.id} onClick={() => reissue(r)}>
+                          <Icon name="refresh" size={13} /> {reissuing === r.id ? 'מפיק…' : 'הפק תעודה מחדש'}
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

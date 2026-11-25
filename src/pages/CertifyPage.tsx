@@ -11,7 +11,7 @@ import { listSystems } from '@/services/systems';
 import { listRanks } from '@/services/ranks';
 import { certifierScope } from '@/services/certifiers';
 import { performCertification, missingPrerequisites } from '@/services/certify';
-import { issueCertificate } from '@/services/certificates';
+import { issueCertificateSafe, type IssueCertificateInput } from '@/services/certificates';
 import { effectiveRankStatus, effectiveStatusLabel } from '@/services/competency';
 import type { EffectiveCertStatus, Rank, System, UserWithRoles } from '@/types';
 
@@ -39,11 +39,14 @@ export default function CertifyPage() {
   const [status, setStatus] = useState<EffectiveCertStatus | null>(null);
   const [missingNames, setMissingNames] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const [done, setDone] = useState<{
     employee: string;
     system: string;
     rank: string;
-    certificateId: string;
+    certificateId: string | null;
+    /** Kept so the certificate can be re-issued if generation failed (§8). */
+    issueInput: IssueCertificateInput;
   } | null>(null);
 
   const padRef = useRef<SignaturePadHandle>(null);
@@ -123,8 +126,10 @@ export default function CertifyPage() {
       const sysName = systems.find((s) => s.id === systemId)?.name ?? '';
       const rnkName = nameById.get(rankId) ?? '';
       // Issue the certificate (snapshot of design + data). Identity is passed so
-      // it can be snapshotted ONLY if the chosen design references it.
-      const certificate = await issueCertificate({
+      // it can be snapshotted ONLY if the chosen design references it. Issuance is
+      // failure-safe: the certification is already saved, so a document failure
+      // never undoes it (§8) — we surface a retry instead.
+      const issueInput: IssueCertificateInput = {
         rankCertification,
         userName: empName,
         systemName: sysName,
@@ -132,13 +137,37 @@ export default function CertifyPage() {
         certifier,
         idType: employee?.id_type,
         idNumber: employee?.id_number,
+      };
+      const result = await issueCertificateSafe(issueInput);
+      setDone({
+        employee: empName,
+        system: sysName,
+        rank: rnkName,
+        certificateId: result.ok ? result.certificate!.id : null,
+        issueInput,
       });
-      setDone({ employee: empName, system: sysName, rank: rnkName, certificateId: certificate.id });
-      notify('ההסמכה בוצעה והתעודה הונפקה', 'ok');
+      if (result.ok) notify('ההסמכה בוצעה והתעודה הונפקה', 'ok');
+      else notify('ההסמכה נשמרה בהצלחה, אך הפקת התעודה נכשלה. ניתן להפיק את התעודה מחדש.', 'info');
     } catch (err) {
       notify((err as Error).message, 'error');
     } finally {
       setBusy(false);
+    }
+  };
+
+  const retryIssue = async () => {
+    if (!done) return;
+    setRetrying(true);
+    try {
+      const result = await issueCertificateSafe(done.issueInput);
+      if (result.ok) {
+        setDone({ ...done, certificateId: result.certificate!.id });
+        notify('התעודה הופקה בהצלחה', 'ok');
+      } else {
+        notify(`הפקת התעודה נכשלה שוב: ${result.error ?? ''}`, 'error');
+      }
+    } finally {
+      setRetrying(false);
     }
   };
 
@@ -154,6 +183,7 @@ export default function CertifyPage() {
   if (loading) return <Spinner label="טוען…" />;
 
   if (done) {
+    const issued = done.certificateId != null;
     return (
       <div>
         <PageHeader title="ההסמכה בוצעה" subtitle="הרשומה נשמרה ותועדה ביומן הביקורת." />
@@ -164,10 +194,24 @@ export default function CertifyPage() {
               {done.employee} — {done.system} / {done.rank} ({actionType === 'renewal' ? 'רענון' : 'הסמכה ראשונית'})
             </span>
           </div>
+          {!issued && (
+            <div className="mt-1 flex items-start gap-2 rounded-xl border border-pending-200 bg-pending-50/70 p-3 text-[13.5px] text-pending-800">
+              <Icon name="alert" size={16} className="mt-0.5 shrink-0" />
+              <span>
+                ההסמכה נשמרה בהצלחה, אך הפקת התעודה נכשלה. ההסמכה תקפה — ניתן להפיק את התעודה מחדש.
+              </span>
+            </div>
+          )}
           <div className="flex flex-wrap gap-2 pt-2">
-            <Link className="btn-primary gap-1.5" to={`/certificate/${done.certificateId}`}>
-              <Icon name="printer" size={16} /> צפה בתעודה / הדפס
-            </Link>
+            {issued ? (
+              <Link className="btn-primary gap-1.5" to={`/certificate/${done.certificateId}`}>
+                <Icon name="printer" size={16} /> צפה בתעודה / הדפס
+              </Link>
+            ) : (
+              <button className="btn-primary gap-1.5" disabled={retrying} onClick={retryIssue}>
+                <Icon name="refresh" size={16} /> {retrying ? 'מפיק…' : 'הפק תעודה מחדש'}
+              </button>
+            )}
             <button className="btn-ghost" onClick={reset}>
               הסמכה נוספת
             </button>

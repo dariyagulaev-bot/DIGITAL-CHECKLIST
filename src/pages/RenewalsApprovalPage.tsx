@@ -27,8 +27,12 @@ export default function RenewalsApprovalPage() {
     try {
       const sig = padRef.current?.toDataURL() ?? null;
       const role = user.roles?.join(', ');
-      await approveRenewal(open.id, user, sig, role);
-      notify(`הסמכתו של ${open.user_name} חודשה`, 'ok');
+      const result = await approveRenewal(open.id, user, sig, role);
+      if (result.certificate_status === 'failed') {
+        notify(`ההסמכה של ${open.user_name} חודשה בהצלחה, אך הפקת התעודה נכשלה. ניתן להפיק את התעודה מחדש ממסך ניהול הרענונים.`, 'info');
+      } else {
+        notify(`הסמכתו של ${open.user_name} חודשה והופקה תעודת רענון`, 'ok');
+      }
       setOpen(null); await load();
     } catch (e) { notify((e as Error).message, 'error'); } finally { setBusy(false); }
   };

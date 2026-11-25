@@ -196,6 +196,8 @@ export interface IssueCertificateInput {
   /** Protected identity, passed ONLY so it can be snapshotted when the design uses it. */
   idType?: import('@/types').IdentityType;
   idNumber?: string;
+  /** תפקיד המסמיך at issuance (for the [תפקיד המסמיך] token). Defaults to 'מסמיך'. */
+  certifierRole?: string;
 }
 
 /**
@@ -232,7 +234,7 @@ export async function issueCertificate(input: IssueCertificateInput): Promise<Ce
     expires_at: rc.expires_at,
     certifier_user_id: rc.certifier_user_id,
     certifier_name_snapshot: rc.certifier_name_snapshot,
-    certifier_role_snapshot: 'מסמיך',
+    certifier_role_snapshot: input.certifierRole ?? 'מסמיך',
     signature_data: rc.signature_data,
     id_type_snapshot: usesId ? input.idType : undefined,
     id_number_snapshot: usesId ? input.idNumber : undefined,
@@ -251,6 +253,27 @@ export async function issueCertificate(input: IssueCertificateInput): Promise<Ce
     new_value: `number=${number};employee=${input.userName};action=${rc.action_type};template=${templateVersion ?? 'legacy'}`,
   });
   return cert;
+}
+
+/** Result of a non-throwing issuance attempt. */
+export interface IssueResult {
+  ok: boolean;
+  certificate?: Certificate;
+  error?: string;
+}
+
+/**
+ * Issue a certificate WITHOUT throwing — so a certification/renewal that already
+ * succeeded is never rolled back by a certificate-generation failure (§8). The
+ * caller keeps the professional record valid and can retry issuance later.
+ */
+export async function issueCertificateSafe(input: IssueCertificateInput): Promise<IssueResult> {
+  try {
+    const certificate = await issueCertificate(input);
+    return { ok: true, certificate };
+  } catch (err) {
+    return { ok: false, error: (err as Error)?.message ?? 'שגיאה בהפקת התעודה' };
+  }
 }
 
 export async function listCertificates(): Promise<Certificate[]> {
