@@ -208,7 +208,27 @@ export function Modal({
     );
   }
 
-  // ---- Default modal (unchanged) ----
+  // ---- Default modal with a fixed footer (header / scrolling body / footer) ----
+  // Keeps the action buttons always visible instead of dropping them.
+  if (footer) {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/45 p-4 anim-fade-in"
+        onClick={onClose}
+      >
+        <div
+          className={`anim-scale-in flex max-h-[92vh] w-full ${maxWidth} flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-modal`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex shrink-0 items-center gap-2.5 border-b border-slate-100 px-5 py-3.5">{headerInner}</div>
+          <div className="min-h-0 flex-1 overflow-auto px-5 py-4">{children}</div>
+          <div className="shrink-0 border-t border-slate-100 px-5 py-3.5">{footer}</div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---- Default modal, no footer (unchanged) ----
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/45 p-4 anim-fade-in"
